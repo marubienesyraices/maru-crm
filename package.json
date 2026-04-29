@@ -1,0 +1,22 @@
+{
+  "name": "maru-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM Inmobiliario Maru Bienes y Raíces",
+  "workspaces": [
+    "shared",
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build:api": "npm run build -w api",
+    "build:web": "npm run build -w web",
+    "lint": "npm run lint -w api; npm run lint -w web",
+    "test": "npm run test -w api"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

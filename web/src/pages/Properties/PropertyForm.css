@@ -1,0 +1,210 @@
+/* ─── Property Form ────────────────────────────────────────── */
+
+.property-form-page {
+  padding: 28px 32px;
+  max-width: 800px;
+}
+
+.pf-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.pf-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* ─── Steps Indicator ──────────────────────────────────────── */
+
+.pf-steps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.pf-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.pf-step-active {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.pf-step-done {
+  color: var(--success);
+}
+
+.pf-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.pf-step-active .pf-step-num {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.pf-step-done .pf-step-num {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+/* ─── Form ─────────────────────────────────────────────────── */
+
+.pf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 24px;
+}
+
+.pf-row {
+  display: flex;
+  gap: 16px;
+}
+
+.pf-row > .input-group {
+  flex: 1;
+}
+
+.pf-row-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.pf-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* ─── Chips (Property Type) ────────────────────────────────── */
+
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pf-chip {
+  padding: 8px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pf-chip:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
+}
+
+.pf-chip-active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+/* ─── Radio Group (Gestión) ────────────────────────────────── */
+
+.pf-radio-group {
+  display: flex;
+  gap: 8px;
+}
+
+.pf-radio {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.pf-radio input {
+  display: none;
+}
+
+.pf-radio:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.pf-radio-active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+/* ─── Actions ──────────────────────────────────────────────── */
+
+.pf-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .property-form-page {
+    padding: 20px 16px;
+  }
+
+  .pf-steps {
+    flex-direction: column;
+  }
+
+  .pf-row, .pf-row-4 {
+    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .pf-radio-group {
+    flex-direction: column;
+  }
+}

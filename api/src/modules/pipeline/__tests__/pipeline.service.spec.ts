@@ -1,0 +1,202 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { PipelineService } from '../pipeline.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+
+const TENANT_ID = 'tenant-001';
+
+const mockCliente = { id: 'cli-001', tenant_id: TENANT_ID, nombre: 'Carlos' };
+const mockPropiedad = { id: 'prop-001', tenant_id: TENANT_ID, titulo: 'Casa Z14', codigo: 'CASA-0001' };
+
+const mockInteres = {
+  id: 'int-001',
+  cliente_id: 'cli-001',
+  propiedad_id: 'prop-001',
+  estado: 'NUEVO',
+  nivel_interes: 'MEDIO',
+  notas: null,
+  motivo_perdida: null,
+  fecha_contacto: null,
+  fecha_cierre: null,
+  cliente: { id: 'cli-001', nombre: 'Carlos', tenant_id: TENANT_ID },
+  propiedad: { id: 'prop-001', titulo: 'Casa Z14', codigo: 'CASA-0001' },
+};
+
+describe('PipelineService', () => {
+  let service: PipelineService;
+  let prisma: MockPrismaService;
+
+  beforeEach(async () => {
+    prisma = createMockPrismaService();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [PipelineService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get<PipelineService>(PipelineService);
+  });
+
+  // ─── CREAR INTERÉS ──────────────────────────────────────────
+
+  describe('crearInteres', () => {
+    it('debe vincular cliente con propiedad', async () => {
+      prisma.cliente.findFirst.mockResolvedValue(mockCliente);
+      prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
+      prisma.clientePropiedad.findFirst.mockResolvedValue(null);
+      prisma.clientePropiedad.create.mockResolvedValue(mockInteres);
+
+      const result = await service.crearInteres(TENANT_ID, {
+        clienteId: 'cli-001', propiedadId: 'prop-001',
+      });
+
+      expect(result.estado).toBe('NUEVO');
+    });
+
+    it('debe rechazar duplicado cliente+propiedad', async () => {
+      prisma.cliente.findFirst.mockResolvedValue(mockCliente);
+      prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+
+      await expect(
+        service.crearInteres(TENANT_ID, { clienteId: 'cli-001', propiedadId: 'prop-001' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('debe rechazar si cliente no existe', async () => {
+      prisma.cliente.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.crearInteres(TENANT_ID, { clienteId: 'no', propiedadId: 'prop-001' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe rechazar si propiedad no existe', async () => {
+      prisma.cliente.findFirst.mockResolvedValue(mockCliente);
+      prisma.propiedad.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.crearInteres(TENANT_ID, { clienteId: 'cli-001', propiedadId: 'no' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── MÁQUINA DE ESTADOS ─────────────────────────────────────
+
+  describe('cambiarEstado', () => {
+    it('NUEVO → CONTACTADO', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'CONTACTADO' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'CONTACTADO' });
+
+      expect(result.estado).toBe('CONTACTADO');
+    });
+
+    it('CONTACTADO → INTERESADO', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CONTACTADO' });
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'INTERESADO' });
+
+      expect(result.estado).toBe('INTERESADO');
+    });
+
+    it('INTERESADO → EN_NEGOCIACION', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' });
+
+      expect(result.estado).toBe('EN_NEGOCIACION');
+    });
+
+    it('EN_NEGOCIACION → GANADO', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' });
+
+      expect(result.estado).toBe('GANADO');
+    });
+
+    it('GANADO es terminal (no permite transiciones)', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'NUEVO' }),
+      ).rejects.toThrow(/estado terminal/);
+    });
+
+    it('rechaza NUEVO → GANADO (salto)', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('PERDIDO requiere motivo', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'PERDIDO' }),
+      ).rejects.toThrow(/motivo de pérdida/);
+    });
+
+    it('NUEVO → PERDIDO con motivo', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'PERDIDO' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', {
+        nuevoEstado: 'PERDIDO', motivoPerdida: 'No le gustó la zona',
+      });
+
+      expect(result.estado).toBe('PERDIDO');
+    });
+
+    it('PERDIDO → NUEVO (reapertura)', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'PERDIDO' });
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'NUEVO' });
+
+      const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'NUEVO' });
+
+      expect(result.estado).toBe('NUEVO');
+    });
+  });
+
+  // ─── PIPELINE ───────────────────────────────────────────────
+
+  describe('getPipeline', () => {
+    it('debe agrupar por estado', async () => {
+      prisma.clientePropiedad.findMany.mockResolvedValue([
+        { ...mockInteres, estado: 'NUEVO' },
+        { ...mockInteres, id: 'int-002', estado: 'CONTACTADO' },
+        { ...mockInteres, id: 'int-003', estado: 'NUEVO' },
+      ]);
+
+      const result = await service.getPipeline(TENANT_ID);
+
+      expect(result.NUEVO).toHaveLength(2);
+      expect(result.CONTACTADO).toHaveLength(1);
+      expect(result.GANADO).toHaveLength(0);
+    });
+  });
+
+  // ─── DELETE ─────────────────────────────────────────────────
+
+  describe('deleteInteres', () => {
+    it('debe eliminar interés', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+      prisma.clientePropiedad.delete.mockResolvedValue(mockInteres);
+
+      const result = await service.deleteInteres(TENANT_ID, 'int-001');
+
+      expect(result.deleted).toBe(true);
+    });
+
+    it('debe lanzar NotFoundException si no existe', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteInteres(TENANT_ID, 'no')).rejects.toThrow(NotFoundException);
+    });
+  });
+});

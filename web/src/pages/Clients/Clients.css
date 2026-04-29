@@ -1,0 +1,146 @@
+/* ─── Clients Pages ────────────────────────────────────────── */
+
+.clients-page { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.clients-header { display: flex; align-items: center; justify-content: space-between; }
+.clients-header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+.clients-header p { font-size: 0.875rem; color: var(--text-muted); margin-top: 2px; }
+
+.clients-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.client-stat-chip {
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: 100px; background: var(--bg-card); border: 1px solid; font-size: 0.8125rem;
+}
+
+.clients-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+.clients-search { flex: 1; min-width: 240px; position: relative; }
+.clients-search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.clients-search input {
+  width: 100%; padding: 10px 14px 10px 40px; background: var(--bg-card);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-family: inherit; font-size: 0.875rem; outline: none;
+  transition: border-color var(--transition);
+}
+.clients-search input:focus { border-color: var(--accent-blue); }
+.clients-search input::placeholder { color: var(--text-muted); }
+.clients-filters select {
+  padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+  font-size: 0.875rem; cursor: pointer; outline: none; min-width: 170px; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+
+.clients-loading, .clients-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 0; color: var(--text-muted); }
+.clients-empty h3 { color: var(--text-primary); font-size: 1.125rem; }
+
+/* ─── Client Card ──────────────────────────────────────────── */
+
+.clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+.client-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: 16px; cursor: pointer; transition: all var(--transition);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.client-card:hover { border-color: rgba(59, 130, 246, 0.3); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
+
+.client-card-header { display: flex; gap: 12px; align-items: center; }
+.client-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--accent-gradient);
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 700; flex-shrink: 0;
+}
+.client-name { font-weight: 600; font-size: 0.9375rem; color: var(--text-primary); }
+.client-contact { font-size: 0.8125rem; color: var(--text-muted); }
+
+.client-card-footer { display: flex; justify-content: space-between; align-items: center; }
+.client-origen-chip { font-size: 0.75rem; font-weight: 600; }
+.client-intereses-count { font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 100px; }
+
+.client-agent { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+.client-agent-dot { width: 20px; height: 20px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700; }
+
+.clients-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px 0; font-size: 0.875rem; color: var(--text-secondary); }
+.clients-pagination button { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit; font-size: 0.8125rem; cursor: pointer; }
+.clients-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Pipeline Page ────────────────────────────────────────── */
+
+.pipeline-page { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; height: calc(100vh - 0px); }
+.pipeline-header { display: flex; align-items: center; justify-content: space-between; }
+.pipeline-header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+
+.pipeline-board {
+  display: flex; gap: 14px; overflow-x: auto; flex: 1; padding-bottom: 16px;
+}
+
+.pipeline-column {
+  min-width: 280px; max-width: 320px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.pipeline-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); position: sticky; top: 0;
+}
+
+.pipeline-col-title { font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.pipeline-col-count {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 0.75rem; font-weight: 700; color: white;
+}
+
+.pipeline-col-items { display: flex; flex-direction: column; gap: 8px; }
+
+.pipeline-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: 14px; cursor: pointer; transition: all var(--transition);
+}
+.pipeline-card:hover { border-color: rgba(59, 130, 246, 0.3); transform: translateY(-2px); }
+
+.pipeline-card-client { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); margin-bottom: 4px; }
+.pipeline-card-property { font-size: 0.8125rem; color: var(--text-muted); }
+.pipeline-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+
+.pipeline-nivel {
+  padding: 2px 8px; border-radius: 100px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pipeline-nivel-BAJO { background: rgba(100,116,139,0.2); color: #94a3b8; }
+.pipeline-nivel-MEDIO { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.pipeline-nivel-ALTO { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.pipeline-nivel-MUY_ALTO { background: rgba(239,68,68,0.15); color: #f87171; }
+
+.pipeline-card-actions {
+  display: flex; gap: 4px;
+}
+.pipeline-card-actions button {
+  padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-muted); font-size: 0.6875rem; cursor: pointer;
+  transition: all var(--transition);
+}
+.pipeline-card-actions button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+/* ─── Client Form ──────────────────────────────────────────── */
+
+.client-form { max-width: 640px; margin: 0 auto; padding: 28px 32px; }
+.client-form h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; }
+.client-form-grid { display: flex; flex-direction: column; gap: 16px; }
+.client-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.client-origen-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.client-origen-btn {
+  padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: 100px;
+  background: transparent; color: var(--text-secondary); font-size: 0.8125rem; cursor: pointer;
+  transition: all var(--transition);
+}
+.client-origen-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(59,130,246,0.08); }
+
+@media (max-width: 768px) {
+  .clients-page, .pipeline-page { padding: 20px 16px; }
+  .clients-header, .pipeline-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .clients-grid { grid-template-columns: 1fr; }
+  .client-form-row { grid-template-columns: 1fr; }
+  .pipeline-board { flex-direction: column; }
+  .pipeline-column { min-width: unset; max-width: unset; }
+}

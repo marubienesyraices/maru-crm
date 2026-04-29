@@ -1,0 +1,116 @@
+import { PrismaService } from '../../src/prisma/prisma.service';
+
+export type MockPrismaService = {
+  [K in keyof PrismaService]: jest.Mock;
+} & {
+  tenant: { [key: string]: jest.Mock };
+  user: { [key: string]: jest.Mock };
+  session: { [key: string]: jest.Mock };
+  auditLog: { [key: string]: jest.Mock };
+  configSeguridad: { [key: string]: jest.Mock };
+  propiedad: { [key: string]: jest.Mock };
+  propietario: { [key: string]: jest.Mock };
+  propiedadImagen: { [key: string]: jest.Mock };
+  propiedadDocumento: { [key: string]: jest.Mock };
+  cliente: { [key: string]: jest.Mock };
+  clientePropiedad: { [key: string]: jest.Mock };
+  $executeRawUnsafe: jest.Mock;
+  $queryRaw: jest.Mock;
+  $transaction: jest.Mock;
+};
+
+export function createMockPrismaService(): MockPrismaService {
+  return {
+    tenant: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      count: jest.fn(),
+    },
+    user: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      upsert: jest.fn(),
+    },
+    session: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    auditLog: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    configSeguridad: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    propiedad: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    propietario: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+    },
+    propiedadImagen: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    propiedadDocumento: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      delete: jest.fn(),
+    },
+    cliente: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    clientePropiedad: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    $executeRawUnsafe: jest.fn(),
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(),
+    setTenantContext: jest.fn(),
+    onModuleInit: jest.fn(),
+    onModuleDestroy: jest.fn(),
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+  } as unknown as MockPrismaService;
+}
+

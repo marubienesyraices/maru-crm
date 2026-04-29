@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum EstadoTenant {
+  ACTIVA
+  SUSPENDIDA
+  CANCELADA
+}
+
+enum EstadoUsuario {
+  PENDIENTE
+  ACTIVO
+  SUSPENDIDO
+  INACTIVO
+}
+
+enum Rol {
+  SUPER_ADMIN
+  ADMIN
+  SENIOR
+  JUNIOR
+}
+
+enum AccionAudit {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+}
+
+// ─── Models ──────────────────────────────────────────────────
+
+model Tenant {
+  id               String        @id @default(uuid())
+  nombre           String
+  logo_url         String?
+  color_primario   String        @default("#3b82f6")
+  color_secundario String        @default("#1e293b")
+  color_acento     String        @default("#8b5cf6")
+  plan             Plan          @default(FREE)
+  moneda           String        @default("GTQ")
+  zona_horaria     String        @default("America/Guatemala")
+  limite_usuarios  Int           @default(10)
+  limite_propiedades Int         @default(100)
+  estado           EstadoTenant  @default(ACTIVA)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  usuarios         User[]
+  config_seguridad ConfigSeguridad?
+  audit_logs       AuditLog[]
+  propiedades      Propiedad[]
+  propietarios     Propietario[]
+  clientes         Cliente[]
+
+  @@map("tenants")
+}
+
+model User {
+  id                  String        @id @default(uuid())
+  tenant_id           String
+  email               String
+  password_hash       String
+  nombre              String
+  rol                 Rol
+  estado              EstadoUsuario @default(PENDIENTE)
+  id_supervisor       String?
+  totp_secret         String?
+  totp_habilitado     Boolean       @default(false)
+  intentos_login      Int           @default(0)
+  bloqueado_hasta     DateTime?
+  ultimo_login        DateTime?
+  password_changed_at DateTime?
+  password_history    Json?
+  activation_token    String?       @unique
+  activation_expires  DateTime?
+  reset_token         String?       @unique
+  reset_token_expires DateTime?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenant_id], references: [id])
+  supervisor   User?     @relation("Jerarquia", fields: [id_supervisor], references: [id])
+  subordinados User[]    @relation("Jerarquia")
+  sessions     Session[]
+  propiedades_asignadas Propiedad[] @relation("PropiedadAgente")
+  clientes_asignados    Cliente[]   @relation("ClienteAgente")
+
+  @@unique([tenant_id, email])
+  @@map("users")
+}
+
+model Session {
+  id            String   @id @default(uuid())
+  user_id       String
+  tenant_id     String
+  refresh_token String   @unique
+  ip_address    String
+  user_agent    String?
+  expires_at    DateTime
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("sessions")
+}
+
+model AuditLog {
+  id             String      @id @default(uuid())
+  tenant_id      String
+  user_id        String
+  nombre_usuario String
+  accion         AccionAudit
+  modulo         String
+  entidad        String
+  entidad_id     String?
+  ip_address     String
+  user_agent     String?
+  payload_cambio Json?
+  created_at     DateTime    @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id, created_at])
+  @@index([tenant_id, modulo])
+  @@index([tenant_id, user_id])
+  @@map("audit_logs")
+}
+
+model ConfigSeguridad {
+  id                      String  @id @default(uuid())
+  tenant_id               String  @unique
+  geo_paises              Json?
+  ips_permitidas          Json?
+  dias_inactividad_lead   Int     @default(21)
+  senior_puede_ver_upline Boolean @default(false)
+  buffer_entre_citas_min  Int     @default(30)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@map("config_seguridad")
+}
+
+// ─── Fase 2: Enums ──────────────────────────────────────────
+
+enum TipoPropiedad {
+  CASA
+  APARTAMENTO
+  TERRENO
+  LOCAL_COMERCIAL
+  OFICINA
+  BODEGA
+  FINCA
+  EDIFICIO
+  OTRO
+}
+
+enum TipoGestion {
+  VENTA
+  RENTA
+  AMBAS
+}
+
+enum EstadoPropiedad {
+  BORRADOR
+  DISPONIBLE
+  RESERVADA
+  EN_NEGOCIACION
+  VENDIDA
+  RENTADA
+  SUSPENDIDA
+}
+
+enum TipoDocumento {
+  ESCRITURA
+  PLANO
+  IUSI
+  BOLETO_COMPRAVENTA
+  CONTRATO_ARRENDAMIENTO
+  DPI_PROPIETARIO
+  OTRO
+}
+
+// ─── Fase 2: Models ─────────────────────────────────────────
+
+model Propietario {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  nombre        String
+  telefono      String?
+  email         String?
+  dpi           String?
+  nit           String?
+  direccion     String?
+  notas         String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  propiedades Propiedad[]
+
+  @@unique([tenant_id, dpi])
+  @@index([tenant_id])
+  @@map("propietarios")
+}
+
+model Propiedad {
+  id                String          @id @default(uuid())
+  tenant_id         String
+  codigo            String
+  titulo            String
+  descripcion       String?
+  tipo              TipoPropiedad
+  gestion           TipoGestion
+  estado            EstadoPropiedad @default(BORRADOR)
+
+  // Precios
+  precio_venta      Decimal?        @db.Decimal(14, 2)
+  precio_renta      Decimal?        @db.Decimal(14, 2)
+  moneda            String          @default("GTQ")
+  comision_porcentaje Decimal?      @db.Decimal(5, 2)
+
+  // Ubicación
+  pais              String?         @default("Guatemala")
+  departamento      String?
+  municipio         String?
+  zona              String?
+  direccion         String?
+  latitud           Decimal?        @db.Decimal(10, 7)
+  longitud          Decimal?        @db.Decimal(10, 7)
+
+  // Características
+  area_terreno_m2   Decimal?        @db.Decimal(12, 2)
+  area_construccion_m2 Decimal?     @db.Decimal(12, 2)
+  habitaciones      Int?
+  banos             Int?
+  parqueos          Int?
+  niveles           Int?
+  ano_construccion  Int?
+  amenidades        Json?
+
+  // Relaciones
+  propietario_id    String?
+  agente_id         String?
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+
+  tenant      Tenant              @relation(fields: [tenant_id], references: [id])
+  propietario Propietario?        @relation(fields: [propietario_id], references: [id])
+  agente      User?               @relation("PropiedadAgente", fields: [agente_id], references: [id])
+  imagenes    PropiedadImagen[]
+  documentos  PropiedadDocumento[]
+  interesados ClientePropiedad[]
+
+  @@unique([tenant_id, codigo])
+  @@index([tenant_id, estado])
+  @@index([tenant_id, tipo])
+  @@index([tenant_id, gestion])
+  @@index([tenant_id, departamento, municipio])
+  @@map("propiedades")
+}
+
+model PropiedadImagen {
+  id            String   @id @default(uuid())
+  propiedad_id  String
+  url           String
+  nombre        String?
+  tipo          String   @default("galeria") // portada | galeria
+  orden         Int      @default(0)
+  tamano_bytes  Int?
+  created_at    DateTime @default(now())
+
+  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@index([propiedad_id, orden])
+  @@map("propiedad_imagenes")
+}
+
+model PropiedadDocumento {
+  id              String        @id @default(uuid())
+  propiedad_id    String
+  tipo            TipoDocumento
+  nombre          String
+  url             String
+  fecha_emision   DateTime?
+  fecha_vencimiento DateTime?
+  notas           String?
+  tamano_bytes    Int?
+  created_at      DateTime      @default(now())
+
+  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@index([propiedad_id])
+  @@map("propiedad_documentos")
+}
+
+// ─── Sprint 4: Enums ────────────────────────────────────────
+
+enum OrigenCliente {
+  PORTAL_WEB
+  REFERIDO
+  LLAMADA
+  WHATSAPP
+  REDES_SOCIALES
+  FERIA
+  OTRO
+}
+
+enum EstadoInteres {
+  NUEVO
+  CONTACTADO
+  INTERESADO
+  EN_NEGOCIACION
+  GANADO
+  PERDIDO
+}
+
+enum NivelInteres {
+  BAJO
+  MEDIO
+  ALTO
+  MUY_ALTO
+}
+
+// ─── Sprint 4: Models ───────────────────────────────────────
+
+model Cliente {
+  id           String        @id @default(uuid())
+  tenant_id    String
+  nombre       String
+  email        String?
+  telefono     String?
+  dpi          String?
+  origen       OrigenCliente @default(OTRO)
+  notas        String?
+  agente_id    String?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  tenant    Tenant             @relation(fields: [tenant_id], references: [id])
+  agente    User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
+  intereses ClientePropiedad[]
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id])
+  @@index([tenant_id, origen])
+  @@map("clientes")
+}
+
+model ClientePropiedad {
+  id              String        @id @default(uuid())
+  cliente_id      String
+  propiedad_id    String
+  estado          EstadoInteres @default(NUEVO)
+  nivel_interes   NivelInteres  @default(MEDIO)
+  presupuesto     Decimal?      @db.Decimal(14, 2)
+  notas           String?
+  motivo_perdida  String?
+  fecha_contacto  DateTime?
+  fecha_cierre    DateTime?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  cliente   Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@unique([cliente_id, propiedad_id])
+  @@index([propiedad_id, estado])
+  @@index([estado])
+  @@map("cliente_propiedades")
+}
+

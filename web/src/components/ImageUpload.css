@@ -1,0 +1,190 @@
+/* ─── Image Upload ─────────────────────────────────────────── */
+
+.img-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── Dropzone ─────────────────────────────────────────────── */
+
+.img-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px;
+  border: 2px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text-muted);
+}
+
+.img-dropzone:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.03);
+}
+
+.img-dropzone-active {
+  border-color: var(--accent-blue) !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: var(--accent-blue);
+}
+
+.img-dropzone-uploading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.img-dropzone-text {
+  font-size: 0.875rem;
+}
+
+.img-dropzone-text strong {
+  color: var(--accent-blue);
+}
+
+.img-dropzone-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ─── Gallery Grid ─────────────────────────────────────────── */
+
+.img-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.img-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.img-thumb:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: scale(1.02);
+}
+
+.img-thumb-cover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px var(--accent-blue);
+}
+
+.img-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.img-cover-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  background: var(--accent-blue);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+}
+
+.img-thumb-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  padding: 4px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.img-thumb:hover .img-thumb-actions {
+  opacity: 1;
+}
+
+.img-thumb-actions button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-thumb-actions button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.img-btn-delete:hover {
+  background: rgba(239, 68, 68, 0.6) !important;
+}
+
+/* ─── Lightbox ─────────────────────────────────────────────── */
+
+.img-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  cursor: zoom-out;
+  animation: fadeIn 0.2s ease;
+}
+
+.img-lightbox img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.img-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.img-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
