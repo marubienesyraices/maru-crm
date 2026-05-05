@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PipelineService } from '../pipeline.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
@@ -8,6 +8,9 @@ const TENANT_ID = 'tenant-001';
 
 const mockCliente = { id: 'cli-001', tenant_id: TENANT_ID, nombre: 'Carlos' };
 const mockPropiedad = { id: 'prop-001', tenant_id: TENANT_ID, titulo: 'Casa Z14', codigo: 'CASA-0001' };
+
+const AGENTE_ID = 'agent-001';
+const OTRO_AGENTE_ID = 'agent-002';
 
 const mockInteres = {
   id: 'int-001',
@@ -19,7 +22,7 @@ const mockInteres = {
   motivo_perdida: null,
   fecha_contacto: null,
   fecha_cierre: null,
-  cliente: { id: 'cli-001', nombre: 'Carlos', tenant_id: TENANT_ID },
+  cliente: { id: 'cli-001', nombre: 'Carlos', tenant_id: TENANT_ID, agente_id: AGENTE_ID },
   propiedad: { id: 'prop-001', titulo: 'Casa Z14', codigo: 'CASA-0001' },
 };
 
@@ -29,6 +32,8 @@ describe('PipelineService', () => {
 
   beforeEach(async () => {
     prisma = createMockPrismaService();
+    // Pass prisma itself as the transaction client so inner mocks resolve correctly
+    prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
     const module: TestingModule = await Test.createTestingModule({
       providers: [PipelineService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -100,22 +105,32 @@ describe('PipelineService', () => {
       expect(result.estado).toBe('INTERESADO');
     });
 
-    it('INTERESADO → EN_NEGOCIACION', async () => {
+    it('INTERESADO → EN_NEGOCIACION (reserva propiedad)', async () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+      prisma.propiedad.findUnique.mockResolvedValue({ estado: 'DISPONIBLE' });
+      prisma.propiedad.update.mockResolvedValue({});
       prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
 
       const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' });
 
       expect(result.estado).toBe('EN_NEGOCIACION');
+      expect(prisma.propiedad.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { estado: 'RESERVADA' } }),
+      );
     });
 
-    it('EN_NEGOCIACION → GANADO', async () => {
+    it('EN_NEGOCIACION → GANADO (cierra propiedad como VENDIDA)', async () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'VENTA', precio_venta: 150000, precio_renta: null, comision_porcentaje: 3 });
+      prisma.propiedad.update.mockResolvedValue({});
       prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
 
       const result = await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' });
 
       expect(result.estado).toBe('GANADO');
+      expect(prisma.propiedad.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { estado: 'VENDIDA' } }),
+      );
     });
 
     it('GANADO es terminal (no permite transiciones)', async () => {
@@ -163,6 +178,108 @@ describe('PipelineService', () => {
     });
   });
 
+  // ─── CONCURRENCIA EN NEGOCIACIÓN ────────────────────────────
+
+  describe('cambiarEstado — concurrencia propiedad', () => {
+    it('rechaza EN_NEGOCIACION si propiedad no está DISPONIBLE', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+      prisma.propiedad.findUnique.mockResolvedValue({ estado: 'RESERVADA' });
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('EN_NEGOCIACION → GANADO cierra propiedad como RENTADA cuando gestion=RENTA', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'RENTA', precio_renta: 5000, precio_venta: null, comision_porcentaje: 10 });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' });
+
+      expect(prisma.propiedad.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { estado: 'RENTADA' } }),
+      );
+    });
+
+    it('GANADO calcula comisión desde precio de lista', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.findUnique.mockResolvedValue({
+        gestion: 'VENTA', precio_venta: 200000, precio_renta: null, comision_porcentaje: 5,
+      });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' });
+
+      const updateCall = prisma.clientePropiedad.update.mock.calls[0][0];
+      expect(updateCall.data.precio_cierre).toBe(200000);
+      expect(updateCall.data.comision_calculada).toBe(10000); // 200000 * 5%
+    });
+
+    it('GANADO usa precio acordado del agente cuando se envía', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.findUnique.mockResolvedValue({
+        gestion: 'VENTA', precio_venta: 200000, precio_renta: null, comision_porcentaje: 3,
+      });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO', precioAcordado: 190000 });
+
+      const updateCall = prisma.clientePropiedad.update.mock.calls[0][0];
+      expect(updateCall.data.precio_cierre).toBe(190000);
+      expect(updateCall.data.comision_calculada).toBe(5700); // 190000 * 3%
+    });
+
+    it('GANADO sin comision_porcentaje no guarda comision_calculada', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.findUnique.mockResolvedValue({
+        gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: null,
+      });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' });
+
+      const updateCall = prisma.clientePropiedad.update.mock.calls[0][0];
+      expect(updateCall.data.comision_calculada).toBeUndefined();
+    });
+
+    it('EN_NEGOCIACION → PERDIDO libera propiedad a DISPONIBLE', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'PERDIDO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', {
+        nuevoEstado: 'PERDIDO', motivoPerdida: 'Cliente desistió',
+      });
+
+      expect(prisma.propiedad.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { estado: 'DISPONIBLE' } }),
+      );
+    });
+
+    it('propiedad no encontrada en EN_NEGOCIACION lanza NotFoundException', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+      prisma.propiedad.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('transiciones sin efecto en propiedad no llaman a propiedad.update', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres); // NUEVO
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'CONTACTADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'CONTACTADO' });
+
+      expect(prisma.propiedad.update).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── PIPELINE ───────────────────────────────────────────────
 
   describe('getPipeline', () => {
@@ -197,6 +314,83 @@ describe('PipelineService', () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue(null);
 
       await expect(service.deleteInteres(TENANT_ID, 'no')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── BLOQUEO POR ROL ─────────────────────────────────────
+
+  describe('cambiarEstado — bloqueo por rol', () => {
+    it('JUNIOR puede avanzar su propio trámite a CONTACTADO', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'CONTACTADO' });
+
+      const result = await service.cambiarEstado(
+        TENANT_ID, 'int-001', { nuevoEstado: 'CONTACTADO' },
+        'JUNIOR', AGENTE_ID, [AGENTE_ID],
+      );
+      expect(result.estado).toBe('CONTACTADO');
+    });
+
+    it('JUNIOR no puede cerrar trámite como GANADO', async () => {
+      const interesEnNegociacion = { ...mockInteres, estado: 'EN_NEGOCIACION' };
+      prisma.clientePropiedad.findFirst.mockResolvedValue(interesEnNegociacion);
+
+      await expect(
+        service.cambiarEstado(
+          TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' },
+          'JUNIOR', AGENTE_ID, [AGENTE_ID],
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('JUNIOR no puede modificar trámite de otro agente', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres); // agente_id = AGENTE_ID
+
+      await expect(
+        service.cambiarEstado(
+          TENANT_ID, 'int-001', { nuevoEstado: 'CONTACTADO' },
+          'JUNIOR', OTRO_AGENTE_ID, [OTRO_AGENTE_ID],
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('SENIOR puede cerrar trámite de su downline como GANADO', async () => {
+      const interesEnNegociacion = { ...mockInteres, estado: 'EN_NEGOCIACION' };
+      prisma.clientePropiedad.findFirst.mockResolvedValue(interesEnNegociacion);
+      prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: 3 });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...interesEnNegociacion, estado: 'GANADO' });
+
+      const result = await service.cambiarEstado(
+        TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' },
+        'SENIOR', OTRO_AGENTE_ID, [AGENTE_ID, OTRO_AGENTE_ID],
+      );
+      expect(result.estado).toBe('GANADO');
+    });
+
+    it('SENIOR no puede modificar trámite fuera de su downline', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres); // agente_id = AGENTE_ID
+
+      await expect(
+        service.cambiarEstado(
+          TENANT_ID, 'int-001', { nuevoEstado: 'CONTACTADO' },
+          'SENIOR', OTRO_AGENTE_ID, [OTRO_AGENTE_ID], // AGENTE_ID not in list
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('ADMIN puede cerrar cualquier trámite como GANADO sin restricción', async () => {
+      const interesEnNegociacion = { ...mockInteres, estado: 'EN_NEGOCIACION' };
+      prisma.clientePropiedad.findFirst.mockResolvedValue(interesEnNegociacion);
+      prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: 3 });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...interesEnNegociacion, estado: 'GANADO' });
+
+      const result = await service.cambiarEstado(
+        TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' },
+        'ADMIN', OTRO_AGENTE_ID, null,
+      );
+      expect(result.estado).toBe('GANADO');
     });
   });
 });

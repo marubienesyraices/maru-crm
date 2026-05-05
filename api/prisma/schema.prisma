@@ -67,6 +67,7 @@ model Tenant {
   propiedades      Propiedad[]
   propietarios     Propietario[]
   clientes         Cliente[]
+  notificaciones   Notificacion[]
 
   @@map("tenants")
 }
@@ -98,8 +99,10 @@ model User {
   supervisor   User?     @relation("Jerarquia", fields: [id_supervisor], references: [id])
   subordinados User[]    @relation("Jerarquia")
   sessions     Session[]
-  propiedades_asignadas Propiedad[] @relation("PropiedadAgente")
-  clientes_asignados    Cliente[]   @relation("ClienteAgente")
+  propiedades_asignadas Propiedad[]     @relation("PropiedadAgente")
+  clientes_asignados    Cliente[]       @relation("ClienteAgente")
+  interacciones         Interaccion[]   @relation("InteraccionUsuario")
+  visitas               Visita[]        @relation("VisitaAgente")
 
   @@unique([tenant_id, email])
   @@map("users")
@@ -312,6 +315,36 @@ model PropiedadDocumento {
   @@map("propiedad_documentos")
 }
 
+// ─── Notificaciones ─────────────────────────────────────────
+
+enum TipoNotificacion {
+  DOCUMENTO_POR_VENCER
+  DOCUMENTO_VENCIDO
+  SISTEMA
+  MATCH_PROPIEDAD
+  VISITA_AGENDADA
+  LEAD_INACTIVO
+}
+
+model Notificacion {
+  id         String           @id @default(uuid())
+  tenant_id  String
+  user_id    String
+  tipo       TipoNotificacion
+  titulo     String
+  mensaje    String
+  leida      Boolean          @default(false)
+  entidad    String?
+  entidad_id String?
+  created_at DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@index([user_id, leida])
+  @@index([tenant_id, created_at])
+  @@map("notificaciones")
+}
+
 // ─── Sprint 4: Enums ────────────────────────────────────────
 
 enum OrigenCliente {
@@ -340,20 +373,56 @@ enum NivelInteres {
   MUY_ALTO
 }
 
+enum TipoInteraccion {
+  LLAMADA
+  VISITA
+  MENSAJE
+  NOTA
+  WHATSAPP
+  EMAIL
+}
+
+enum ResultadoInteraccion {
+  POSITIVO
+  NEUTRO
+  NEGATIVO
+  SIN_RESPUESTA
+}
+
+enum EstadoVisita {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  REALIZADA
+}
+
 // ─── Sprint 4: Models ───────────────────────────────────────
 
 model Cliente {
-  id           String        @id @default(uuid())
-  tenant_id    String
-  nombre       String
-  email        String?
-  telefono     String?
-  dpi          String?
-  origen       OrigenCliente @default(OTRO)
-  notas        String?
-  agente_id    String?
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
+  id               String          @id @default(uuid())
+  tenant_id        String
+  nombre           String
+  email            String?
+  telefono         String?
+  dpi              String?
+  origen           OrigenCliente   @default(OTRO)
+  notas            String?
+  agente_id        String?
+
+  // Preferencias de búsqueda (para matching)
+  tipo_interes     TipoPropiedad?
+  gestion_interes  TipoGestion?
+  presupuesto_max  Decimal?        @db.Decimal(14, 2)
+  zona_interes     String?
+  habitaciones_min Int?
+
+  // Portal self-registration
+  portal_verificado  Boolean   @default(false)
+  activation_token   String?   @unique
+  activation_expires DateTime?
+
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
 
   tenant    Tenant             @relation(fields: [tenant_id], references: [id])
   agente    User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
@@ -376,15 +445,174 @@ model ClientePropiedad {
   motivo_perdida  String?
   fecha_contacto  DateTime?
   fecha_cierre    DateTime?
+  precio_cierre   Decimal?      @db.Decimal(14, 2)
+  comision_calculada Decimal?   @db.Decimal(14, 2)
   created_at      DateTime      @default(now())
   updated_at      DateTime      @updatedAt
 
-  cliente   Cliente   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
-  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  cliente       Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  propiedad     Propiedad      @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+  interacciones Interaccion[]
+  visitas       Visita[]
 
   @@unique([cliente_id, propiedad_id])
   @@index([propiedad_id, estado])
   @@index([estado])
   @@map("cliente_propiedades")
+}
+
+model Interaccion {
+  id           String               @id @default(uuid())
+  interes_id   String
+  usuario_id   String
+  tipo         TipoInteraccion
+  resultado    ResultadoInteraccion @default(NEUTRO)
+  notas        String?
+  duracion_min Int?
+  fecha        DateTime             @default(now())
+  created_at   DateTime             @default(now())
+  updated_at   DateTime             @updatedAt
+
+  interes  ClientePropiedad @relation(fields: [interes_id], references: [id], onDelete: Cascade)
+  usuario  User             @relation("InteraccionUsuario", fields: [usuario_id], references: [id])
+
+  @@index([interes_id, fecha])
+  @@map("interacciones")
+}
+
+model Visita {
+  id           String       @id @default(uuid())
+  interes_id   String
+  agente_id    String
+  fecha_inicio DateTime
+  fecha_fin    DateTime
+  ubicacion    String?
+  notas        String?
+  estado       EstadoVisita @default(PENDIENTE)
+
+  reporte_notas           String?
+  reporte_nivel_interes   String?
+  reporte_reaccion        String?
+  reporte_siguiente_paso  String?
+  reporte_fecha           DateTime?
+
+  // Client reschedule link
+  reschedule_token           String?   @unique
+  reschedule_expires         DateTime?
+  reschedule_propuesta_inicio DateTime?
+  reschedule_propuesta_fin   DateTime?
+  reschedule_notas           String?
+  reschedule_solicitado_at   DateTime?
+
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  interes ClientePropiedad @relation(fields: [interes_id], references: [id], onDelete: Cascade)
+  agente  User             @relation("VisitaAgente", fields: [agente_id], references: [id])
+
+  @@index([agente_id, fecha_inicio])
+  @@index([interes_id])
+  @@map("visitas")
+}
+
+// ─── Brochure async jobs ─────────────────────────────────────
+
+enum BrochureJobStatus {
+  PROCESANDO
+  LISTO
+  ERROR
+}
+
+model BrochureJob {
+  id           String            @id
+  propiedad_id String
+  tenant_id    String
+  user_id      String
+  status       BrochureJobStatus @default(PROCESANDO)
+  url          String?
+  error        String?
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+  descargas    BrochureDescarga[]
+
+  @@index([propiedad_id, tenant_id])
+  @@map("brochure_jobs")
+}
+
+model BrochureDescarga {
+  id            String   @id @default(uuid())
+  job_id        String
+  tenant_id     String
+  user_id       String
+  ip            String?
+  downloaded_at DateTime @default(now())
+
+  job BrochureJob @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([job_id])
+  @@index([tenant_id, downloaded_at])
+  @@map("brochure_descargas")
+}
+
+// ─── Email campañas ──────────────────────────────────────────
+
+enum EstadoCampana {
+  BORRADOR
+  ENVIANDO
+  ENVIADA
+  FALLIDA
+}
+
+model EmailPlantilla {
+  id          String         @id @default(uuid())
+  tenant_id   String
+  nombre      String
+  asunto      String
+  cuerpo_html String
+  variables   String[]
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  campanas    EmailCampana[]
+
+  @@index([tenant_id])
+  @@map("email_plantillas")
+}
+
+model EmailCampana {
+  id             String         @id @default(uuid())
+  tenant_id      String
+  nombre         String
+  plantilla_id   String
+  plantilla      EmailPlantilla @relation(fields: [plantilla_id], references: [id])
+  filtro_rol     Rol[]
+  variables_data Json           @default("{}")
+  estado         EstadoCampana  @default(BORRADOR)
+  total_enviados Int            @default(0)
+  enviada_at     DateTime?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  eventos        EmailEvento[]
+
+  @@index([tenant_id, created_at])
+  @@map("email_campanas")
+}
+
+// ─── Email tracking ──────────────────────────────────────────
+
+model EmailEvento {
+  id              String        @id @default(uuid())
+  tenant_id       String
+  notificacion_id String?
+  campana_id      String?
+  campana         EmailCampana? @relation(fields: [campana_id], references: [id])
+  destinatario    String
+  tipo            TipoNotificacion
+  enviado_at      DateTime      @default(now())
+  abierto_at      DateTime?
+  primer_clic_at  DateTime?
+
+  @@index([tenant_id, enviado_at])
+  @@index([campana_id])
+  @@map("email_eventos")
 }
 

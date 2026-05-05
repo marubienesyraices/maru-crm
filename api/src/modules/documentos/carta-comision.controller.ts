@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -6,12 +7,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
+@ApiTags('Brochure PDF')
+@ApiBearerAuth('JWT')
 @Controller('api/propiedades/:propiedadId/carta-comision')
 @UseGuards(JwtAuthGuard)
 export class CartaComisionController {
   constructor(private prisma: PrismaService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Generar carta de compromiso de comisión en PDF' })
   async generateCartaComision(
     @Param('propiedadId') propiedadId: string,
     @CurrentUser() user: any,

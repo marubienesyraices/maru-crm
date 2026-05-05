@@ -14,6 +14,9 @@ export type MockPrismaService = {
   propiedadDocumento: { [key: string]: jest.Mock };
   cliente: { [key: string]: jest.Mock };
   clientePropiedad: { [key: string]: jest.Mock };
+  notificacion: { [key: string]: jest.Mock };
+  interaccion: { [key: string]: jest.Mock };
+  visita: { [key: string]: jest.Mock };
   $executeRawUnsafe: jest.Mock;
   $queryRaw: jest.Mock;
   $transaction: jest.Mock;
@@ -102,6 +105,28 @@ export function createMockPrismaService(): MockPrismaService {
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
+    },
+    notificacion: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      count: jest.fn(),
+    },
+    interaccion: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      delete: jest.fn(),
+    },
+    visita: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     $executeRawUnsafe: jest.fn(),
     $queryRaw: jest.fn(),

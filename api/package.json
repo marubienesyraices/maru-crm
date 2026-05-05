@@ -27,6 +27,8 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1040.0",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -40,10 +42,12 @@
     "@prisma/client": "^7.8.0",
     "@types/multer": "^2.1.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.76.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.1",
     "geoip-lite": "^2.0.1",
+    "ioredis": "^5.10.1",
     "multer": "^2.1.1",
     "otpauth": "^9.5.0",
     "otplib": "^13.4.0",
@@ -54,7 +58,10 @@
     "prisma": "^7.8.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "resend": "^6.12.2",
+    "rxjs": "^7.8.1",
+    "sharp": "^0.34.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -71,6 +78,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
+    "@types/sharp": "^0.31.1",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",

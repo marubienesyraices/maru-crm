@@ -13,6 +13,7 @@ export class CreateInteresDto {
 export class CambiarEstadoInteresDto {
   @IsString() nuevoEstado: string;
   @IsOptional() @IsString() motivoPerdida?: string;
+  @IsOptional() @IsNumber() precioAcordado?: number;
 }
 
 export class UpdateInteresDto {

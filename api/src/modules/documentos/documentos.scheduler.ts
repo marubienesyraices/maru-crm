@@ -1,80 +1,136 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
-/**
- * DocumentosScheduler
- * 
- * Cron job that runs daily at 8am to check for legal documents
- * that are expiring within the next 30 days.
- * 
- * Currently logs warnings. In the future, this will trigger
- * in-app notifications and email alerts (Sprint 5 - HU-13.01).
- */
 @Injectable()
 export class DocumentosScheduler {
   private readonly logger = new Logger(DocumentosScheduler.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificaciones: NotificacionesService,
+  ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async checkDocumentExpiry() {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
     const today = new Date();
+    const in30Days = new Date();
+    in30Days.setDate(today.getDate() + 30);
 
-    // Documents expiring within 30 days
-    const expiring = await this.prisma.propiedadDocumento.findMany({
-      where: {
-        fecha_vencimiento: {
-          gte: today,
-          lte: thirtyDaysFromNow,
-        },
-      },
-      include: {
-        propiedad: {
-          select: {
-            id: true,
-            codigo: true,
-            titulo: true,
-            tenant_id: true,
-            agente: { select: { id: true, nombre: true, email: true } },
+    const [expiring, expired] = await Promise.all([
+      this.prisma.propiedadDocumento.findMany({
+        where: { fecha_vencimiento: { gte: today, lte: in30Days } },
+        include: {
+          propiedad: {
+            select: {
+              id: true,
+              codigo: true,
+              titulo: true,
+              tenant_id: true,
+              agente_id: true,
+            },
           },
         },
-      },
-      orderBy: { fecha_vencimiento: 'asc' },
-    });
+        orderBy: { fecha_vencimiento: 'asc' },
+      }),
+      this.prisma.propiedadDocumento.findMany({
+        where: { fecha_vencimiento: { lt: today } },
+        include: {
+          propiedad: {
+            select: {
+              id: true,
+              codigo: true,
+              titulo: true,
+              tenant_id: true,
+              agente_id: true,
+            },
+          },
+        },
+      }),
+    ]);
 
-    if (expiring.length === 0) return;
-
-    this.logger.warn(`⚠️ ${expiring.length} documento(s) por vencer en los próximos 30 días:`);
+    // Resolve target users per tenant: agente + all admins of that tenant
+    const tenantAdmins = await this.resolveTenantAdmins([...expiring, ...expired]);
 
     for (const doc of expiring) {
-      const daysLeft = Math.ceil((doc.fecha_vencimiento!.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      this.logger.warn(
-        `  📄 ${doc.tipo} — "${doc.nombre}" (${doc.propiedad.codigo}) — vence en ${daysLeft} días` +
-        (doc.propiedad.agente ? ` — Agente: ${doc.propiedad.agente.nombre}` : ''),
+      const daysLeft = Math.ceil(
+        (doc.fecha_vencimiento!.getTime() - today.getTime()) / 86400000,
       );
+      const titulo = `Documento por vencer: ${doc.tipo.replace('_', ' ')}`;
+      const mensaje = `"${doc.nombre}" de la propiedad ${doc.propiedad.codigo} vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''}.`;
 
-      // TODO: Sprint 5 — Send in-app notification (HU-13.01)
-      // TODO: Sprint 5 — Send email alert to agente
+      this.logger.warn(`⚠️ ${titulo} — ${doc.propiedad.codigo}`);
+
+      const targets = this.resolveTargets(doc.propiedad, tenantAdmins);
+      await this.createForTargets(targets, doc.propiedad.tenant_id, 'DOCUMENTO_POR_VENCER', titulo, mensaje, 'PropiedadDocumento', doc.id);
     }
 
-    // Also check already expired
-    const expired = await this.prisma.propiedadDocumento.findMany({
-      where: {
-        fecha_vencimiento: { lt: today },
-      },
-      include: {
-        propiedad: { select: { codigo: true, titulo: true } },
-      },
-    });
+    for (const doc of expired) {
+      const titulo = `Documento vencido: ${doc.tipo.replace('_', ' ')}`;
+      const mensaje = `"${doc.nombre}" de la propiedad ${doc.propiedad.codigo} está vencido.`;
 
-    if (expired.length > 0) {
-      this.logger.error(`🚨 ${expired.length} documento(s) VENCIDO(S):`);
-      for (const doc of expired) {
-        this.logger.error(`  ❌ ${doc.tipo} — "${doc.nombre}" (${doc.propiedad.codigo})`);
+      this.logger.error(`🚨 ${titulo} — ${doc.propiedad.codigo}`);
+
+      const targets = this.resolveTargets(doc.propiedad, tenantAdmins);
+      await this.createForTargets(targets, doc.propiedad.tenant_id, 'DOCUMENTO_VENCIDO', titulo, mensaje, 'PropiedadDocumento', doc.id);
+    }
+
+    if (expiring.length > 0 || expired.length > 0) {
+      this.logger.log(`📬 Notificaciones enviadas: ${expiring.length} por vencer, ${expired.length} vencidos`);
+    }
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────
+
+  private async resolveTenantAdmins(docs: { propiedad: { tenant_id: string } }[]) {
+    const tenantIds = [...new Set(docs.map((d) => d.propiedad.tenant_id))];
+    const admins = await this.prisma.user.findMany({
+      where: { tenant_id: { in: tenantIds }, rol: { in: ['ADMIN', 'SUPER_ADMIN'] }, estado: 'ACTIVO' },
+      select: { id: true, tenant_id: true },
+    });
+    // Map: tenantId → adminIds[]
+    const map: Record<string, string[]> = {};
+    for (const admin of admins) {
+      (map[admin.tenant_id] ??= []).push(admin.id);
+    }
+    return map;
+  }
+
+  private resolveTargets(
+    propiedad: { tenant_id: string; agente_id: string | null },
+    tenantAdmins: Record<string, string[]>,
+  ): string[] {
+    const ids = new Set<string>(tenantAdmins[propiedad.tenant_id] ?? []);
+    if (propiedad.agente_id) ids.add(propiedad.agente_id);
+    return [...ids];
+  }
+
+  private async createForTargets(
+    userIds: string[],
+    tenantId: string,
+    tipo: 'DOCUMENTO_POR_VENCER' | 'DOCUMENTO_VENCIDO',
+    titulo: string,
+    mensaje: string,
+    entidad: string,
+    entidadId: string,
+  ) {
+    // Avoid duplicate notifications for the same document + user on the same day
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    for (const userId of userIds) {
+      const alreadyExists = await this.prisma.notificacion.findFirst({
+        where: {
+          user_id: userId,
+          entidad_id: entidadId,
+          tipo,
+          created_at: { gte: todayStart },
+        },
+      });
+
+      if (!alreadyExists) {
+        await this.notificaciones.create({ tenantId, userId, tipo, titulo, mensaje, entidad, entidadId });
       }
     }
   }

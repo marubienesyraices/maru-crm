@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PropiedadesService } from '../propiedades.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+
+const mockNotificacionesService = { create: jest.fn().mockResolvedValue({}) };
 
 const TENANT_ID = 'tenant-001';
 const USER_ID = 'user-001';
@@ -49,6 +52,7 @@ describe('PropiedadesService', () => {
       providers: [
         PropiedadesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: NotificacionesService, useValue: mockNotificacionesService },
       ],
     }).compile();
 
@@ -199,6 +203,7 @@ describe('PropiedadesService', () => {
     it('debe permitir BORRADOR → DISPONIBLE', async () => {
       prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'BORRADOR' });
       prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
+      prisma.cliente.findMany.mockResolvedValue([]);
 
       const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'DISPONIBLE' });
 
@@ -250,6 +255,7 @@ describe('PropiedadesService', () => {
     it('debe permitir RENTADA → DISPONIBLE (re-listar)', async () => {
       prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'RENTADA' });
       prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
+      prisma.cliente.findMany.mockResolvedValue([]);
 
       const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'DISPONIBLE' });
 

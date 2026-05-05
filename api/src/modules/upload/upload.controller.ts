@@ -2,39 +2,37 @@ import {
   Controller, Post, Delete, Param, UseGuards, UseInterceptors,
   UploadedFiles, BadRequestException, Body,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
 import { randomUUID } from 'crypto';
-import { existsSync, unlinkSync } from 'fs';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { ImageService } from './image.service';
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-const storage = diskStorage({
-  destination: join(__dirname, '..', '..', '..', 'uploads'),
-  filename: (_req, file, cb) => {
-    const uniqueName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
-    cb(null, uniqueName);
-  },
-});
-
+@ApiTags('Imágenes')
+@ApiBearerAuth('JWT')
 @Controller('api/propiedades/:propiedadId/imagenes')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+    private imageService: ImageService,
+  ) {}
 
-  /**
-   * Upload up to 10 images at once for a property.
-   * Sets the first image as "portada" if none exists.
-   */
   @Post()
+  @ApiOperation({ summary: 'Subir imágenes a una propiedad (máx. 10 archivos)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } } } })
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      storage,
+      storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIMES.includes(file.mimetype)) {
@@ -52,20 +50,20 @@ export class UploadController {
   ) {
     if (!files?.length) throw new BadRequestException('No se enviaron archivos');
 
-    // Verify property exists and belongs to tenant
-    const propiedad = await this.prisma.propiedad.findFirst({
-      where: { id: propiedadId, tenant_id: user.tenantId },
-    });
+    const [propiedad, tenant] = await Promise.all([
+      this.prisma.propiedad.findFirst({ where: { id: propiedadId, tenant_id: user.tenantId } }),
+      this.prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { nombre: true } }),
+    ]);
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
 
-    // Get current max order
+    const tenantName = tenant?.nombre ?? 'Maru CRM';
+
     const maxOrder = await this.prisma.propiedadImagen.aggregate({
       where: { propiedad_id: propiedadId },
       _max: { orden: true },
     });
     let nextOrder = (maxOrder._max.orden ?? -1) + 1;
 
-    // Check if property has a cover image
     const hasCover = await this.prisma.propiedadImagen.findFirst({
       where: { propiedad_id: propiedadId, tipo: 'portada' },
     });
@@ -73,16 +71,19 @@ export class UploadController {
     const created = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const processed = await this.imageService.processImage(file.buffer, tenantName);
+      const filename = `${randomUUID()}.jpg`;
+      const url = await this.storage.upload(processed, filename, 'image/jpeg');
       const isPortada = !hasCover && i === 0;
 
       const img = await this.prisma.propiedadImagen.create({
         data: {
           propiedad_id: propiedadId,
-          url: `/uploads/${file.filename}`,
+          url,
           nombre: file.originalname,
           tipo: isPortada ? 'portada' : 'galeria',
           orden: nextOrder++,
-          tamano_bytes: file.size,
+          tamano_bytes: processed.length,
         },
       });
       created.push(img);
@@ -91,38 +92,31 @@ export class UploadController {
     return { uploaded: created.length, images: created };
   }
 
-  /**
-   * Set a specific image as the cover photo.
-   */
   @Post(':imagenId/portada')
+  @ApiOperation({ summary: 'Marcar imagen como portada de la propiedad' })
   async setPortada(
     @Param('propiedadId') propiedadId: string,
     @Param('imagenId') imagenId: string,
     @CurrentUser() user: any,
   ) {
-    // Verify ownership
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
     });
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
 
-    // Remove current portada
     await this.prisma.propiedadImagen.updateMany({
       where: { propiedad_id: propiedadId, tipo: 'portada' },
       data: { tipo: 'galeria' },
     });
 
-    // Set new portada
     return this.prisma.propiedadImagen.update({
       where: { id: imagenId },
       data: { tipo: 'portada' },
     });
   }
 
-  /**
-   * Reorder images via a list of IDs.
-   */
   @Post('reorder')
+  @ApiOperation({ summary: 'Reordenar imágenes de la propiedad' })
   async reorder(
     @Param('propiedadId') propiedadId: string,
     @Body('imageIds') imageIds: string[],
@@ -141,10 +135,8 @@ export class UploadController {
     return { reordered: imageIds.length };
   }
 
-  /**
-   * Delete an image (removes file from disk too).
-   */
   @Delete(':imagenId')
+  @ApiOperation({ summary: 'Eliminar imagen de una propiedad' })
   async deleteImage(
     @Param('propiedadId') propiedadId: string,
     @Param('imagenId') imagenId: string,
@@ -160,12 +152,7 @@ export class UploadController {
     });
     if (!imagen) throw new BadRequestException('Imagen no encontrada');
 
-    // Delete file from disk
-    const filePath = join(__dirname, '..', '..', '..', imagen.url);
-    if (existsSync(filePath)) {
-      unlinkSync(filePath);
-    }
-
+    await this.storage.remove(imagen.url);
     await this.prisma.propiedadImagen.delete({ where: { id: imagenId } });
 
     return { deleted: true };

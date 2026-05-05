@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OrigenCliente } from '@prisma/client';
+import { OrigenCliente, TipoPropiedad, TipoGestion } from '@prisma/client';
 import { CreateClienteDto, UpdateClienteDto, FiltrosClienteDto } from './dto';
 
 @Injectable()
@@ -8,7 +8,6 @@ export class ClientesService {
   constructor(private prisma: PrismaService) {}
 
   async create(tenantId: string, dto: CreateClienteDto, userId: string) {
-    // Duplicate detection by email within tenant
     if (dto.email) {
       const existing = await this.prisma.cliente.findFirst({
         where: { tenant_id: tenantId, email: dto.email },
@@ -28,6 +27,11 @@ export class ClientesService {
         origen: (dto.origen as OrigenCliente) || 'OTRO',
         notas: dto.notas,
         agente_id: dto.agenteId || userId,
+        tipo_interes: dto.tipoInteres as TipoPropiedad | undefined,
+        gestion_interes: dto.gestionInteres as TipoGestion | undefined,
+        presupuesto_max: dto.presupuestoMax,
+        zona_interes: dto.zonaInteres,
+        habitaciones_min: dto.habitacionesMin,
       },
       include: {
         agente: { select: { id: true, nombre: true } },
@@ -107,20 +111,85 @@ export class ClientesService {
         origen: dto.origen as OrigenCliente | undefined,
         notas: dto.notas,
         agente_id: dto.agenteId,
+        tipo_interes: dto.tipoInteres as TipoPropiedad | undefined,
+        gestion_interes: dto.gestionInteres as TipoGestion | undefined,
+        presupuesto_max: dto.presupuestoMax,
+        zona_interes: dto.zonaInteres,
+        habitaciones_min: dto.habitacionesMin,
       },
       include: { agente: { select: { id: true, nombre: true } } },
     });
   }
 
   async getStats(tenantId: string) {
-    const [total, porOrigen] = await Promise.all([
+    const [total, porOrigenRaw] = await Promise.all([
       this.prisma.cliente.count({ where: { tenant_id: tenantId } }),
-      this.prisma.cliente.groupBy({
-        by: ['origen'],
-        where: { tenant_id: tenantId },
-        _count: true,
-      }),
+      this.prisma.cliente.groupBy({ by: ['origen'], where: { tenant_id: tenantId }, _count: true }),
     ]);
-    return { total, porOrigen };
+    return {
+      total,
+      porOrigen: porOrigenRaw.map((r) => ({ origen: r.origen, _count: (r._count as any)._all ?? r._count })),
+    };
+  }
+
+  async findMatchingProperties(tenantId: string, clienteId: string) {
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, tenant_id: tenantId },
+    });
+    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+
+    // No preferences set → no matches
+    if (!cliente.tipo_interes && !cliente.gestion_interes && !cliente.presupuesto_max &&
+        !cliente.zona_interes && !cliente.habitaciones_min) {
+      return [];
+    }
+
+    const andConditions: any[] = [];
+
+    if (cliente.tipo_interes) {
+      andConditions.push({ tipo: cliente.tipo_interes });
+    }
+
+    if (cliente.gestion_interes && cliente.gestion_interes !== 'AMBAS') {
+      andConditions.push({ gestion: { in: [cliente.gestion_interes, 'AMBAS'] } });
+    }
+
+    if (cliente.habitaciones_min) {
+      andConditions.push({ habitaciones: { gte: cliente.habitaciones_min } });
+    }
+
+    if (cliente.presupuesto_max) {
+      andConditions.push({
+        OR: [
+          { precio_venta: { lte: cliente.presupuesto_max } },
+          { precio_renta: { lte: cliente.presupuesto_max } },
+        ],
+      });
+    }
+
+    if (cliente.zona_interes) {
+      andConditions.push({
+        OR: [
+          { zona: { contains: cliente.zona_interes, mode: 'insensitive' } },
+          { municipio: { contains: cliente.zona_interes, mode: 'insensitive' } },
+          { departamento: { contains: cliente.zona_interes, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    return this.prisma.propiedad.findMany({
+      where: {
+        tenant_id: tenantId,
+        estado: 'DISPONIBLE',
+        NOT: { interesados: { some: { cliente_id: clienteId } } },
+        AND: andConditions,
+      },
+      include: {
+        imagenes: { where: { tipo: 'portada' }, take: 1 },
+        agente: { select: { id: true, nombre: true } },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 20,
+    });
   }
 }

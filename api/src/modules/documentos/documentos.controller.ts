@@ -2,14 +2,15 @@ import {
   Controller, Post, Get, Delete, Param, UseGuards, UseInterceptors,
   UploadedFile, BadRequestException, Body,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
+import { extname } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, unlinkSync } from 'fs';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { TipoDocumento } from '@prisma/client';
 
 const ALLOWED_MIMES = [
@@ -18,22 +19,25 @@ const ALLOWED_MIMES = [
 ];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-const storage = diskStorage({
-  destination: join(__dirname, '..', '..', '..', 'uploads'),
-  filename: (_req, file, cb) => {
-    cb(null, `doc-${randomUUID()}${extname(file.originalname).toLowerCase()}`);
-  },
-});
+const VALID_TIPOS = ['ESCRITURA', 'PLANO', 'IUSI', 'BOLETO_COMPRAVENTA', 'CONTRATO_ARRENDAMIENTO', 'DPI_PROPIETARIO', 'OTRO'];
 
+@ApiTags('Documentos')
+@ApiBearerAuth('JWT')
 @Controller('api/propiedades/:propiedadId/documentos')
 @UseGuards(JwtAuthGuard)
 export class DocumentosController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Subir documento legal a una propiedad (PDF, imagen, Word)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, tipo: { type: 'string' }, nombre: { type: 'string' } } } })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage,
+      storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIMES.includes(file.mimetype)) {
@@ -55,21 +59,22 @@ export class DocumentosController {
   ) {
     if (!file) throw new BadRequestException('No se envió archivo');
     if (!tipo) throw new BadRequestException('El tipo de documento es requerido');
-
-    const validTipos = ['ESCRITURA', 'PLANO', 'IUSI', 'BOLETO_COMPRAVENTA', 'CONTRATO_ARRENDAMIENTO', 'DPI_PROPIETARIO', 'OTRO'];
-    if (!validTipos.includes(tipo)) throw new BadRequestException(`Tipo inválido: ${tipo}`);
+    if (!VALID_TIPOS.includes(tipo)) throw new BadRequestException(`Tipo inválido: ${tipo}`);
 
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
     });
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
 
+    const filename = `doc-${randomUUID()}${extname(file.originalname).toLowerCase()}`;
+    const url = await this.storage.upload(file.buffer, filename, file.mimetype);
+
     return this.prisma.propiedadDocumento.create({
       data: {
         propiedad_id: propiedadId,
         tipo: tipo as TipoDocumento,
         nombre: file.originalname,
-        url: `/uploads/${file.filename}`,
+        url,
         tamano_bytes: file.size,
         notas,
         fecha_emision: fechaEmision ? new Date(fechaEmision) : null,
@@ -110,9 +115,7 @@ export class DocumentosController {
     });
     if (!doc) throw new BadRequestException('Documento no encontrado');
 
-    const filePath = join(__dirname, '..', '..', '..', doc.url);
-    if (existsSync(filePath)) unlinkSync(filePath);
-
+    await this.storage.remove(doc.url);
     await this.prisma.propiedadDocumento.delete({ where: { id: docId } });
     return { deleted: true };
   }
