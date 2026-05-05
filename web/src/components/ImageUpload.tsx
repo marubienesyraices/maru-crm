@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import './ImageUpload.css';
 
@@ -22,8 +22,20 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
   const { accessToken } = useAuthStore();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowRight') setLightboxIndex((i) => i === null ? null : (i + 1) % imagenes.length);
+      if (e.key === 'ArrowLeft') setLightboxIndex((i) => i === null ? null : (i - 1 + imagenes.length) % imagenes.length);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [lightboxIndex, imagenes.length]);
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!files.length) return;
@@ -68,12 +80,17 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
 
   const handleDelete = async (imagenId: string) => {
     if (!confirm('¿Eliminar esta imagen?')) return;
+    setLightboxIndex(null);
     await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/${imagenId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     onUpdate();
   };
+
+  const currentImage = lightboxIndex !== null && lightboxIndex < imagenes.length
+    ? imagenes[lightboxIndex]
+    : null;
 
   return (
     <div className="img-upload-section">
@@ -116,12 +133,12 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
       {/* Gallery */}
       {imagenes.length > 0 && (
         <div className="img-gallery">
-          {imagenes.map((img) => (
+          {imagenes.map((img, idx) => (
             <div key={img.id} className={`img-thumb ${img.tipo === 'portada' ? 'img-thumb-cover' : ''}`}>
               <img
                 src={`${API}${img.url}`}
                 alt={img.nombre || 'Imagen'}
-                onClick={() => setLightbox(`${API}${img.url}`)}
+                onClick={() => setLightboxIndex(idx)}
               />
               {img.tipo === 'portada' && (
                 <span className="img-cover-badge">★ Portada</span>
@@ -142,10 +159,41 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
       )}
 
       {/* Lightbox */}
-      {lightbox && (
-        <div className="img-lightbox" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Vista ampliada" />
-          <button className="img-lightbox-close" onClick={() => setLightbox(null)}>✕</button>
+      {currentImage && (
+        <div className="img-lightbox" onClick={() => setLightboxIndex(null)}>
+          <img
+            src={`${API}${currentImage.url}`}
+            alt={currentImage.nombre || 'Vista ampliada'}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          <button className="img-lightbox-close" onClick={() => setLightboxIndex(null)}>✕</button>
+
+          {imagenes.length > 1 && (
+            <>
+              <button
+                className="img-lightbox-prev"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((i) => i === null ? 0 : (i - 1 + imagenes.length) % imagenes.length);
+                }}
+              >
+                ‹
+              </button>
+              <button
+                className="img-lightbox-next"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((i) => i === null ? 0 : (i + 1) % imagenes.length);
+                }}
+              >
+                ›
+              </button>
+              <div className="img-lightbox-counter">
+                {(lightboxIndex ?? 0) + 1} / {imagenes.length}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

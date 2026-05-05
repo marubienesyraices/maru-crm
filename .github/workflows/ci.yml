@@ -2,9 +2,9 @@ name: CI — Maru CRM
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 env:
   NODE_VERSION: '20'
@@ -31,11 +31,16 @@ jobs:
         run: npx prisma generate
         working-directory: api
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build API
         run: npm run build -w api
 
       - name: Build Web
         run: npm run build -w web
+        env:
+          VITE_API_URL: http://localhost:3000
 
   # ─── Unit Tests ──────────────────────────────────────────
   test:

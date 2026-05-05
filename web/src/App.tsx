@@ -9,8 +9,17 @@ import ClientsListPage from './pages/Clients/ClientsListPage';
 import ClientFormPage from './pages/Clients/ClientFormPage';
 import ClientDetailPage from './pages/Clients/ClientDetailPage';
 import PipelinePage from './pages/Pipeline/PipelinePage';
+import AgendaPage from './pages/Agenda/AgendaPage';
+import PortalPage from './pages/Portal/PortalPage';
+import PortalDetailPage from './pages/Portal/PortalDetailPage';
+import PortalVerifyPage from './pages/Portal/PortalVerifyPage';
+import PortalReprogramarPage from './pages/Portal/PortalReprogramarPage';
 import AdminTenantsPage from './pages/Admin/AdminTenantsPage';
 import AdminUsersPage from './pages/Admin/AdminUsersPage';
+import ImportPage from './pages/Import/ImportPage';
+import BiPage from './pages/BI/BiPage';
+import RankingPage from './pages/Ranking/RankingPage';
+import CampanasPage from './pages/Campanas/CampanasPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
@@ -21,6 +30,10 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify-2fa" element={<Verify2FAPage />} />
+        <Route path="/portal" element={<PortalPage />} />
+        <Route path="/portal/verificar" element={<PortalVerifyPage />} />
+        <Route path="/portal/reprogramar/:token" element={<PortalReprogramarPage />} />
+        <Route path="/portal/:id" element={<PortalDetailPage />} />
 
         {/* Authenticated routes with shared sidebar layout */}
         <Route
@@ -38,7 +51,13 @@ export default function App() {
           <Route path="/clientes" element={<ClientsListPage />} />
           <Route path="/clientes/nuevo" element={<ClientFormPage />} />
           <Route path="/clientes/:id" element={<ClientDetailPage />} />
+          <Route path="/clientes/:id/editar" element={<ClientFormPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
+          <Route path="/agenda" element={<AgendaPage />} />
+          <Route path="/import" element={<ImportPage />} />
+          <Route path="/bi" element={<BiPage />} />
+          <Route path="/campanas" element={<CampanasPage />} />
+          <Route path="/ranking" element={<RankingPage />} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
         </Route>

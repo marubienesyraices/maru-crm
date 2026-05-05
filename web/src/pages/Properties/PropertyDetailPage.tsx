@@ -36,6 +36,7 @@ export default function PropertyDetailPage() {
   const { accessToken } = useAuthStore();
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
 
   const fetchProperty = useCallback(async () => {
     try {
@@ -58,6 +59,42 @@ export default function PropertyDetailPage() {
       fetchProperty();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleBrochure = async () => {
+    if (brochureState === 'generating') return;
+    setBrochureState('generating');
+    try {
+      const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const { jobId } = await apiRequest<{ jobId: string }>(`/api/propiedades/${id}/brochure`, {
+        method: 'POST', token: accessToken!,
+      });
+
+      // Poll status up to 30 attempts × 1.5 s = 45 s max
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const job = await apiRequest<{ status: string; url?: string }>(
+          `/api/propiedades/${id}/brochure/jobs/${jobId}`, { token: accessToken! },
+        );
+        if (job.status === 'LISTO') {
+          // Fetch download info (records tracking) then navigate to PDF URL
+          const dl = await apiRequest<{ url: string }>(
+            `/api/propiedades/${id}/brochure/jobs/${jobId}/download`, { token: accessToken! },
+          );
+          // For local files use the /uploads path; for R2 it's the full public URL
+          const pdfUrl = dl.url.startsWith('http') ? dl.url : `${API}${dl.url}`;
+          window.open(pdfUrl, '_blank');
+          setBrochureState('idle');
+          return;
+        }
+        if (job.status === 'ERROR') throw new Error('La generación del brochure falló');
+      }
+      throw new Error('Tiempo de espera agotado');
+    } catch (err: any) {
+      alert(err.message);
+      setBrochureState('error');
+      setTimeout(() => setBrochureState('idle'), 3000);
     }
   };
 
@@ -187,28 +224,38 @@ export default function PropertyDetailPage() {
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3>Expediente Legal ({propiedad.documentos?.length || 0})</h3>
-          <button 
-            onClick={async () => {
-              try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/propiedades/${propiedad.id}/carta-comision`, {
-                  headers: { Authorization: `Bearer ${accessToken}` }
-                });
-                if (!res.ok) {
-                  const err = await res.json();
-                  throw new Error(err.message || 'Error al generar carta');
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleBrochure}
+              disabled={brochureState === 'generating'}
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8125rem' }}
+            >
+              {brochureState === 'generating' ? '⏳ Generando…' : brochureState === 'error' ? '❌ Error' : '🏷️ Brochure PDF'}
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/propiedades/${propiedad.id}/carta-comision`, {
+                    headers: { Authorization: `Bearer ${accessToken}` }
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Error al generar carta');
+                  }
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  window.open(url, '_blank');
+                } catch (err: any) {
+                  alert(err.message);
                 }
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-              } catch (err: any) {
-                alert(err.message);
-              }
-            }}
-            className="btn btn-ghost"
-            style={{ fontSize: '0.8125rem', borderColor: 'var(--border-color)' }}
-          >
-            📄 Generar Carta de Comisión
-          </button>
+              }}
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8125rem' }}
+            >
+              📄 Carta de Comisión
+            </button>
+          </div>
         </div>
         <DocumentUpload
           propiedadId={propiedad.id}

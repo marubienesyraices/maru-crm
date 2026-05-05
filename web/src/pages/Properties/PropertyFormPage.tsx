@@ -97,6 +97,8 @@ export default function PropertyFormPage() {
     municipio: '',
     zona: '',
     direccion: '',
+    latitud: '',
+    longitud: '',
     habitaciones: '',
     banos: '',
     parqueos: '',
@@ -105,6 +107,8 @@ export default function PropertyFormPage() {
     areaConstruccionM2: '',
     anoConstruccion: '',
   });
+  const [geocoding, setGeocoding] = useState(false);
+  const [geoError, setGeoError] = useState('');
 
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -129,6 +133,8 @@ export default function PropertyFormPage() {
             municipio: data.municipio || '',
             zona: data.zona || '',
             direccion: data.direccion || '',
+            latitud: data.latitud ? String(data.latitud) : '',
+            longitud: data.longitud ? String(data.longitud) : '',
             habitaciones: data.habitaciones ? String(data.habitaciones) : '',
             banos: data.banos ? String(data.banos) : '',
             parqueos: data.parqueos ? String(data.parqueos) : '',
@@ -142,6 +148,31 @@ export default function PropertyFormPage() {
         .finally(() => setLoading(false));
     }
   }, [id, accessToken]);
+
+  const geocodeAddress = async () => {
+    const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+    if (!MAPBOX_TOKEN) { setGeoError('VITE_MAPBOX_TOKEN no configurado'); return; }
+    const parts = [form.direccion, form.zona ? `Zona ${form.zona}` : '', form.municipio, form.departamento, form.pais]
+      .filter(Boolean).join(', ');
+    if (!parts.trim()) { setGeoError('Completa al menos municipio y departamento'); return; }
+    setGeocoding(true);
+    setGeoError('');
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(parts)}.json?access_token=${MAPBOX_TOKEN}&language=es&limit=1`,
+      );
+      const json = await res.json();
+      const feat = json.features?.[0];
+      if (!feat) { setGeoError('No se encontró la dirección. Intenta ser más específico.'); return; }
+      const [lng, lat] = feat.center;
+      updateField('longitud', String(lng));
+      updateField('latitud', String(lat));
+    } catch {
+      setGeoError('Error al contactar el servicio de geocodificación');
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const lastStepChange = useRef(Date.now());
   
@@ -184,6 +215,8 @@ export default function PropertyFormPage() {
       if (form.areaTerrenoM2) body.areaTerrenoM2 = Number(form.areaTerrenoM2);
       if (form.areaConstruccionM2) body.areaConstruccionM2 = Number(form.areaConstruccionM2);
       if (form.anoConstruccion) body.anoConstruccion = Number(form.anoConstruccion);
+      if (form.latitud) body.latitud = Number(form.latitud);
+      if (form.longitud) body.longitud = Number(form.longitud);
 
       if (id) {
         await apiRequest(`/api/propiedades/${id}`, {
@@ -371,6 +404,72 @@ export default function PropertyFormPage() {
                 <input className="input-field" placeholder="Ej: 4a Avenida 10-50" value={form.direccion} onChange={(e) => updateField('direccion', e.target.value)} />
               </div>
             </div>
+
+            {/* ── Geolocalización ── */}
+            <div className="input-group">
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Geolocalización</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.75rem', padding: '4px 10px', height: 'auto' }}
+                  disabled={geocoding}
+                  onClick={geocodeAddress}
+                >
+                  {geocoding ? '⏳ Buscando...' : '🎯 Geocodificar desde dirección'}
+                </button>
+              </label>
+              <div className="pf-row" style={{ gap: 8 }}>
+                <input
+                  className="input-field"
+                  placeholder="Latitud (Ej: 14.6349)"
+                  type="number"
+                  step="any"
+                  value={form.latitud}
+                  onChange={(e) => updateField('latitud', e.target.value)}
+                />
+                <input
+                  className="input-field"
+                  placeholder="Longitud (Ej: -90.5069)"
+                  type="number"
+                  step="any"
+                  value={form.longitud}
+                  onChange={(e) => updateField('longitud', e.target.value)}
+                />
+                {(form.latitud || form.longitud) && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ flexShrink: 0, fontSize: '0.75rem', padding: '4px 8px', height: 'auto' }}
+                    onClick={() => { updateField('latitud', ''); updateField('longitud', ''); }}
+                    title="Limpiar coordenadas"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {geoError && (
+                <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#f87171' }}>{geoError}</p>
+              )}
+            </div>
+
+            {/* ── Static map preview ── */}
+            {form.latitud && form.longitud && (() => {
+              const token = import.meta.env.VITE_MAPBOX_TOKEN;
+              if (!token) return null;
+              const lng = Number(form.longitud);
+              const lat = Number(form.latitud);
+              if (isNaN(lat) || isNaN(lng)) return null;
+              const src = `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-s+3b82f6(${lng},${lat})/${lng},${lat},14,0/640x180@2x?access_token=${token}`;
+              return (
+                <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <img src={src} alt="Mapa" style={{ width: '100%', display: 'block' }} />
+                  <p style={{ margin: 0, padding: '6px 12px', fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'var(--bg-card)' }}>
+                    📍 {lat.toFixed(5)}, {lng.toFixed(5)}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 

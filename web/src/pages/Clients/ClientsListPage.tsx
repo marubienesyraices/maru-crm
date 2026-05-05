@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import ImportModal from '../../components/ImportModal';
 import './Clients.css';
 
 const ORIGEN_LABELS: Record<string, string> = {
@@ -24,6 +25,7 @@ export default function ClientsListPage() {
   const [origen, setOrigen] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>({ total: 0, totalPages: 1 });
+  const [showImport, setShowImport] = useState(false);
 
   const fetchClientes = useCallback(async () => {
     setLoading(true);
@@ -59,6 +61,7 @@ export default function ClientsListPage() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-ghost" onClick={() => navigate('/pipeline')}>📊 Pipeline</button>
+          <button className="btn btn-ghost" onClick={() => setShowImport(true)}>⬆ Importar CSV</button>
           <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Cliente</button>
         </div>
       </div>
@@ -129,6 +132,10 @@ export default function ClientsListPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {showImport && (
+        <ImportModal entity="clientes" onClose={() => setShowImport(false)} onSuccess={fetchClientes} />
       )}
 
       {/* Pagination */}

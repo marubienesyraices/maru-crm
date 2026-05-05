@@ -111,6 +111,45 @@
 .pipeline-nivel-ALTO { background: rgba(245,158,11,0.15); color: #fbbf24; }
 .pipeline-nivel-MUY_ALTO { background: rgba(239,68,68,0.15); color: #f87171; }
 
+.pipeline-col-empty {
+  padding: 20px; text-align: center; color: var(--text-muted);
+  font-size: 0.8125rem; opacity: 0.5; border: 2px dashed rgba(255,255,255,0.06);
+  border-radius: var(--radius-sm); transition: opacity 0.15s;
+}
+
+.pipeline-card-drag-handle {
+  position: absolute; top: 8px; right: 8px;
+  color: var(--text-muted); font-size: 1rem; cursor: grab; opacity: 0;
+  transition: opacity var(--transition); line-height: 1;
+  user-select: none; touch-action: none;
+}
+.pipeline-card:hover .pipeline-card-drag-handle { opacity: 0.5; }
+.pipeline-card-drag-handle:hover { opacity: 1 !important; }
+.pipeline-card { position: relative; }
+
+/* ─── PERDIDO Modal ────────────────────────────────────────── */
+
+.pipeline-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+.pipeline-modal {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: 24px; width: 100%; max-width: 440px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.pipeline-modal h3 { font-size: 1.125rem; font-weight: 700; }
+.pipeline-modal-input {
+  width: 100%; padding: 10px 14px; background: var(--bg-input, #151b2e);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-family: inherit; font-size: 0.875rem;
+  min-height: 80px; resize: vertical; outline: none;
+  transition: border-color var(--transition);
+}
+.pipeline-modal-input:focus { border-color: var(--accent-blue); }
+.pipeline-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 .pipeline-card-actions {
   display: flex; gap: 4px;
 }
@@ -135,6 +174,171 @@
   transition: all var(--transition);
 }
 .client-origen-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(59,130,246,0.08); }
+
+/* ─── Form inputs (shared) ─────────────────────────────────── */
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); }
+.form-input {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg-input, #151b2e); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+  font-size: 0.875rem; outline: none; transition: border-color var(--transition);
+}
+.form-input:focus { border-color: var(--accent-blue); }
+.form-input::placeholder { color: var(--text-muted); }
+textarea.form-input { resize: vertical; min-height: 80px; }
+.form-select { appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+.form-error {
+  padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-sm); color: #fca5a5; font-size: 0.875rem;
+}
+
+/* ─── Preferences divider ──────────────────────────────────── */
+
+.client-prefs-divider {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 10px 0 4px; border-top: 1px solid var(--border-subtle);
+  font-size: 0.9375rem; font-weight: 600;
+}
+.client-prefs-hint { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
+
+/* ─── Matching cards ───────────────────────────────────────── */
+
+.client-matching-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+}
+.client-matching-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  overflow: hidden; cursor: pointer; transition: all var(--transition);
+}
+.client-matching-card:hover { border-color: rgba(59,130,246,0.3); transform: translateY(-2px); }
+.client-matching-img { height: 120px; overflow: hidden; }
+.client-matching-img img { width: 100%; height: 100%; object-fit: cover; }
+.client-matching-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.client-matching-title { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
+.client-matching-sub { font-size: 0.75rem; color: var(--text-muted); }
+.client-matching-price { font-size: 0.8125rem; color: var(--accent-blue); font-weight: 600; }
+
+/* ─── Pipeline timeline button ─────────────────────────────── */
+
+.pipeline-timeline-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-subtle);
+  background: var(--bg-panel); color: var(--text-muted); font-size: 0.75rem;
+  cursor: pointer; transition: all var(--transition); line-height: 1;
+}
+.pipeline-timeline-btn:hover { border-color: rgba(59,130,246,0.4); color: var(--text-primary); background: rgba(59,130,246,0.08); }
+.pipeline-timeline-count {
+  min-width: 16px; height: 16px; border-radius: 100px; background: var(--accent-blue);
+  color: #fff; font-size: 0.6875rem; font-weight: 700; display: inline-flex;
+  align-items: center; justify-content: center; padding: 0 4px;
+}
+
+/* ─── Timeline Drawer ──────────────────────────────────────── */
+
+.timeline-drawer {
+  position: fixed; top: 0; right: 0; width: min(520px, 100vw); height: 100vh;
+  background: var(--bg-panel); border-left: 1px solid var(--border-subtle);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.35); display: flex; flex-direction: column;
+  overflow: hidden; z-index: 201;
+}
+
+.timeline-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 20px 24px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+}
+
+.timeline-form {
+  padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
+  background: var(--bg-card);
+}
+.timeline-form select, .timeline-form input {
+  padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+  font-size: 0.8125rem; outline: none; transition: border-color var(--transition);
+}
+.timeline-form select:focus, .timeline-form input:focus { border-color: var(--accent-blue); }
+.timeline-form textarea {
+  padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+  font-size: 0.8125rem; outline: none; resize: vertical; transition: border-color var(--transition);
+}
+.timeline-form textarea:focus { border-color: var(--accent-blue); }
+.timeline-form textarea::placeholder, .timeline-form input::placeholder { color: var(--text-muted); }
+
+.timeline-form-row { display: flex; gap: 8px; align-items: flex-start; }
+
+.timeline-list {
+  flex: 1; overflow-y: auto; padding: 16px 24px;
+  display: flex; flex-direction: column;
+}
+
+.timeline-item {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle); position: relative;
+}
+.timeline-item:last-child { border-bottom: none; }
+
+.timeline-item-icon {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card);
+  border: 1px solid var(--border-subtle); display: flex; align-items: center;
+  justify-content: center; font-size: 1rem; flex-shrink: 0; margin-top: 2px;
+}
+
+.timeline-item-body { flex: 1; min-width: 0; }
+
+.timeline-item-meta {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px;
+}
+
+.timeline-resultado {
+  padding: 2px 8px; border-radius: 100px; font-size: 0.6875rem; font-weight: 600;
+}
+
+.timeline-delete-btn {
+  position: absolute; top: 12px; right: 0;
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 0.75rem; padding: 4px 6px; border-radius: 4px; opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+.timeline-item:hover .timeline-delete-btn { opacity: 1; }
+.timeline-delete-btn:hover { color: #ef4444; }
+
+/* ─── Timeline Tabs ─────────────────────────────────────────── */
+
+.timeline-tabs {
+  display: flex; border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card); flex-shrink: 0;
+}
+.timeline-tab {
+  flex: 1; padding: 11px 16px; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--text-muted);
+  font-family: inherit; font-size: 0.8125rem; font-weight: 500;
+  cursor: pointer; transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.timeline-tab:hover { color: var(--text-primary); }
+.timeline-tab.active {
+  color: var(--accent-blue); border-bottom-color: var(--accent-blue);
+  background: rgba(59,130,246,0.04);
+}
+.timeline-tab-badge {
+  min-width: 18px; height: 18px; border-radius: 100px;
+  background: var(--accent-blue); color: #fff;
+  font-size: 0.6875rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;
+}
+.timeline-tab.active .timeline-tab-badge { background: var(--accent-blue); }
+.timeline-tab:not(.active) .timeline-tab-badge { background: var(--text-muted); }
+
+.visita-form-label {
+  display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;
+}
 
 @media (max-width: 768px) {
   .clients-page, .pipeline-page { padding: 20px 16px; }
