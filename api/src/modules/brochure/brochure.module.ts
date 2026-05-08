@@ -11,5 +11,6 @@ import { BROCHURE_QUEUE } from './brochure.processor';
   ],
   controllers: [BrochureController],
   providers: [BrochureService, BrochureProcessor],
+  exports: [BrochureService],
 })
 export class BrochureModule {}

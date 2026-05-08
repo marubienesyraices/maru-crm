@@ -1,9 +1,9 @@
 # Estado del Proyecto — CRM Maru Bienes y Raíces
 
-> **Fecha de revisión:** 5 de mayo de 2026
+> **Fecha de revisión:** 7 de mayo de 2026
 > **Rama:** master
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
-> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ ~100% · Fase 3 🟡 ~93% · Fase 4 🟡 ~65% · Fase 5 ❌
+> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ 100% · Fase 3 🟡 ~96% · Fase 4 🟡 ~72% · Fase 5 🟡 ~57%
 
 ---
 
@@ -12,11 +12,11 @@
 | Fase | Nombre | Estado | SP reales | SP plan | % |
 |:-----|:-------|:-------|:---------:|:-------:|:-:|
 | 1 | Infraestructura Base y Seguridad | ✅ Completa | 57 | 57 | 100% |
-| 2 | Propiedades, Clientes y Portal | ✅ Completa | ~52 | 52 | ~100% |
-| 3 | Embudo de Ventas, Interacciones y Agenda | 🟡 Parcial | ~53 | 57 | ~93% |
-| 4 | Marketing, BI y Automatización | 🟡 Parcial | ~26 | 40 | ~65% |
-| 5 | Integraciones, App Móvil y Go-Live | ❌ No iniciada | 0 | 21+ | 0% |
-| | **TOTAL** | | **~190** | **227** | **~84%** |
+| 2 | Propiedades, Clientes y Portal | ✅ Completa | ~55 | 52 | ~100% |
+| 3 | Embudo de Ventas, Interacciones y Agenda | 🟡 Parcial | ~55 | 57 | ~96% |
+| 4 | Marketing, BI y Automatización | 🟡 Parcial | ~29 | 40 | ~72% |
+| 5 | Integraciones, App Móvil y Go-Live | 🟡 Iniciada | ~12 | 21+ | ~57% |
+| | **TOTAL** | | **~209** | **227** | **~92%** |
 
 ---
 
@@ -64,7 +64,7 @@
 |:--------------|:-------|:------|
 | CRUD de propiedades (tipo, gestión, precios, estados) (HU-05.01) | ✅ Completo | Código auto-generado; 9 tipos, 3 gestiones; `GET /api/propiedades/stats` |
 | Ciclo de vida / máquina de estados (HU-05.01) | ✅ Completo | `TRANSICIONES_VALIDAS`; 7 estados; validación estricta |
-| **Motor de precios sugerido con PostGIS (HU-05.01)** | ❌ **Pendiente** | Campos `latitud/longitud` existen en schema; sin lógica de precio por distancia |
+| **Motor de precios sugerido con PostGIS (HU-05.01)** | ✅ **Completo** | Migración `enable_postgis` + índice GIST parcial; `GET /api/propiedades/precio-sugerido`; IDW por distancia inversa; fallback por departamento; confianza ALTA/MEDIA/BAJA; card en `PropertyFormPage` Step 2 con botón "Aplicar" |
 | Carga multimedia — upload a R2/local (HU-05.02) | ✅ Completo | Hasta 10 archivos; `StorageService` (local o R2); memoryStorage |
 | **Geolocalización con Mapbox / Google Geocoding (HU-05.02)** | ✅ **Completo** | Frontend: `PropertyFormPage` — inputs lat/lng + botón "🎯 Geocodificar" (Mapbox v5) + preview mapa estático. Backend: `PropiedadesService.geocodeFromDto()` auto-geocodifica en create/update si no hay coords; requiere `MAPBOX_TOKEN` (servidor) y `VITE_MAPBOX_TOKEN` (browser) |
 | Galería interactiva con lightbox (HU-05.02) | ✅ Completo | `ImageUpload.tsx`; teclado ←→Esc; drag & drop; set portada |
@@ -80,7 +80,7 @@
 | Carta de comisión PDF server-side (HU-05.03) | ✅ Completo | pdfkit; datos propietario, agente, tenant, comisión, vigencia 6 meses |
 | Brochure de propiedad PDF (HU-05.04) | ✅ Completo | pdfkit; lógica extraída a `BrochureService.generateBuffer()` |
 | **Generación de brochure vía BullMQ worker (HU-05.04)** | ✅ **Completo** | `BrochureProcessor` (BullMQ); `POST /brochure` encola → worker genera PDF → sube a Storage → actualiza `brochure_jobs`; frontend muestra spinner y descarga automáticamente; tracking en `brochure_descargas`; 3 reintentos con backoff exponencial |
-| **Distribución multicanal — WhatsApp API, tracking (HU-05.04)** | ❌ **Pendiente** | Sin integración WhatsApp Business API; email disponible vía Resend |
+| **Distribución multicanal — WhatsApp API, tracking (HU-05.04)** | ✅ **Completo** | `WhatsappModule`; Cloud API (upload media → send document) si `WHATSAPP_API_TOKEN`+`WHATSAPP_PHONE_NUMBER_ID`; fallback `wa.me` link; tabla `whatsapp_envios` (status ENVIADO/FALLIDO/LINK); botón "📲 WhatsApp" en `PropertyDetailPage` con modal: teléfono, mensaje opcional, resultado, historial de 8 envíos |
 | StorageService (local / Cloudflare R2) | ✅ Completo | `@Global()`; activar R2 con vars `R2_*` |
 
 ### Sprint 5 — Portal Público y Notificaciones
@@ -92,11 +92,11 @@
 | Detalle de propiedad con galería y mapa (HU-06.01) | ✅ Completo | Galería + lightbox + specs + JSON-LD + mini-mapa Mapbox GL (`PropertyMap`, 220 px) con marker y NavigationControl |
 | **Búsqueda avanzada con mapa interactivo Mapbox (HU-06.01)** | ✅ **Completo** | `PortalPage` — `MapboxMap` con GeoJSON + circle layer + popup al clic + fitBounds; placeholder cuando no hay token; requiere `VITE_MAPBOX_TOKEN` |
 | **Registro de cliente en portal (HU-06.02)** | ✅ **Completo** | Modal "Registrar interés" en detalle de propiedad → `POST /api/public/registro` crea `Cliente` + `ClientePropiedad` + envía email de verificación; `POST /api/public/verificar-email` activa; `PortalVerifyPage` (`/portal/verificar?token=`) |
-| **Alertas de matching por email al cliente (HU-06.02)** | ❌ **Pendiente** | Matching existe internamente; sin notificación al cliente externo |
+| **Alertas de matching por email al cliente (HU-06.02)** | ✅ **Completo** | Al cambiar propiedad a DISPONIBLE, `notificarClientesMatching()` selecciona clientes con email y envía alerta por Resend con detalle de propiedad (título, código, precio, ubicación) + botón "Ver propiedad →" al portal (`/portal/{id}`); usa `Promise.allSettled` para no bloquear; guarda `agente_id` mock en test; requiere `RESEND_API_KEY` |
 | CRUD de Clientes + preferencias (HU-06.02 parcial) | ✅ Completo | Preferencias: tipo, gestión, presupuesto, zona, habitaciones |
 | Alertas matching agente–propiedad (HU-06.02 / HU-13.01) | ✅ Completo | `MATCH_PROPIEDAD` al agente cuando propiedad pasa a DISPONIBLE |
 | Centro de notificaciones in-app (HU-13.01) | ✅ Completo | Bell con badge 99+; polling 60 s; 5 tipos; marcar leída/todas |
-| **Tests E2E Cypress (HU-06.01)** | ❌ **Pendiente** | Solo placeholder `test/app.e2e-spec.ts` |
+| **Tests E2E Cypress (HU-06.01)** | ✅ **Completo** | 6 suites: auth, propiedades, pipeline, agenda, clientes, búsqueda global; integradas en CI (`e2e` job); comandos `loginAs`/`logout` |
 
 ---
 
@@ -141,7 +141,7 @@
 | Buffer configurable entre citas (HU-09.01) | ✅ Completo | `getBufferMs()` en `VisitasService` lee `ConfigSeguridad.buffer_entre_citas_min`; aplicado en crear y editar visitas |
 | Importación masiva (HU-13.03) | ✅ Completo | `ImportPage` en `/import`; `ImportModal` con drag&drop; plantilla CSV descargable; reporte de errores/creados/omitidos |
 | Email module (HU-08.02 / infraestructura) | ✅ Completo | Resend + tracking: `EmailEvento` (pixel apertura + clic CTA); botón "Ver en CRM" en cada email; `APP_URL` + `RESEND_API_KEY` + `EMAIL_FROM` en `.env` |
-| **Tests E2E Fase 3 (Cypress)** | ❌ **Pendiente** | Sin cobertura E2E del flujo completo |
+| **Tests E2E Fase 3 (Cypress)** | ✅ **Completo** | Flujo pipeline, agenda y clientes cubiertos en `03-pipeline.cy.ts`, `04-agenda.cy.ts`, `05-clientes.cy.ts` |
 
 ---
 
@@ -167,24 +167,26 @@
 | — | Accesibilidad WCAG 2.1 AA | ❌ Pendiente |
 | — | **Documentación API Swagger/OpenAPI** | ✅ **Completo** — `SwaggerModule` en `main.ts`; plugin CLI en `nest-cli.json`; `@ApiTags/@ApiBearerAuth/@ApiOperation` en todos los controllers; UI en `/api/docs` |
 
-### Fase 5 — Integraciones, App Móvil y Go-Live (S23–S30) — 0 / 21+ SP
+### Fase 5 — Integraciones, App Móvil y Go-Live (S23–S30) — ~12 / 21+ SP
 
-| HU | Tarea | Estado |
-|:---|:------|:-------|
-| HU-12.01 | Sindicación a portales externos (Zillow, MercadoLibre, Encuentra24) | ❌ Pendiente |
-| HU-12.02 | Firma digital (DocuSign/Adobe Sign) | ❌ Pendiente |
-| HU-12.02 | Videollamadas (Zoom/Google Meet) | ❌ Pendiente |
-| HU-12.03 | App móvil React Native + Expo (dashboard, agenda, propiedades) | ❌ Pendiente |
-| HU-12.03 | Push notifications FCM/APNs | ❌ Pendiente |
-| HU-12.03 | Modo offline con caché local | ❌ Pendiente |
-| — | Tests E2E completos Cypress (todos los flujos críticos) | ❌ Pendiente |
-| — | Tests de seguridad OWASP Top 10 | ❌ Pendiente |
-| — | Tests de carga k6/Artillery (50 usuarios concurrentes) | ❌ Pendiente |
-| — | Migración de datos existentes (Excel → CRM) | ❌ Pendiente |
-| — | Infraestructura producción (Docker, Railway/Vercel, Cloudflare) | ❌ Pendiente |
-| — | Monitoreo (Sentry, Winston, uptime) | ❌ Pendiente |
-| — | Respaldos automáticos PostgreSQL (cada 24h, retención 30 días) | ❌ Pendiente |
-| — | Capacitación y manuales de usuario | ❌ Pendiente |
+| HU | Tarea | Estado | Notas |
+|:---|:------|:-------|:------|
+| HU-12.01 | Sindicación a portales externos (Zillow, MercadoLibre, Encuentra24) | ❌ Pendiente | Requiere credenciales de API de cada portal |
+| HU-12.02 | Firma digital (DocuSign/Adobe Sign) | ❌ Pendiente | Requiere cuenta DocuSign |
+| HU-12.02 | Videollamadas (Zoom/Google Meet) | ❌ Pendiente | Requiere OAuth app Zoom/Google |
+| HU-12.03 | **App móvil React Native + Expo** | ✅ **Scaffold completo** | `mobile/` — Expo Router; tabs: Dashboard, Propiedades, Agenda; login 2FA; push service; `src/lib/api.ts` con refresh |
+| HU-12.03 | **Push notifications FCM/APNs** | ✅ **Infraestructura lista** | `pushService.ts` — registro de token, canal Android, listener foreground; registra token en `PATCH /api/users/push-token` |
+| HU-12.03 | Modo offline con caché local | ⚠️ Parcial | `SecureStore` para tokens; sin caché de datos offline |
+| — | **Tests E2E Cypress** | ✅ **Completo** | 6 suites: auth, propiedades, pipeline, agenda, clientes, búsqueda global; `cypress.config.ts`; comandos custom `loginAs`/`logout`; integrado en CI |
+| — | Tests de seguridad OWASP Top 10 | ❌ Pendiente | — |
+| — | **Tests de carga k6** | ✅ **Completo** | 3 scripts: `auth.js` (50 VU), `pipeline.js` (50 VU), `portal-publico.js` (100 VU); umbrales p95 < 500ms |
+| — | Migración de datos existentes (Excel → CRM) | ❌ Pendiente | `ImportPage` ya existe para subidas manuales |
+| — | **Infraestructura producción** | ✅ **Completo** | `api/Dockerfile`, `web/Dockerfile`, `portal/Dockerfile` multi-stage; `docker-compose.prod.yml`; `infra/nginx/nginx.conf` (API+CRM+Portal con HTTPS/HTTP2); `.env.production.example` |
+| — | **Monitoreo Sentry** | ✅ **Completo** | `@sentry/nestjs` en API (`instrument.ts` + `SentryGlobalFilter`); `@sentry/react` en web (init + `ErrorBoundary`); `SENTRY_DSN` en `.env.production.example` |
+| — | **Respaldos automáticos PostgreSQL** | ✅ **Completo** | `infra/backup/backup.sh` — `pg_dump` + gzip + upload R2 + retención 30 días; `crontab` 02:00 UTC diario; servicio `backup` en `docker-compose.prod.yml` |
+| — | **GitHub Actions CD** | ✅ **Completo** | `deploy.yml` — build/push de 3 imágenes a GHCR, deploy vía SSH, `prisma migrate deploy`, notify Sentry release |
+| — | **Health endpoint `/api/health`** | ✅ **Completo** | `HealthController` con `@SkipAudit()`; usado en healthcheck de Docker y CI |
+| — | Capacitación y manuales de usuario | ❌ Pendiente | — |
 
 ---
 
@@ -214,7 +216,9 @@
 | CampanasPage | ✅ Funcional | 2 tabs: Plantillas (CRUD + preview HTML en iframe) y Campañas (crear, filtrar por rol, enviar, stats apertura); solo ADMIN/SUPER_ADMIN |
 | AppLayout / ProtectedRoute | ✅ Funcional | Sidebar; rutas protegidas por JWT; "Campañas" ✉️ en sección admin; "Reportes" + "Ranking" ⭐ |
 
-### Portal Público (`portal/` — Next.js 14)
+### Portal Público (`portal/` — Next.js 14, paquete workspace `@maru/portal`)
+
+> Puerto 3001 · `npm run dev:portal` · App Router (RSC + SSR)
 
 | Página / Componente | Estado | Notas |
 |:--------------------|:-------|:------|
@@ -224,9 +228,18 @@
 | Galería con lightbox (HU-06.01) | ✅ Funcional | Client component; prev/next; contador |
 | Contacto WhatsApp / Email (HU-06.01) | ✅ Funcional | Botón flotante + tarjeta de contacto con mensaje pre-llenado |
 | **Mapa interactivo Mapbox (HU-06.01)** | ✅ **Completo** | `PortalPage` — mapa de marcadores GeoJSON; `PortalDetailPage` — mini-mapa con marker; lazy-loaded `mapbox-gl` v3 |
-| **Registro de cuenta de cliente (HU-06.02)** | ❌ **Pendiente** | Sin módulo de cuenta pública |
-| **Alertas de matching por email al cliente (HU-06.02)** | ❌ **Pendiente** | Sin notificación al cliente externo |
+| **Registro de cuenta de cliente (HU-06.02)** | ❌ **Pendiente** | La ruta `PortalVerifyPage` existe en el CRM web (`/portal/verificar`); el flujo de registro vive en el web app React, no en el Next.js portal |
+| **Alertas de matching por email al cliente (HU-06.02)** | ✅ **Completo** | Email automático al cliente al publicar propiedad compatible |
 | **Chatbot de captura de leads (HU-10.03)** | ❌ **Pendiente** | Sin widget de chat |
+
+### Páginas Públicas en CRM web (`web/` — React, rutas `/portal/*`)
+
+| Página | Ruta | Estado | Notas |
+|:-------|:-----|:-------|:------|
+| PortalPage | `/portal` | ✅ Funcional | Catálogo público; filtros; mapa Mapbox |
+| PortalDetailPage | `/portal/:id` | ✅ Funcional | Detalle de propiedad; modal "Registrar interés" |
+| PortalVerifyPage | `/portal/verificar` | ✅ Funcional | Verifica token de email; activa `ClientePropiedad` |
+| PortalReprogramarPage | `/portal/reprogramar/:token` | ✅ Funcional | Confirmar / proponer nueva fecha / cancelar visita |
 
 ---
 
@@ -239,9 +252,9 @@
 | RLS policies manuales | Medio | ⚠️ Pendiente — ejecutar `rls_policies/migration.sql` tras cada `migrate dev` |
 | TanStack Query instalado sin usar | Bajo | ⚠️ Pendiente — solo `fetch` directo; caché no aprovechada |
 | Sin integración SMTP / Resend | Alto | ✅ Resuelto — `EmailModule` con Resend; configurar `RESEND_API_KEY` + `EMAIL_FROM` |
-| E2E tests Cypress | Medio | ❌ Pendiente — solo placeholder |
+| E2E tests Cypress | Medio | ✅ Resuelto — 6 suites en `web/cypress/e2e/`; `cypress.config.ts`; integrado en CI (`e2e` job con Postgres+Redis) |
 | Buffer entre citas no validado en UI | Bajo | ❌ Pendiente |
-| PostGIS para motor de precios | Alto | ❌ Pendiente — lat/lng existen pero sin lógica de radio |
+| PostGIS para motor de precios | Alto | ✅ Resuelto — extensión + índice GIST + endpoint IDW + card en formulario |
 | Compresión y marca de agua de imágenes | Medio | ✅ Resuelto — `ImageService` + `sharp`; max 2 000 px; JPEG 82; watermark SVG con nombre del tenant |
 | Swagger/OpenAPI | Medio | ✅ Resuelto — `SwaggerModule`; plugin CLI; todos los controllers anotados; UI en `/api/docs` |
 | Mapbox en portal y formulario propiedad | Medio | ✅ Resuelto — mapa en portal (lista+detalle), geocodificación en `PropertyFormPage`; configurar `VITE_MAPBOX_TOKEN` |
@@ -257,19 +270,20 @@
 - [x] Roles RBAC con jerarquía recursiva
 - [x] CI/CD operativo
 
-### Fase 2 🟡 Parcial
+### Fase 2 ✅ Completa
 - [x] CRUD completo de propiedades con estados
 - [x] Carga de multimedia con galería
 - [x] Multimedia con marca de agua y geolocalización (server-side: `ImageService` + `PropiedadesService.geocodeFromDto()`)
+- [x] Motor de precios sugerido PostGIS — `ST_DWithin` + IDW + card "Aplicar" en formulario
 - [x] Brochure PDF (sincrónico) con carta de comisión
 - [x] Brochure vía BullMQ worker con tracking de descarga (`brochure_jobs` + `brochure_descargas`, Redis requerido)
 - [x] Portal público SSR con catálogo filtrable (Next.js)
 - [x] Portal con mapa interactivo Mapbox (lista + detalle; geocodificación en formulario CRM)
 - [x] Centro de notificaciones in-app
 - [x] Registro de cliente en portal con verificación de email
-- [ ] Tests E2E (Cypress)
+- [x] Tests E2E Cypress — 6 suites (`01-auth` a `06-busqueda-global`) integradas en CI
 
-### Fase 3 🟡 Parcial
+### Fase 3 🟡 Parcial (~96%)
 - [x] Kanban board con drag & drop
 - [x] Máquina de estados con concurrencia y bloqueo
 - [x] Timeline de interacciones (registrar, ver, eliminar)
@@ -293,14 +307,49 @@
 - [ ] Chatbot de captura de leads en portal (HU-10.03)
 - [x] Swagger/OpenAPI — UI en `/api/docs`; plugin CLI; todos los controllers anotados
 
-### Fase 5 ❌ No iniciada
-_(Ver sección correspondiente arriba)_
+### Fase 5 🟡 Iniciada (~57%)
+- [x] Dockerfiles multi-stage para api, web, portal
+- [x] `docker-compose.prod.yml` con 7 servicios (postgres, redis, api, migrate, web, portal, nginx, backup)
+- [x] Nginx reverse proxy con HTTPS/HTTP2 y cabeceras de seguridad
+- [x] Sentry en API (`@sentry/nestjs`) y web (`@sentry/react`)
+- [x] Health endpoint `/api/health`
+- [x] GitHub Actions CD (build → push GHCR → deploy SSH → Sentry release)
+- [x] Backup automático PostgreSQL (pg_dump + R2 + retención 30d)
+- [x] E2E Cypress: 6 suites (auth, propiedades, pipeline, agenda, clientes, búsqueda)
+- [x] Tests de carga k6: 3 scripts (auth 50VU, pipeline 50VU, portal-público 100VU)
+- [x] App móvil Expo: login 2FA, dashboard KPIs, propiedades paginadas, agenda visitas, push notifications
+- [ ] Sindicación portales externos (HU-12.01)
+- [ ] Firma digital DocuSign (HU-12.02)
+- [ ] Videollamadas Zoom/Meet (HU-12.02)
+- [ ] Modo offline app móvil
+- [ ] Tests de seguridad OWASP Top 10
+- [ ] Migración de datos existentes
+- [ ] Capacitación y manuales de usuario
+
+---
+
+## Inventario Técnico (estado 7-may-2026)
+
+| Capa | Artefacto | Cantidad |
+|:-----|:----------|:--------:|
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, propietarios, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage | 21 |
+| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), propietarios, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi | 23 |
+| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, Propietario, PropiedadImagen, PropiedadDocumento, Cliente, ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga | 19 |
+| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana | 18 |
+| Frontend — páginas CRM | Login, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline, Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi, Campanas, Ranking, AdminTenants, AdminUsers | 21 |
+| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle) | 2 |
+| Tests unitarios | 144 tests en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, + 2 más) | 144 |
+| Tests E2E Cypress | 6 suites en `web/cypress/e2e/`: 01-auth, 02-propiedades, 03-pipeline, 04-agenda, 05-clientes, 06-busqueda-global; comandos `loginAs`/`logout`; integrado en CI | 6 |
+| Tests de carga k6 | `infra/k6/`: auth.js (50 VU), pipeline.js (50 VU), portal-publico.js (100 VU); umbrales p95 < 500ms | 3 |
+| Infraestructura Docker | `api/Dockerfile`, `web/Dockerfile`, `portal/Dockerfile` multi-stage; `docker-compose.prod.yml` (7 servicios); `infra/nginx/nginx.conf`; `infra/backup/backup.sh` | — |
+| App móvil | `mobile/` — Expo Router; 5 pantallas (Login, Verify2FA, Dashboard, Propiedades, Agenda); push service FCM/APNs | — |
+| PostGIS / Spatial | Migración `20260507100000_enable_postgis`; extensión `postgis`; índice GIST parcial `idx_propiedades_geom`; endpoint `GET /api/propiedades/precio-sugerido`; IDW por distancia inversa; fallback por departamento | — |
 
 ---
 
 ## Próximos Pasos Recomendados (por prioridad de negocio)
 
-### Alta prioridad (completan Fase 2 y 3)
+### Alta prioridad (completan Fase 2 y 3) — Todo completado
 1. ~~Portal público SSR~~ ✅ Completado
 2. ~~Búsqueda global Ctrl+K~~ ✅ Completado
 3. ~~Importación masiva Excel/CSV~~ ✅ Completado
@@ -308,6 +357,8 @@ _(Ver sección correspondiente arriba)_
 5. ~~Buffer configurable entre citas~~ ✅ Completado
 6. ~~**Mapbox en portal**~~ ✅ Completado (mapa lista+detalle, geocodificación frontend+backend, marca de agua)
 7. ~~**Tareas automáticas**~~ ✅ Completado (`PipelineScheduler` lead inactivity + `DocumentosScheduler` vencimientos)
+8. ~~**Tests E2E Cypress**~~ ✅ Completado — 6 suites integradas en CI
+9. ~~**Motor de precios PostGIS**~~ ✅ Completado — `ST_DWithin` + IDW + fallback por departamento; card en formulario con botón "Aplicar"
 
 ### Media prioridad (Fase 4 — en progreso)
 7. ~~**Dashboard BI**~~ ✅ Completado — resumen, agentes, top propiedades, export XLSX (HU-11.01/11.02)
@@ -318,8 +369,18 @@ _(Ver sección correspondiente arriba)_
 12. ~~**Swagger/OpenAPI**~~ ✅ Completado — UI en `/api/docs`; `SwaggerModule`; plugin CLI; todos los controllers anotados
 13. **Publicación en Meta** — Facebook/Instagram Graph API (HU-10.01)
 
-### Baja prioridad / Fase 5
-11. **App móvil React Native + Expo** (HU-12.03)
-12. **Sindicación a portales externos** — Encuentra24 (HU-12.01)
-13. **Firma digital** — DocuSign/Adobe Sign (HU-12.02)
-14. **Infraestructura producción** — Docker, Railway, Cloudflare (Sprint 15)
+### Completados en esta sesión (Fase 5)
+- ~~**Infraestructura producción**~~ ✅ Dockerfiles + docker-compose.prod.yml + nginx
+- ~~**Sentry monitoreo**~~ ✅ API + web
+- ~~**GitHub Actions CD**~~ ✅ Build/push/deploy/Sentry notify
+- ~~**Cypress E2E**~~ ✅ 6 suites, integrado en CI
+- ~~**k6 load tests**~~ ✅ 3 escenarios
+- ~~**App móvil Expo**~~ ✅ Scaffold completo con push notifications
+
+### Pendiente Fase 5
+14. **Sindicación a portales externos** — Encuentra24 (HU-12.01) — requiere credenciales
+15. **Firma digital** — DocuSign/Adobe Sign (HU-12.02) — requiere cuenta DocuSign
+16. **Videollamadas** — Zoom/Meet (HU-12.02) — requiere OAuth app
+17. **Tests OWASP Top 10** — pruebas de seguridad
+18. **Modo offline app móvil** — caché de datos con AsyncStorage
+19. **Capacitación** — manuales y videos de usuario

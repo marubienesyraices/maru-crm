@@ -1,6 +1,9 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+// Sentry debe inicializarse antes que cualquier otro import
+import './instrument';
+import { NestFactory, Reflector, HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { AppModule } from './app.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { PrismaService } from './prisma/prisma.service';
@@ -8,8 +11,19 @@ import { PrismaService } from './prisma/prisma.service';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Sentry: captura excepciones no manejadas como eventos
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new SentryGlobalFilter(httpAdapter));
+
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:3001',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ];
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    origin: allowedOrigins,
     credentials: true,
   });
 

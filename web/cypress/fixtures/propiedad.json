@@ -1,0 +1,14 @@
+{
+  "titulo": "Casa de prueba E2E",
+  "descripcion": "Propiedad creada por tests automatizados",
+  "tipo": "CASA",
+  "tipo_gestion": "VENTA",
+  "precio_venta": 250000,
+  "habitaciones": 3,
+  "banos": 2,
+  "superficie_m2": 180,
+  "departamento": "Guatemala",
+  "municipio": "Guatemala",
+  "zona": "10",
+  "direccion": "Calle Cypress 123"
+}

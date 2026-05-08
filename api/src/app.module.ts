@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { HealthController } from './health.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
@@ -23,6 +24,7 @@ import { PortalModule } from './modules/portal/portal.module';
 import { BrochureModule } from './modules/brochure/brochure.module';
 import { BiModule } from './modules/bi/bi.module';
 import { CampanasModule } from './modules/campanas/campanas.module';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -61,11 +63,13 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     BrochureModule,
     BiModule,
     CampanasModule,
+    WhatsappModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
   ],
+  controllers: [HealthController],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

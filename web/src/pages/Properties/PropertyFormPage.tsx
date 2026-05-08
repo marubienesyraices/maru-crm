@@ -110,6 +110,11 @@ export default function PropertyFormPage() {
   const [geocoding, setGeocoding] = useState(false);
   const [geoError, setGeoError] = useState('');
 
+  // Motor de precios sugerido
+  const [loadingSugg, setLoadingSugg] = useState(false);
+  const [suggestion, setSuggestion] = useState<any>(null);
+  const [suggError, setSuggError] = useState('');
+
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -150,8 +155,8 @@ export default function PropertyFormPage() {
   }, [id, accessToken]);
 
   const geocodeAddress = async () => {
-    const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
-    if (!MAPBOX_TOKEN) { setGeoError('VITE_MAPBOX_TOKEN no configurado'); return; }
+    const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    if (!GOOGLE_KEY) { setGeoError('VITE_GOOGLE_MAPS_API_KEY no configurado'); return; }
     const parts = [form.direccion, form.zona ? `Zona ${form.zona}` : '', form.municipio, form.departamento, form.pais]
       .filter(Boolean).join(', ');
     if (!parts.trim()) { setGeoError('Completa al menos municipio y departamento'); return; }
@@ -159,18 +164,41 @@ export default function PropertyFormPage() {
     setGeoError('');
     try {
       const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(parts)}.json?access_token=${MAPBOX_TOKEN}&language=es&limit=1`,
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(parts)}&language=es&key=${GOOGLE_KEY}`,
       );
       const json = await res.json();
-      const feat = json.features?.[0];
-      if (!feat) { setGeoError('No se encontró la dirección. Intenta ser más específico.'); return; }
-      const [lng, lat] = feat.center;
-      updateField('longitud', String(lng));
+      if (json.status !== 'OK' || !json.results?.length) {
+        setGeoError('No se encontró la dirección. Intenta ser más específico.');
+        return;
+      }
+      const { lat, lng } = json.results[0].geometry.location;
       updateField('latitud', String(lat));
+      updateField('longitud', String(lng));
     } catch {
       setGeoError('Error al contactar el servicio de geocodificación');
     } finally {
       setGeocoding(false);
+    }
+  };
+
+  const fetchSuggestion = async () => {
+    setSuggError('');
+    setSuggestion(null);
+    setLoadingSugg(true);
+    try {
+      const params = new URLSearchParams({ tipo: form.tipo, gestion: form.gestion });
+      if (form.latitud)     params.set('lat', form.latitud);
+      if (form.longitud)    params.set('lng', form.longitud);
+      if (form.departamento) params.set('departamento', form.departamento);
+      if (id)               params.set('excludeId', id);
+      const data = await apiRequest<any>(`/api/propiedades/precio-sugerido?${params}`, {
+        token: accessToken!,
+      });
+      setSuggestion(data);
+    } catch (err: any) {
+      setSuggError(err.message || 'Error al obtener sugerencia de precio');
+    } finally {
+      setLoadingSugg(false);
     }
   };
 
@@ -353,6 +381,153 @@ export default function PropertyFormPage() {
             <div className="input-group">
               <label>Comisión (%)</label>
               <input className="input-field" type="number" step="0.5" placeholder="5.0" value={form.comisionPorcentaje} onChange={(e) => updateField('comisionPorcentaje', e.target.value)} />
+            </div>
+
+            {/* ── Motor de precios sugerido (PostGIS) ── */}
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>💡 Motor de Precios</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.75rem', padding: '4px 12px', height: 'auto' }}
+                  onClick={fetchSuggestion}
+                  disabled={loadingSugg}
+                >
+                  {loadingSugg ? '⏳ Analizando comparables...' : '↻ Obtener precio sugerido'}
+                </button>
+                {!form.latitud && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    (Geocodifica en Paso 3 para mayor precisión)
+                  </span>
+                )}
+              </div>
+
+              {suggError && (
+                <p style={{ margin: '0 0 8px', fontSize: '0.8125rem', color: '#f87171' }}>{suggError}</p>
+              )}
+
+              {suggestion && (
+                <div style={{
+                  background: 'var(--bg-elevated)',
+                  border: `1px solid ${suggestion.confianza === 'ALTA' ? '#22c55e44' : suggestion.confianza === 'MEDIA' ? '#f59e0b44' : '#6b728044'}`,
+                  borderRadius: 8,
+                  padding: '14px 16px',
+                  fontSize: '0.8125rem',
+                }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {suggestion.comparable_count > 0
+                        ? <>Basado en <strong>{suggestion.comparable_count}</strong> comparable{suggestion.comparable_count !== 1 ? 's' : ''}</>
+                        : 'Sin comparables disponibles'}
+                    </span>
+                    {suggestion.comparable_count > 0 && (
+                      <span style={{
+                        padding: '2px 8px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 600,
+                        background: suggestion.confianza === 'ALTA' ? '#22c55e22' : suggestion.confianza === 'MEDIA' ? '#f59e0b22' : '#ef444422',
+                        color:      suggestion.confianza === 'ALTA' ? '#22c55e'   : suggestion.confianza === 'MEDIA' ? '#f59e0b'   : '#ef4444',
+                      }}>
+                        Confianza {suggestion.confianza}
+                      </span>
+                    )}
+                    {suggestion.usa_postgis && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        📍 Radio {suggestion.radio_km} km
+                      </span>
+                    )}
+                    {!suggestion.usa_postgis && suggestion.comparable_count > 0 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>📂 Por departamento</span>
+                    )}
+                  </div>
+
+                  {/* Precios sugeridos */}
+                  {suggestion.precio_sugerido_venta != null && form.gestion !== 'RENTA' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span>
+                        Venta sugerida:{' '}
+                        <strong>{Number(suggestion.precio_sugerido_venta).toLocaleString()} {form.moneda}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.7rem', padding: '2px 10px', height: 'auto' }}
+                        onClick={() => updateField('precioVenta', String(suggestion.precio_sugerido_venta))}
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  )}
+                  {suggestion.precio_sugerido_renta != null && form.gestion !== 'VENTA' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span>
+                        Renta mensual sugerida:{' '}
+                        <strong>{Number(suggestion.precio_sugerido_renta).toLocaleString()} {form.moneda}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.7rem', padding: '2px 10px', height: 'auto' }}
+                        onClick={() => updateField('precioRenta', String(suggestion.precio_sugerido_renta))}
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  )}
+                  {suggestion.precio_m2_sugerido != null && (
+                    <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                      Precio/m² de construcción referencial:{' '}
+                      {Number(suggestion.precio_m2_sugerido).toLocaleString()} {form.moneda}
+                    </p>
+                  )}
+
+                  {/* Sin datos */}
+                  {suggestion.confianza === 'SIN_DATOS' && (
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>
+                      No hay propiedades comparables registradas aún. Agrega más propiedades al CRM para activar esta función.
+                    </p>
+                  )}
+
+                  {/* Lista de comparables */}
+                  {suggestion.comparables?.length > 0 && (
+                    <details style={{ marginTop: 10 }}>
+                      <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        Ver {suggestion.comparables.length} comparable{suggestion.comparables.length !== 1 ? 's' : ''}
+                      </summary>
+                      <table style={{ width: '100%', marginTop: 8, borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                        <thead>
+                          <tr style={{ color: 'var(--text-muted)', textAlign: 'left' }}>
+                            <th style={{ padding: '4px 8px 4px 0', fontWeight: 500 }}>Código</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 500 }}>Título</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Precio venta</th>
+                            <th style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Precio renta</th>
+                            {suggestion.usa_postgis && <th style={{ padding: '4px 0 4px 8px', fontWeight: 500, textAlign: 'right' }}>Distancia</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {suggestion.comparables.map((c: any) => (
+                            <tr key={c.id} style={{ borderTop: '1px solid var(--border)' }}>
+                              <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)' }}>{c.codigo}</td>
+                              <td style={{ padding: '4px 8px' }}>{c.titulo}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right' }}>
+                                {c.precio_venta ? Number(c.precio_venta).toLocaleString() : '—'}
+                              </td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right' }}>
+                                {c.precio_renta ? Number(c.precio_renta).toLocaleString() : '—'}
+                              </td>
+                              {suggestion.usa_postgis && (
+                                <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: 'var(--text-muted)' }}>
+                                  {c.distancia_m != null ? `${(c.distancia_m / 1000).toFixed(1)} km` : '—'}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -1,0 +1,119 @@
+name: CD — Deploy to Production
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/maru-crm
+
+jobs:
+  # ─── Solo despliega si CI pasó ─────────────────────────────────────────────
+  check-ci:
+    name: Verify CI passed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+  # ─── Build & Push imágenes Docker ─────────────────────────────────────────
+  build-push:
+    name: Build & Push Docker images
+    runs-on: ubuntu-latest
+    needs: check-ci
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service: [api, web, portal]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_API_URL=${{ secrets.APP_URL }}
+            VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}
+            NEXT_PUBLIC_API_URL=${{ secrets.APP_URL }}
+            NEXT_PUBLIC_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}
+
+  # ─── Deploy vía SSH ────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs: build-push
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy docker-compose.prod.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.prod.yml,infra/"
+          target: "/opt/maru-crm"
+
+      - name: Deploy with docker compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/maru-crm
+
+            # Pull nuevas imágenes
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull api web portal
+
+            # Ejecutar migraciones antes del rollout
+            docker compose -f docker-compose.prod.yml run --rm migrate
+
+            # Actualizar servicios (rolling restart)
+            docker compose -f docker-compose.prod.yml up -d --no-deps api web portal
+
+            # Limpiar imágenes antiguas
+            docker image prune -f
+
+      - name: Notify Sentry of new release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_API }}
+        with:
+          environment: production
+          version: ${{ github.sha }}

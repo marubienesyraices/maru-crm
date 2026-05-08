@@ -597,6 +597,25 @@ model EmailCampana {
   @@map("email_campanas")
 }
 
+// ─── WhatsApp envíos ─────────────────────────────────────────
+
+model WhatsappEnvio {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  propiedad_id     String
+  user_id          String
+  telefono_destino String
+  mensaje          String?
+  status           String   @default("ENVIADO") // ENVIADO | FALLIDO | LINK
+  waba_message_id  String?
+  error            String?
+  enviado_at       DateTime @default(now())
+
+  @@index([tenant_id, propiedad_id])
+  @@index([tenant_id, enviado_at(sort: Desc)])
+  @@map("whatsapp_envios")
+}
+
 // ─── Email tracking ──────────────────────────────────────────
 
 model EmailEvento {

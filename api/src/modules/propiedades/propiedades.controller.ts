@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PropiedadesService } from './propiedades.service';
-import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto } from './dto';
+import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -32,6 +32,18 @@ export class PropiedadesController {
   @ApiOperation({ summary: 'Estadísticas de propiedades por estado y tipo' })
   getStats(@CurrentUser() user: any, @Req() req: any) {
     return this.service.getStats(user.tenantId, req.visibleUserIds);
+  }
+
+  @Get('precio-sugerido')
+  @ApiOperation({
+    summary: 'Precio sugerido basado en comparables cercanos (PostGIS)',
+    description:
+      'Si se proveen lat/lng usa ST_DWithin para búsqueda espacial. ' +
+      'Fallback: comparables del mismo departamento. ' +
+      'Requiere extensión PostGIS instalada en PostgreSQL.',
+  })
+  getPrecioSugerido(@CurrentUser() user: any, @Query() dto: PrecioSugeridoQueryDto) {
+    return this.service.getPrecioSugerido(user.tenantId, dto);
   }
 
   @Get(':id')

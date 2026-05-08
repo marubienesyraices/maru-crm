@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/Login/LoginPage';
 import Verify2FAPage from './pages/Verify2FA/Verify2FAPage';
@@ -26,6 +27,7 @@ import './index.css';
 
 export default function App() {
   return (
+    <Sentry.ErrorBoundary fallback={<p style={{ padding: 32, color: 'red' }}>Error inesperado. Por favor recarga la página.</p>}>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -65,5 +67,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
+    </Sentry.ErrorBoundary>
   );
 }

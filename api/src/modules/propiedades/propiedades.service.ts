@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TipoPropiedad, TipoGestion, EstadoPropiedad } from '@prisma/client';
-import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto } from './dto';
+import { Prisma, TipoPropiedad, TipoGestion, EstadoPropiedad } from '@prisma/client';
+import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { EmailService } from '../email/email.service';
+
+interface PrecioComparable {
+  id: string;
+  codigo: string;
+  titulo: string;
+  precio_venta: number | null;
+  precio_renta: number | null;
+  area_construccion_m2: number | null;
+  distancia_m: number | null;
+}
 
 // ─── State Machine ────────────────────────────────────────────
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
@@ -19,12 +30,16 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
 @Injectable()
 export class PropiedadesService {
   private readonly logger = new Logger(PropiedadesService.name);
+  private readonly frontendUrl: string;
 
   constructor(
     private prisma: PrismaService,
     private notificacionesService: NotificacionesService,
     private config: ConfigService,
-  ) {}
+    @Optional() private readonly emailService?: EmailService,
+  ) {
+    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+  }
 
   // ─── CREATE ─────────────────────────────────────────────────
 
@@ -268,6 +283,149 @@ export class PropiedadesService {
     };
   }
 
+  // ─── PRECIO SUGERIDO (PostGIS) ──────────────────────────────
+
+  async getPrecioSugerido(tenantId: string, dto: PrecioSugeridoQueryDto) {
+    const radioM = (dto.radioKm ?? 5) * 1000;
+
+    let comparables: PrecioComparable[];
+    if (dto.lat != null && dto.lng != null) {
+      comparables = await this.queryComparablesByGeo(tenantId, dto, radioM);
+    } else {
+      comparables = await this.queryComparablesByDepartamento(tenantId, dto);
+    }
+
+    const filtered = comparables.filter((c) =>
+      dto.gestion === 'VENTA' ? c.precio_venta != null
+      : dto.gestion === 'RENTA' ? c.precio_renta != null
+      : c.precio_venta != null || c.precio_renta != null,
+    );
+
+    if (!filtered.length) {
+      return {
+        precio_sugerido_venta: null,
+        precio_sugerido_renta: null,
+        precio_m2_sugerido: null,
+        comparable_count: 0,
+        radio_km: dto.radioKm ?? 5,
+        confianza: 'SIN_DATOS' as const,
+        usa_postgis: dto.lat != null && dto.lng != null,
+        comparables: [],
+      };
+    }
+
+    // Promedio ponderado por distancia inversa: peso = 1 / (distancia_m + 100)
+    // Propiedades sin coordenadas usan distancia ficticia de 2 500 m
+    let sumWV = 0, sumPV = 0, sumWR = 0, sumPR = 0, sumWM = 0, sumPM = 0;
+    for (const c of filtered) {
+      const d = c.distancia_m ?? 2500;
+      const w = 1 / (d + 100);
+      if (c.precio_venta) {
+        sumWV += w; sumPV += c.precio_venta * w;
+        if (c.area_construccion_m2) { sumWM += w; sumPM += (c.precio_venta / c.area_construccion_m2) * w; }
+      }
+      if (c.precio_renta) { sumWR += w; sumPR += c.precio_renta * w; }
+    }
+
+    const n = filtered.length;
+    return {
+      precio_sugerido_venta: sumWV > 0 ? Math.round(sumPV / sumWV) : null,
+      precio_sugerido_renta: sumWR > 0 ? Math.round(sumPR / sumWR) : null,
+      precio_m2_sugerido:    sumWM > 0 ? Math.round(sumPM / sumWM) : null,
+      comparable_count: n,
+      radio_km: dto.radioKm ?? 5,
+      confianza: n >= 5 ? 'ALTA' as const : n >= 2 ? 'MEDIA' as const : 'BAJA' as const,
+      usa_postgis: dto.lat != null && dto.lng != null,
+      comparables: filtered.slice(0, 5).map((c) => ({
+        id: c.id,
+        codigo: c.codigo,
+        titulo: c.titulo,
+        precio_venta: c.precio_venta,
+        precio_renta: c.precio_renta,
+        distancia_m: c.distancia_m,
+        area_m2: c.area_construccion_m2,
+      })),
+    };
+  }
+
+  private async queryComparablesByGeo(
+    tenantId: string,
+    dto: PrecioSugeridoQueryDto,
+    radioM: number,
+  ): Promise<PrecioComparable[]> {
+    const gestFilter = dto.gestion !== 'AMBAS'
+      ? Prisma.sql`AND (p.gestion::text = ${dto.gestion} OR p.gestion::text = 'AMBAS')`
+      : Prisma.sql``;
+    const excludeFilter = dto.excludeId
+      ? Prisma.sql`AND p.id != ${dto.excludeId}::uuid`
+      : Prisma.sql``;
+
+    return this.prisma.$queryRaw<PrecioComparable[]>`
+      SELECT
+        p.id,
+        p.codigo,
+        p.titulo,
+        p.precio_venta::float           AS precio_venta,
+        p.precio_renta::float           AS precio_renta,
+        p.area_construccion_m2::float   AS area_construccion_m2,
+        ROUND(
+          ST_Distance(
+            ST_SetSRID(ST_MakePoint(${dto.lng!}::float8, ${dto.lat!}::float8), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(p.longitud::float8, p.latitud::float8), 4326)::geography
+          )::numeric, 0
+        )::float AS distancia_m
+      FROM propiedades p
+      WHERE p.tenant_id    = ${tenantId}
+        AND p.tipo::text   = ${dto.tipo}
+        AND p.estado::text = ANY(ARRAY['DISPONIBLE','VENDIDA','RENTADA'])
+        AND p.latitud      IS NOT NULL
+        AND p.longitud     IS NOT NULL
+        AND ST_DWithin(
+          ST_SetSRID(ST_MakePoint(${dto.lng!}::float8, ${dto.lat!}::float8), 4326)::geography,
+          ST_SetSRID(ST_MakePoint(p.longitud::float8, p.latitud::float8), 4326)::geography,
+          ${radioM}
+        )
+        ${gestFilter}
+        ${excludeFilter}
+      ORDER BY distancia_m ASC
+      LIMIT 20
+    `;
+  }
+
+  private async queryComparablesByDepartamento(
+    tenantId: string,
+    dto: PrecioSugeridoQueryDto,
+  ): Promise<PrecioComparable[]> {
+    const deptFilter = dto.departamento
+      ? Prisma.sql`AND p.departamento = ${dto.departamento}`
+      : Prisma.sql``;
+    const gestFilter = dto.gestion !== 'AMBAS'
+      ? Prisma.sql`AND (p.gestion::text = ${dto.gestion} OR p.gestion::text = 'AMBAS')`
+      : Prisma.sql``;
+    const excludeFilter = dto.excludeId
+      ? Prisma.sql`AND p.id != ${dto.excludeId}::uuid`
+      : Prisma.sql``;
+
+    return this.prisma.$queryRaw<PrecioComparable[]>`
+      SELECT
+        p.id,
+        p.codigo,
+        p.titulo,
+        p.precio_venta::float           AS precio_venta,
+        p.precio_renta::float           AS precio_renta,
+        p.area_construccion_m2::float   AS area_construccion_m2,
+        NULL::float                     AS distancia_m
+      FROM propiedades p
+      WHERE p.tenant_id    = ${tenantId}
+        AND p.tipo::text   = ${dto.tipo}
+        AND p.estado::text = ANY(ARRAY['DISPONIBLE','VENDIDA','RENTADA'])
+        ${deptFilter}
+        ${gestFilter}
+        ${excludeFilter}
+      LIMIT 20
+    `;
+  }
+
   // ─── PRIVATE: geocoding ─────────────────────────────────────
 
   private async geocodeFromDto(
@@ -352,11 +510,12 @@ export class PropiedadesService {
         AND: andConditions,
         NOT: { intereses: { some: { propiedad_id: propiedad.id } } },
       },
-      select: { id: true, nombre: true, agente_id: true },
+      select: { id: true, nombre: true, agente_id: true, email: true },
     });
 
     if (!clientes.length) return;
 
+    // Notify agents in-app
     await Promise.all(
       clientes
         .filter((c: any) => c.agente_id)
@@ -372,5 +531,94 @@ export class PropiedadesService {
           }),
         ),
     );
+
+    // Send email alert to each client that has an email address
+    if (this.emailService?.isConfigured) {
+      await Promise.allSettled(
+        clientes
+          .filter((c: any) => c.email)
+          .map((c: any) =>
+            this.emailService!.sendHtml({
+              to: c.email,
+              subject: `Nueva propiedad disponible — ${propiedad.titulo}`,
+              html: this.buildClientMatchHtml(c.nombre, propiedad),
+            }),
+          ),
+      );
+    }
+  }
+
+  private buildClientMatchHtml(nombre: string, propiedad: any): string {
+    const portalUrl = `${this.frontendUrl}/portal/${propiedad.id}`;
+
+    const precio =
+      propiedad.precio_venta != null
+        ? `${propiedad.moneda} ${Number(propiedad.precio_venta).toLocaleString('es-GT')} (venta)`
+        : propiedad.precio_renta != null
+        ? `${propiedad.moneda} ${Number(propiedad.precio_renta).toLocaleString('es-GT')}/mes (renta)`
+        : '';
+
+    const ubicacion = [
+      propiedad.zona ? `Zona ${propiedad.zona}` : '',
+      propiedad.municipio,
+      propiedad.departamento,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <tr>
+          <td style="background:#0f172a;padding:20px 32px;">
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">Maru Bienes y Raíces</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;color:#475569;line-height:1.7;font-size:.9375rem;">
+            <p style="font-size:2rem;margin:0 0 16px;">🏠</p>
+            <h2 style="margin:0 0 8px;font-size:1.125rem;color:#0f172a;">¡Hola, ${nombre}!</h2>
+            <p style="margin:0 0 20px;">
+              Tenemos una propiedad disponible que coincide con lo que estás buscando:
+            </p>
+            <table cellpadding="0" cellspacing="0" width="100%"
+                   style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px;">
+              <tr>
+                <td>
+                  <p style="margin:0 0 6px;font-size:1rem;font-weight:700;color:#0f172a;">${propiedad.titulo}</p>
+                  <p style="margin:0 0 4px;font-size:.8125rem;color:#64748b;">Código: ${propiedad.codigo}</p>
+                  ${precio ? `<p style="margin:0 0 4px;font-size:.875rem;font-weight:600;color:#0f172a;">${precio}</p>` : ''}
+                  ${ubicacion ? `<p style="margin:0;font-size:.8125rem;color:#64748b;">📍 ${ubicacion}</p>` : ''}
+                </td>
+              </tr>
+            </table>
+            <a href="${portalUrl}"
+               style="display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:.9375rem;font-weight:600;">
+              Ver propiedad →
+            </a>
+            <p style="margin:24px 0 0;font-size:.8125rem;color:#94a3b8;">
+              Recibiste este mensaje porque registraste interés en propiedades con características similares.
+              Si no deseas más alertas, puedes ignorar este correo.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;background:#f8fafc;">
+            <p style="margin:0;font-size:.75rem;color:#94a3b8;">Maru Bienes y Raíces · Portal público</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
   }
 }

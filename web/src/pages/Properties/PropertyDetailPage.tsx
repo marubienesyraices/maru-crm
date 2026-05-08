@@ -38,6 +38,15 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
 
+  // WhatsApp modal
+  const [waOpen, setWaOpen] = useState(false);
+  const [waPhone, setWaPhone] = useState('');
+  const [waMensaje, setWaMensaje] = useState('');
+  const [waLoading, setWaLoading] = useState(false);
+  const [waResult, setWaResult] = useState<any>(null);
+  const [waError, setWaError] = useState('');
+  const [waHistorial, setWaHistorial] = useState<any[]>([]);
+
   const fetchProperty = useCallback(async () => {
     try {
       const data = await apiRequest<any>(`/api/propiedades/${id}`, { token: accessToken! });
@@ -59,6 +68,39 @@ export default function PropertyDetailPage() {
       fetchProperty();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const openWaModal = async () => {
+    setWaOpen(true);
+    setWaResult(null);
+    setWaError('');
+    try {
+      const data = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
+      setWaHistorial(data.envios ?? []);
+    } catch { setWaHistorial([]); }
+  };
+
+  const handleWaEnviar = async () => {
+    if (!waPhone.trim()) { setWaError('Ingresa el número de teléfono'); return; }
+    setWaLoading(true);
+    setWaError('');
+    setWaResult(null);
+    try {
+      const data = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/enviar`, {
+        method: 'POST',
+        body: { telefono: waPhone, ...(waMensaje ? { mensaje: waMensaje } : {}) },
+        token: accessToken!,
+      });
+      setWaResult(data);
+      if (data.wa_link) window.open(data.wa_link, '_blank');
+      // Refresh historial
+      const hist = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
+      setWaHistorial(hist.envios ?? []);
+    } catch (err: any) {
+      setWaError(err.message);
+    } finally {
+      setWaLoading(false);
     }
   };
 
@@ -220,6 +262,120 @@ export default function PropertyDetailPage() {
         />
       </div>
 
+      {/* ── Modal WhatsApp ─────────────────────────────────── */}
+      {waOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 16,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setWaOpen(false); }}
+        >
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 12, padding: 28,
+            width: '100%', maxWidth: 480,
+            border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>📲 Compartir por WhatsApp</h3>
+              <button className="btn btn-ghost" style={{ padding: '4px 8px', height: 'auto' }} onClick={() => setWaOpen(false)}>✕</button>
+            </div>
+
+            <div className="input-group" style={{ margin: 0 }}>
+              <label>Número de teléfono <span style={{ color: '#ef4444' }}>*</span></label>
+              <input
+                className="input-field"
+                placeholder="Ej: 50212345678 o +502 1234 5678"
+                value={waPhone}
+                onChange={(e) => setWaPhone(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleWaEnviar()}
+                autoFocus
+              />
+              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Incluye el código de país (Guatemala: 502). Se admiten espacios y guiones.
+              </p>
+            </div>
+
+            <div className="input-group" style={{ margin: 0 }}>
+              <label>Mensaje personalizado <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
+              <textarea
+                className="input-field"
+                style={{ resize: 'vertical', minHeight: 90, fontSize: '0.875rem' }}
+                placeholder="Si no escribes nada se usará un texto automático con el título y precio de la propiedad."
+                value={waMensaje}
+                onChange={(e) => setWaMensaje(e.target.value)}
+                maxLength={1024}
+              />
+              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                {waMensaje.length}/1024
+              </p>
+            </div>
+
+            {waError && (
+              <div style={{ background: '#ef444422', border: '1px solid #ef444444', borderRadius: 6, padding: '10px 14px', fontSize: '0.875rem', color: '#ef4444' }}>
+                {waError}
+              </div>
+            )}
+
+            {waResult && (
+              <div style={{ background: '#22c55e22', border: '1px solid #22c55e44', borderRadius: 6, padding: '10px 14px', fontSize: '0.875rem' }}>
+                {waResult.status === 'ENVIADO' && (
+                  <span>✅ Brochure enviado por WhatsApp a <strong>+{waResult.telefono}</strong></span>
+                )}
+                {waResult.status === 'LINK_GENERADO' && (
+                  <span>
+                    📲 Se abrió WhatsApp en una pestaña nueva.{' '}
+                    <a href={waResult.wa_link} target="_blank" rel="noreferrer" style={{ color: '#22c55e' }}>
+                      Abrir de nuevo
+                    </a>
+                    <br />
+                    <small style={{ color: 'var(--text-muted)' }}>
+                      (Configura WHATSAPP_API_TOKEN para enviar el PDF adjunto automáticamente)
+                    </small>
+                  </span>
+                )}
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={handleWaEnviar}
+              disabled={waLoading}
+              style={{ width: '100%' }}
+            >
+              {waLoading ? <><div className="spinner" /> Enviando...</> : '📲 Enviar'}
+            </button>
+
+            {/* Historial */}
+            {waHistorial.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                <p style={{ margin: '0 0 10px', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  Envíos anteriores
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {waHistorial.slice(0, 8).map((e: any) => (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem' }}>
+                      <span style={{
+                        padding: '1px 8px', borderRadius: 10, fontSize: '0.7rem', flexShrink: 0,
+                        background: e.status === 'ENVIADO' ? '#22c55e22' : e.status === 'LINK' ? '#3b82f622' : '#ef444422',
+                        color:      e.status === 'ENVIADO' ? '#22c55e'   : e.status === 'LINK' ? '#3b82f6'   : '#ef4444',
+                      }}>
+                        {e.status === 'LINK' ? 'LINK' : e.status}
+                      </span>
+                      <span style={{ fontFamily: 'monospace' }}>+{e.telefono_destino}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+                        {new Date(e.enviado_at).toLocaleDateString('es-GT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Expediente Legal */}
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -232,6 +388,13 @@ export default function PropertyDetailPage() {
               style={{ fontSize: '0.8125rem' }}
             >
               {brochureState === 'generating' ? '⏳ Generando…' : brochureState === 'error' ? '❌ Error' : '🏷️ Brochure PDF'}
+            </button>
+            <button
+              onClick={openWaModal}
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8125rem' }}
+            >
+              📲 WhatsApp
             </button>
             <button
               onClick={async () => {

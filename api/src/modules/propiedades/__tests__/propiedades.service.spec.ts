@@ -3,9 +3,11 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PropiedadesService } from '../propiedades.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
+import { ConfigService } from '@nestjs/config';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const mockNotificacionesService = { create: jest.fn().mockResolvedValue({}) };
+const mockConfigService = { get: jest.fn().mockReturnValue(undefined) };
 
 const TENANT_ID = 'tenant-001';
 const USER_ID = 'user-001';
@@ -53,6 +55,7 @@ describe('PropiedadesService', () => {
         PropiedadesService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
