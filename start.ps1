@@ -23,9 +23,17 @@ Start-Sleep -Seconds 3
 Write-Host "Iniciando Frontend (Web) en el puerto 5173..." -ForegroundColor Green
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$baseDir'; title Web - Maru CRM; npm run dev -w web"
 
+# Esperar unos segundos
+Start-Sleep -Seconds 3
+
+# 3. Iniciar el Portal Público (Next.js) en otra ventana
+Write-Host "Iniciando Portal (Next.js) en el puerto 3001..." -ForegroundColor Green
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$baseDir'; title Portal - Maru CRM; npm run dev -w portal"
+
 Write-Host ""
 Write-Host "¡Servicios iniciados en ventanas separadas!" -ForegroundColor Cyan
 Write-Host "API: http://localhost:3000/api"
 Write-Host "Web: http://localhost:5173"
+Write-Host "Portal: http://localhost:3001"
 Write-Host ""
 Write-Host "Para detenerlos, simplemente cierra las nuevas ventanas de PowerShell." -ForegroundColor Yellow
