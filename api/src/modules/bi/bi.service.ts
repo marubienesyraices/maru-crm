@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../redis/redis.service';
+import { Prisma } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const XLSX = require('xlsx');
 
-interface CacheEntry { data: unknown; expiry: number }
-
 const FUNNEL_ESTADOS = ['NUEVO', 'CONTACTADO', 'INTERESADO', 'EN_NEGOCIACION', 'GANADO', 'PERDIDO'] as const;
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL_SEC = 15 * 60; // 15 minutes
 
 const BADGES_DEF = [
   { id: 'top_ventas',   emoji: '🏆', label: 'Top Ventas',    desc: 'Mayor número de cierres en el período' },
@@ -20,15 +20,36 @@ const BADGES_DEF = [
 
 @Injectable()
 export class BiService {
-  private readonly cache = new Map<string, CacheEntry>();
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
+  // ─── Cache helpers ───────────────────────────────────────────
+
+  private cacheKey(tenantId: string, type: string, ...parts: (string | undefined)[]) {
+    return `bi:${tenantId}:${type}:${parts.map((p) => p ?? '').join(':')}`;
+  }
+
+  private async fromCache<T>(key: string): Promise<T | null> {
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw) as T; } catch { return null; }
+  }
+
+  private async toCache(key: string, data: unknown): Promise<void> {
+    await this.redis.set(key, JSON.stringify(data), CACHE_TTL_SEC);
+  }
+
+  async flushTenantCache(tenantId: string): Promise<void> {
+    await this.redis.deleteByPattern(`bi:${tenantId}:*`);
+  }
 
   // ─── Resumen del período ─────────────────────────────────────
 
   async getResumen(tenantId: string, desde?: Date, hasta?: Date) {
-    const key = `resumen:${tenantId}:${desde?.toISOString()}:${hasta?.toISOString()}`;
-    const cached = this.fromCache(key);
+    const key = this.cacheKey(tenantId, 'resumen', desde?.toISOString(), hasta?.toISOString());
+    const cached = await this.fromCache<unknown>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -78,15 +99,15 @@ export class BiService {
       cacheAt: new Date().toISOString(),
     };
 
-    this.toCache(key, result);
+    await this.toCache(key, result);
     return result;
   }
 
   // ─── Desempeño por agente ────────────────────────────────────
 
   async getAgentes(tenantId: string, desde?: Date, hasta?: Date) {
-    const key = `agentes:${tenantId}:${desde?.toISOString()}:${hasta?.toISOString()}`;
-    const cached = this.fromCache(key);
+    const key = this.cacheKey(tenantId, 'agentes', desde?.toISOString(), hasta?.toISOString());
+    const cached = await this.fromCache<unknown>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -139,15 +160,15 @@ export class BiService {
     );
 
     const result = { agentes, cacheAt: new Date().toISOString() };
-    this.toCache(key, result);
+    await this.toCache(key, result);
     return result;
   }
 
   // ─── Top propiedades por actividad ───────────────────────────
 
   async getTopPropiedades(tenantId: string, desde?: Date, hasta?: Date, limit = 10) {
-    const key = `top:${tenantId}:${desde?.toISOString()}:${hasta?.toISOString()}:${limit}`;
-    const cached = this.fromCache(key);
+    const key = this.cacheKey(tenantId, 'top', desde?.toISOString(), hasta?.toISOString(), String(limit));
+    const cached = await this.fromCache<unknown>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -173,7 +194,6 @@ export class BiService {
       },
     });
 
-    // Brochure downloads per property
     const brochureRows = await this.prisma.$queryRaw<{ propiedad_id: string; total: bigint }[]>`
       SELECT bj.propiedad_id, COUNT(bd.id) AS total
       FROM brochure_descargas bd
@@ -202,7 +222,7 @@ export class BiService {
       .slice(0, limit);
 
     const result = { propiedades: ranked, cacheAt: new Date().toISOString() };
-    this.toCache(key, result);
+    await this.toCache(key, result);
     return result;
   }
 
@@ -211,7 +231,6 @@ export class BiService {
   async getRanking(tenantId: string, currentUserId: string, isAdmin: boolean, desde?: Date, hasta?: Date) {
     const { agentes } = await this.getAgentes(tenantId, desde, hasta) as { agentes: any[]; cacheAt: string };
 
-    // Points: closing > visits > interactions; conversion bonus if ≥ 50%
     const scored = agentes.map((a) => ({
       ...a,
       puntos: Math.round(
@@ -225,7 +244,6 @@ export class BiService {
 
     scored.sort((a, b) => b.puntos - a.puntos);
 
-    // Competitive badges: #1 in each category
     const byGanados       = [...scored].sort((a, b) => b.ganados - a.ganados);
     const byComision      = [...scored].sort((a, b) => b.comisionTotal - a.comisionTotal);
     const byInteracciones = [...scored].sort((a, b) => b.numInteracciones - a.numInteracciones);
@@ -236,7 +254,6 @@ export class BiService {
     if (byInteracciones[0]?.numInteracciones > 0)  byInteracciones[0].badges.push('mas_activo');
     if (byVisitas[0]?.visitasRealizadas > 0)       byVisitas[0].badges.push('tour_master');
 
-    // Achievement badges (cumulative thresholds)
     for (const a of scored) {
       if (a.tasaConversion >= 70 && a.ganados >= 2) a.badges.push('elite');
       if (a.ganados >= 5) a.badges.push('cerrador');
@@ -259,6 +276,87 @@ export class BiService {
     }));
 
     return { ranking, badgesConfig: BADGES_DEF, cacheAt: new Date().toISOString() };
+  }
+
+  // ─── Productividad — llamadas/emails por agente ──────────────
+
+  async getProductividad(tenantId: string, desde?: Date, hasta?: Date) {
+    const key = this.cacheKey(tenantId, 'prod', desde?.toISOString(), hasta?.toISOString());
+    const cached = await this.fromCache<unknown>(key);
+    if (cached) return cached;
+
+    const dateFilter = this.dateFilter(desde, hasta);
+    const TIPOS = ['LLAMADA', 'EMAIL', 'WHATSAPP', 'MENSAJE', 'NOTA', 'VISITA'] as const;
+
+    const usuarios = await this.prisma.user.findMany({
+      where: { tenant_id: tenantId, estado: 'ACTIVO' },
+      select: { id: true, nombre: true, rol: true },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const agentes = await Promise.all(
+      usuarios.map(async (u) => {
+        const byTipo = await this.prisma.interaccion.groupBy({
+          by: ['tipo'],
+          where: {
+            usuario_id: u.id,
+            interes: { cliente: { tenant_id: tenantId } },
+            ...(dateFilter && { fecha: dateFilter }),
+          },
+          _count: { _all: true },
+        });
+
+        const porTipo: Record<string, number> = Object.fromEntries(TIPOS.map((t) => [t, 0]));
+        for (const row of byTipo) porTipo[row.tipo] = (row._count as any)._all ?? 0;
+        const total = TIPOS.reduce((s, t) => s + porTipo[t], 0);
+
+        return { id: u.id, nombre: u.nombre, rol: u.rol, porTipo, total };
+      }),
+    );
+
+    let whereExtra: Prisma.Sql = Prisma.empty;
+    if (desde && hasta) whereExtra = Prisma.sql`AND i.fecha >= ${desde} AND i.fecha <= ${hasta}`;
+    else if (desde)     whereExtra = Prisma.sql`AND i.fecha >= ${desde}`;
+    else if (hasta)     whereExtra = Prisma.sql`AND i.fecha <= ${hasta}`;
+
+    const tendenciaRaw = await this.prisma.$queryRaw<
+      { usuario_id: string; dia: Date; total: bigint }[]
+    >`
+      SELECT i.usuario_id, DATE(i.fecha) AS dia, COUNT(*)::int AS total
+      FROM interacciones i
+      JOIN cliente_propiedades cp ON cp.id = i.interes_id
+      JOIN clientes c ON c.id = cp.cliente_id
+      WHERE c.tenant_id = ${tenantId}
+      ${whereExtra}
+      GROUP BY i.usuario_id, dia
+      ORDER BY i.usuario_id, dia
+    `;
+
+    const trendMap: Record<string, { fecha: string; total: number }[]> = {};
+    for (const row of tendenciaRaw) {
+      if (!trendMap[row.usuario_id]) trendMap[row.usuario_id] = [];
+      const dia = row.dia instanceof Date ? row.dia.toISOString().slice(0, 10) : String(row.dia).slice(0, 10);
+      trendMap[row.usuario_id].push({ fecha: dia, total: Number(row.total) });
+    }
+
+    const agentesConTendencia = agentes.map((a) => ({
+      ...a,
+      tendencia: trendMap[a.id] ?? [],
+    }));
+
+    const totalesTipo: Record<string, number> = Object.fromEntries(TIPOS.map((t) => [t, 0]));
+    for (const a of agentesConTendencia) {
+      for (const t of TIPOS) totalesTipo[t] += a.porTipo[t] ?? 0;
+    }
+
+    const result = {
+      agentes: agentesConTendencia,
+      totalesTipo,
+      totalInteracciones: TIPOS.reduce((s, t) => s + totalesTipo[t], 0),
+      cacheAt: new Date().toISOString(),
+    };
+    await this.toCache(key, result);
+    return result;
   }
 
   // ─── Export XLSX agentes ─────────────────────────────────────
@@ -285,17 +383,7 @@ export class BiService {
     return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   }
 
-  // ─── Cache helpers ───────────────────────────────────────────
-
-  private fromCache(key: string): unknown | null {
-    const e = this.cache.get(key);
-    if (!e || Date.now() > e.expiry) { this.cache.delete(key); return null; }
-    return e.data;
-  }
-
-  private toCache(key: string, data: unknown) {
-    this.cache.set(key, { data, expiry: Date.now() + CACHE_TTL });
-  }
+  // ─── Private ─────────────────────────────────────────────────
 
   private dateFilter(desde?: Date, hasta?: Date) {
     if (!desde && !hasta) return undefined;

@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
-import { apiRequest } from '../../lib/api';
+import { usePropiedades, usePropiedadesStats } from '../../hooks/usePropiedades';
 import ImportModal from '../../components/ImportModal';
 import './Properties.css';
 
@@ -72,45 +71,15 @@ function formatPrice(value: string | null, currency: string) {
 
 export default function PropertiesListPage() {
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
-  const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
-  const [filtros, setFiltros] = useState({
-    tipo: '',
-    gestion: '',
-    estado: '',
-    busqueda: '',
-  });
-  const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [filtros, setFiltros] = useState({ tipo: '', gestion: '', estado: '', busqueda: '' });
+  const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filtros.tipo) params.set('tipo', filtros.tipo);
-      if (filtros.gestion) params.set('gestion', filtros.gestion);
-      if (filtros.estado) params.set('estado', filtros.estado);
-      if (filtros.busqueda) params.set('busqueda', filtros.busqueda);
-      params.set('page', String(meta.page));
-      params.set('limit', '12');
+  const { data: result, isLoading: loading, isError } = usePropiedades({ ...filtros, page });
+  const { data: stats } = usePropiedadesStats();
 
-      const [propsData, statsData] = await Promise.all([
-        apiRequest<any>(`/api/propiedades?${params}`, { token: accessToken! }),
-        apiRequest<any>('/api/propiedades/stats', { token: accessToken! }),
-      ]);
-      setPropiedades(propsData.data);
-      setMeta(propsData.meta);
-      setStats(statsData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, filtros, meta.page]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const propiedades: Propiedad[] = result?.data ?? [];
+  const meta = result?.meta ?? { total: 0, page: 1, totalPages: 1 };
 
   return (
     <div className="properties-page">
@@ -175,21 +144,38 @@ export default function PropertiesListPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="props-loading">
+        <div className="page-loading">
           <div className="spinner" />
           <span>Cargando propiedades...</span>
         </div>
+      ) : isError ? (
+        <div className="page-error-state">
+          <div className="page-error-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Error al cargar propiedades</h3>
+          <p>No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
       ) : propiedades.length === 0 ? (
-        <div className="props-empty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-          <h3>Sin propiedades</h3>
-          <p>Agrega tu primera propiedad para comenzar</p>
-          <button className="btn btn-primary" onClick={() => navigate('/propiedades/nueva')}>
-            Nueva Propiedad
-          </button>
+        <div className="page-empty-state">
+          <div className="page-empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </div>
+          <h3>{filtros.busqueda || filtros.tipo || filtros.estado || filtros.gestion ? 'Sin resultados' : 'Sin propiedades'}</h3>
+          <p>
+            {filtros.busqueda || filtros.tipo || filtros.estado || filtros.gestion
+              ? 'Ninguna propiedad coincide con los filtros aplicados.'
+              : 'Agrega tu primera propiedad para comenzar.'}
+          </p>
+          {!filtros.busqueda && !filtros.tipo && !filtros.estado && !filtros.gestion && (
+            <button className="btn btn-primary" onClick={() => navigate('/propiedades/nueva')}>Nueva Propiedad</button>
+          )}
         </div>
       ) : (
         <>
@@ -272,15 +258,15 @@ export default function PropertiesListPage() {
           {meta.totalPages > 1 && (
             <div className="props-pagination">
               <button
-                disabled={meta.page <= 1}
-                onClick={() => setMeta({ ...meta, page: meta.page - 1 })}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
               >
                 ← Anterior
               </button>
-              <span>Página {meta.page} de {meta.totalPages}</span>
+              <span>Página {page} de {meta.totalPages}</span>
               <button
-                disabled={meta.page >= meta.totalPages}
-                onClick={() => setMeta({ ...meta, page: meta.page + 1 })}
+                disabled={page >= meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Siguiente →
               </button>
@@ -289,7 +275,7 @@ export default function PropertiesListPage() {
         </>
       )}
       {showImport && (
-        <ImportModal entity="propiedades" onClose={() => setShowImport(false)} onSuccess={fetchData} />
+        <ImportModal entity="propiedades" onClose={() => setShowImport(false)} onSuccess={() => setPage(1)} />
       )}
     </div>
   );

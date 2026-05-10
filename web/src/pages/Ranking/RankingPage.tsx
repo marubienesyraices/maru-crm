@@ -95,7 +95,6 @@ export default function RankingPage() {
 
   // Podium order: 2nd left, 1st center, 3rd right
   const top3 = ranking.slice(0, 3);
-  const rest = ranking.slice(3);
 
   const podiumOrder: (RankEntry | undefined)[] = [top3[1], top3[0], top3[2]];
 

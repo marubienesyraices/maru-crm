@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useToast } from '../../components/Toast';
 import './Clients.css';
 
 const ORIGENES = [
@@ -44,12 +45,17 @@ export default function ClientFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { accessToken } = useAuthStore();
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const set = (f: string, v: string) => setForm((p) => ({ ...p, [f]: v }));
+  const set = (f: string, v: string) => {
+    setForm((p) => ({ ...p, [f]: v }));
+    if (fieldErrors[f]) setFieldErrors((p) => ({ ...p, [f]: '' }));
+  };
 
   useEffect(() => {
     if (!isEdit) return;
@@ -75,7 +81,10 @@ export default function ClientFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nombre.trim()) { setError('El nombre es requerido'); return; }
+    const errs: Record<string, string> = {};
+    if (!form.nombre.trim()) errs.nombre = 'El nombre es requerido';
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Formato de email inválido';
+    if (Object.keys(errs).length) { setFieldErrors(errs); return; }
     setSaving(true); setError('');
     try {
       const body: any = {
@@ -93,9 +102,11 @@ export default function ClientFormPage() {
       };
       if (isEdit) {
         await apiRequest(`/api/clientes/${id}`, { method: 'PUT', body, token: accessToken! });
+        toast.success('Cliente actualizado correctamente');
         navigate(`/clientes/${id}`);
       } else {
         await apiRequest('/api/clientes', { method: 'POST', body, token: accessToken! });
+        toast.success('Cliente creado correctamente');
         navigate('/clientes');
       }
     } catch (err: any) { setError(err.message); } finally { setSaving(false); }
@@ -115,12 +126,27 @@ export default function ClientFormPage() {
           {/* ─── Datos personales ─── */}
           <div className="form-group">
             <label className="form-label">Nombre *</label>
-            <input className="form-input" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} placeholder="Nombre completo" />
+            <input
+              className={`form-input${fieldErrors.nombre ? ' input-error' : ''}`}
+              value={form.nombre}
+              onChange={(e) => set('nombre', e.target.value)}
+              placeholder="Nombre completo"
+              aria-describedby={fieldErrors.nombre ? 'err-nombre' : undefined}
+            />
+            {fieldErrors.nombre && <span id="err-nombre" className="field-error">{fieldErrors.nombre}</span>}
           </div>
           <div className="client-form-row">
             <div className="form-group">
               <label className="form-label">Email</label>
-              <input className="form-input" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="correo@ejemplo.com" />
+              <input
+                className={`form-input${fieldErrors.email ? ' input-error' : ''}`}
+                type="email"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                placeholder="correo@ejemplo.com"
+                aria-describedby={fieldErrors.email ? 'err-email' : undefined}
+              />
+              {fieldErrors.email && <span id="err-email" className="field-error">{fieldErrors.email}</span>}
             </div>
             <div className="form-group">
               <label className="form-label">Teléfono</label>

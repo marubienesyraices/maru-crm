@@ -40,6 +40,11 @@ export class VisitasService {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
   }
 
+  async getConfig(tenantId: string) {
+    const config = await this.prisma.configSeguridad.findUnique({ where: { tenant_id: tenantId } });
+    return { buffer_entre_citas_min: config?.buffer_entre_citas_min ?? 30 };
+  }
+
   private async getBufferMs(tenantId: string): Promise<number> {
     const config = await this.prisma.configSeguridad.findUnique({ where: { tenant_id: tenantId } });
     return (config?.buffer_entre_citas_min ?? 30) * 60 * 1000;

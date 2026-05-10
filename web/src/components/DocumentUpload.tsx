@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { useToast } from './Toast';
+import { useConfirm } from './ConfirmDialog';
 import './ImageUpload.css';
 
 interface PropiedadDocumento {
@@ -20,6 +22,8 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export default function DocumentUpload({ propiedadId, documentos, onUpdate }: Props) {
   const { accessToken } = useAuthStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -56,9 +60,10 @@ export default function DocumentUpload({ propiedadId, documentos, onUpdate }: Pr
       }
 
       setUploadData({ tipo: 'ESCRITURA', fechaVencimiento: '' });
+      toast.success('Documento subido correctamente');
       onUpdate();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? 'Error al subir el documento');
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = '';
@@ -72,16 +77,18 @@ export default function DocumentUpload({ propiedadId, documentos, onUpdate }: Pr
   };
 
   const handleDelete = async (docId: string) => {
-    if (!confirm('¿Eliminar este documento?')) return;
+    const ok = await confirm({ title: '¿Eliminar documento?', message: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     try {
       const res = await fetch(`${API}/api/propiedades/${propiedadId}/documentos/${docId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) throw new Error('Error al eliminar');
+      toast.success('Documento eliminado');
       onUpdate();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? 'Error al eliminar el documento');
     }
   };
 

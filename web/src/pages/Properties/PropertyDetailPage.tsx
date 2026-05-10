@@ -2,8 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useSindicacion, usePublicarPortal, useRetirarPortal } from '../../hooks/useSindicacion';
+import { useFirmaSolicitudes, useSolicitarFirma } from '../../hooks/useFirma';
 import ImageUpload from '../../components/ImageUpload';
 import DocumentUpload from '../../components/DocumentUpload';
+import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../components/ConfirmDialog';
 import './Properties.css';
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -30,10 +34,274 @@ function formatPrice(v: string | null, currency: string) {
   }
 }
 
+// ─── Sindicación Panel ────────────────────────────────────────
+
+const PORTALES = [
+  { key: 'ENCUENTRA24' as const, label: 'Encuentra24', icon: '🏠' },
+  { key: 'MERCADOLIBRE' as const, label: 'MercadoLibre', icon: '🛒' },
+];
+
+const SIND_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  PUBLICADO: { label: 'Publicado', color: '#22c55e', bg: '#22c55e22' },
+  PENDIENTE: { label: 'Pendiente', color: '#f59e0b', bg: '#f59e0b22' },
+  ERROR:     { label: 'Error',     color: '#ef4444', bg: '#ef444422' },
+  RETIRADO:  { label: 'Retirado',  color: '#94a3b8', bg: '#94a3b822' },
+};
+
+function SindicacionPanel({ propiedadId }: { propiedadId: string }) {
+  const { data: pubs = [], isLoading } = useSindicacion(propiedadId);
+  const publicar = usePublicarPortal(propiedadId);
+  const retirar = useRetirarPortal(propiedadId);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [portalError, setPortalError] = useState<Record<string, string>>({});
+
+  const getPublicacion = (portal: string) => pubs.find((p: any) => p.portal === portal);
+
+  const handlePublicar = (portal: 'ENCUENTRA24' | 'MERCADOLIBRE') => {
+    setPortalError((prev) => ({ ...prev, [portal]: '' }));
+    publicar.mutate(portal, {
+      onSuccess: () => toast.success(`Publicado en ${portal}`),
+      onError: (err: any) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
+    });
+  };
+
+  const handleRetirar = async (portal: 'ENCUENTRA24' | 'MERCADOLIBRE') => {
+    const ok = await confirm({ title: `¿Retirar de ${portal}?`, message: 'El anuncio se eliminará del portal.', confirmLabel: 'Retirar', danger: true });
+    if (!ok) return;
+    setPortalError((prev) => ({ ...prev, [portal]: '' }));
+    retirar.mutate(portal, {
+      onSuccess: () => toast.success(`Retirado de ${portal}`),
+      onError: (err: any) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
+    });
+  };
+
+  return (
+    <div className="prop-detail-section" style={{ marginTop: 8 }}>
+      <h3>Sindicación a Portales Externos</h3>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 14px' }}>
+        Publica en portales externos. Solo disponible en estado DISPONIBLE o superior.
+      </p>
+      {isLoading ? (
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Cargando...</span>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {PORTALES.map(({ key, label, icon }) => {
+            const pub = getPublicacion(key);
+            const badge = pub ? SIND_BADGE[pub.estado] : null;
+            const isPublicando = publicar.isPending && (publicar.variables as string) === key;
+            const isRetirando  = retirar.isPending  && (retirar.variables  as string) === key;
+
+            return (
+              <div key={key}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 8,
+                }}>
+                  <span style={{ fontSize: '1.25rem' }}>{icon}</span>
+                  <span style={{ fontWeight: 600, minWidth: 120 }}>{label}</span>
+
+                  {badge ? (
+                    <span style={{
+                      padding: '2px 10px', borderRadius: 100, fontSize: '0.75rem', fontWeight: 700,
+                      color: badge.color, background: badge.bg,
+                    }}>
+                      {badge.label}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>—</span>
+                  )}
+
+                  {pub?.external_url && pub.estado === 'PUBLICADO' && (
+                    <a
+                      href={pub.external_url} target="_blank" rel="noreferrer"
+                      style={{ fontSize: '0.8125rem', color: '#3b82f6' }}
+                    >
+                      🔗 Ver anuncio
+                    </a>
+                  )}
+
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    {(!pub || pub.estado === 'RETIRADO' || pub.estado === 'ERROR') && (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.8125rem' }}
+                        disabled={isPublicando || isRetirando}
+                        onClick={() => handlePublicar(key)}
+                      >
+                        {isPublicando ? '⏳ Publicando...' : '↑ Publicar'}
+                      </button>
+                    )}
+                    {pub?.estado === 'PUBLICADO' && (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.8125rem', color: '#ef4444' }}
+                        disabled={isPublicando || isRetirando}
+                        onClick={() => handleRetirar(key)}
+                      >
+                        {isRetirando ? '⏳ Retirando...' : '↓ Retirar'}
+                      </button>
+                    )}
+                    {pub?.estado === 'PENDIENTE' && (
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Procesando...</span>
+                    )}
+                  </div>
+                </div>
+                {portalError[key] && (
+                  <div style={{ fontSize: '0.8125rem', color: '#ef4444', padding: '4px 14px' }}>
+                    {portalError[key]}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Firma Digital Panel ──────────────────────────────────────
+
+const FIRMA_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  ENVIADO:    { label: 'Enviado',    color: '#3b82f6', bg: '#3b82f622' },
+  COMPLETADO: { label: 'Completado', color: '#22c55e', bg: '#22c55e22' },
+  DECLINADO:  { label: 'Declinado',  color: '#ef4444', bg: '#ef444422' },
+  VENCIDO:    { label: 'Vencido',    color: '#94a3b8', bg: '#94a3b822' },
+  PENDIENTE:  { label: 'Pendiente',  color: '#f59e0b', bg: '#f59e0b22' },
+};
+
+function FirmaPanel({ propiedadId, userRol }: { propiedadId: string; userRol: string }) {
+  const { data: solicitudes = [], isLoading } = useFirmaSolicitudes(propiedadId);
+  const solicitar = useSolicitarFirma(propiedadId);
+  const canRequest = ['ADMIN', 'SENIOR', 'SUPER_ADMIN'].includes(userRol);
+
+  const [form, setForm] = useState({ nombre: '', email: '' });
+  const [formError, setFormError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nombre.trim() || !form.email.trim()) { setFormError('Nombre y email son requeridos'); return; }
+    setFormError('');
+    solicitar.mutate(
+      { firmanteNombre: form.nombre, firmanteEmail: form.email },
+      {
+        onSuccess: () => {
+          setForm({ nombre: '', email: '' });
+          setSent(true);
+          setTimeout(() => setSent(false), 4000);
+        },
+        onError: (err: any) => setFormError(err.message),
+      },
+    );
+  };
+
+  return (
+    <div className="prop-detail-section" style={{ marginTop: 8 }}>
+      <h3>Firma Digital (DocuSign)</h3>
+
+      {canRequest && (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
+          <div style={{ flex: '1 1 160px' }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Nombre del firmante
+            </label>
+            <input
+              className="input-field"
+              placeholder="Juan García"
+              value={form.nombre}
+              onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            />
+          </div>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Email del firmante
+            </label>
+            <input
+              className="input-field"
+              type="email"
+              placeholder="firmante@correo.com"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={solicitar.isPending}
+            style={{ height: 40, flexShrink: 0 }}
+          >
+            {solicitar.isPending ? '⏳...' : '✍️ Solicitar firma'}
+          </button>
+        </form>
+      )}
+
+      {formError && (
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: '#ef444422', border: '1px solid #ef444444', borderRadius: 6, fontSize: '0.875rem', color: '#ef4444' }}>
+          {formError}
+        </div>
+      )}
+      {sent && (
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: '#22c55e22', border: '1px solid #22c55e44', borderRadius: 6, fontSize: '0.875rem', color: '#22c55e' }}>
+          ✅ Solicitud de firma enviada. El firmante recibirá el documento por email.
+        </div>
+      )}
+
+      {isLoading ? (
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Cargando...</span>
+      ) : solicitudes.length === 0 ? (
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+          No hay solicitudes de firma para esta propiedad.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {solicitudes.map((s: any) => {
+            const badge = FIRMA_BADGE[s.estado];
+            return (
+              <div key={s.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 6,
+                fontSize: '0.875rem', flexWrap: 'wrap',
+              }}>
+                {badge && (
+                  <span style={{
+                    padding: '2px 10px', borderRadius: 100, fontSize: '0.75rem', fontWeight: 700,
+                    color: badge.color, background: badge.bg, flexShrink: 0,
+                  }}>
+                    {badge.label}
+                  </span>
+                )}
+                <span style={{ fontWeight: 600 }}>{s.firmante_nombre}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{s.firmante_email}</span>
+                {s.signing_url && s.estado === 'ENVIADO' && (
+                  <a
+                    href={s.signing_url} target="_blank" rel="noreferrer"
+                    style={{ fontSize: '0.8125rem', color: '#3b82f6' }}
+                  >
+                    ✍️ Abrir firma
+                  </a>
+                )}
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.75rem', flexShrink: 0 }}>
+                  {new Date(s.created_at).toLocaleDateString('es-GT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────
+
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
@@ -66,8 +334,9 @@ export default function PropertyDetailPage() {
         method: 'PATCH', body: { nuevoEstado }, token: accessToken!,
       });
       fetchProperty();
+      toast.success(`Estado actualizado a ${nuevoEstado}`);
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? 'Error al cambiar el estado');
     }
   };
 
@@ -134,7 +403,7 @@ export default function PropertyDetailPage() {
       }
       throw new Error('Tiempo de espera agotado');
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? 'Error generando brochure');
       setBrochureState('error');
       setTimeout(() => setBrochureState('idle'), 3000);
     }
@@ -376,6 +645,14 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
+      {/* Sindicación — solo ADMIN/SUPER_ADMIN */}
+      {user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && (
+        <SindicacionPanel propiedadId={propiedad.id} />
+      )}
+
+      {/* Firma Digital */}
+      <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
+
       {/* Expediente Legal */}
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -410,7 +687,7 @@ export default function PropertyDetailPage() {
                   const url = URL.createObjectURL(blob);
                   window.open(url, '_blank');
                 } catch (err: any) {
-                  alert(err.message);
+                  toast.error(err.message ?? 'Error al generar carta');
                 }
               }}
               className="btn btn-ghost"

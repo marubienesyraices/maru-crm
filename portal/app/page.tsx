@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { getPropiedades, Filtros } from '@/lib/api';
+import { getPropiedades, Filtros, PropiedadesResponse } from '@/lib/api';
 import Header from '@/components/Header';
 import PropertyCard from '@/components/PropertyCard';
 import PropertyFilters from '@/components/PropertyFilters';
@@ -27,7 +27,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     page:            searchParams.page,
   };
 
-  let result = { data: [], meta: { total: 0, totalPages: 1, page: 1, limit: 12 } };
+  let result: PropiedadesResponse = { data: [], meta: { total: 0, totalPages: 1, page: 1, limit: 12 } };
   try {
     result = await getPropiedades(filtros);
   } catch { /* API not available yet */ }

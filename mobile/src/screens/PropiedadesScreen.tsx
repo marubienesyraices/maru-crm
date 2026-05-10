@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { apiRequest } from '../lib/api';
+import { cacheOrFetch, cacheInvalidate } from '../cache/cacheStore';
 
 interface Propiedad {
   id: string;
@@ -44,9 +45,24 @@ export default function PropiedadesScreen() {
         limit: '15',
         ...(search ? { search } : {}),
       });
-      const data = await apiRequest<{ data: Propiedad[]; total: number }>(
-        `/api/propiedades?${params}`,
-      );
+      const cacheKey = `propiedades:p${currentPage}:${search}`;
+
+      // Only cache first page with no search filter
+      const useCache = currentPage === 1 && !search;
+      let data: { data: Propiedad[]; total: number };
+
+      if (useCache) {
+        if (reset) await cacheInvalidate('propiedades:p1:');
+        const result = await cacheOrFetch<{ data: Propiedad[]; total: number }>(
+          cacheKey,
+          () => apiRequest(`/api/propiedades?${params}`),
+          5 * 60 * 1000, // 5 min
+        );
+        data = result.data;
+      } else {
+        data = await apiRequest(`/api/propiedades?${params}`);
+      }
+
       const items = data.data ?? [];
       setPropiedades(reset ? items : (prev) => [...prev, ...items]);
       setHasMore(items.length === 15);
@@ -61,9 +77,10 @@ export default function PropiedadesScreen() {
 
   useEffect(() => { loadPropiedades(); }, []);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setPage(1);
+    await cacheInvalidate('propiedades:');
     loadPropiedades(true);
   }, [search]);
 

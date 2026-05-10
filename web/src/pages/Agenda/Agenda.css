@@ -104,6 +104,10 @@
   text-align: center;
 }
 
+.agenda-day-skeleton {
+  padding: 4px 0;
+}
+
 .agenda-add-slot {
   background: none;
   border: 1px dashed var(--border-subtle);
@@ -311,6 +315,24 @@
   border-radius: var(--radius-sm);
   color: #fca5a5;
   font-size: 0.875rem;
+}
+
+.agenda-input-warn {
+  border-color: #f59e0b !important;
+}
+
+.agenda-input-warn:focus {
+  border-color: #f59e0b !important;
+}
+
+.agenda-validation-warn {
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-sm);
+  color: #fbbf24;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 /* ─── Responsive ────────────────────────────────────────────── */

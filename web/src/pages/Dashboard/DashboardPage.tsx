@@ -1,24 +1,9 @@
-import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { apiRequest } from '../../lib/api';
+import { usePropiedadesStats } from '../../hooks/usePropiedades';
+import { useClientesStats } from '../../hooks/useClientes';
+import { usePipelineStats } from '../../hooks/usePipeline';
 import './Dashboard.css';
 
-interface PropStats {
-  total: number;
-  porEstado: { estado: string; _count: number }[];
-  porTipo: { tipo: string; _count: number }[];
-}
-
-interface ClienteStats {
-  total: number;
-  porOrigen: { origen: string; _count: number }[];
-}
-
-interface PipelineStats {
-  total: number;
-  porEstado: Record<string, number>;
-  porNivel: Record<string, number>;
-}
 
 const ESTADO_PROP_COLORS: Record<string, string> = {
   BORRADOR: '#64748b',
@@ -50,32 +35,15 @@ const ORIGEN_LABELS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { accessToken, user } = useAuthStore();
-  const [propStats, setPropStats] = useState<PropStats | null>(null);
-  const [clienteStats, setClienteStats] = useState<ClienteStats | null>(null);
-  const [pipelineStats, setPipelineStats] = useState<PipelineStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const { data: propStats, isLoading: loadingProps, isError: errProps } = usePropiedadesStats();
+  const { data: clienteStats, isLoading: loadingClientes } = useClientesStats();
+  const { data: pipelineStats, isLoading: loadingPipeline } = usePipelineStats();
 
-  useEffect(() => {
-    if (!accessToken) return;
+  const loading = loadingProps || loadingClientes || loadingPipeline;
+  const error = errProps ? 'Error cargando estadísticas' : null;
 
-    const opts = { token: accessToken };
-    Promise.all([
-      apiRequest<PropStats>('/api/propiedades/stats', opts),
-      apiRequest<ClienteStats>('/api/clientes/stats', opts),
-      apiRequest<PipelineStats>('/api/pipeline/stats', opts),
-    ])
-      .then(([p, c, pl]) => {
-        setPropStats(p);
-        setClienteStats(c);
-        setPipelineStats(pl);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [accessToken]);
-
-  const propDisponibles = propStats?.porEstado.find((e) => e.estado === 'DISPONIBLE')?._count ?? 0;
+  const propDisponibles = (propStats?.porEstado as { estado: string; _count: number }[] | undefined)?.find((e) => e.estado === 'DISPONIBLE')?._count ?? 0;
   const tramitesActivos =
     (pipelineStats?.porEstado['CONTACTADO'] ?? 0) +
     (pipelineStats?.porEstado['INTERESADO'] ?? 0) +
@@ -135,7 +103,7 @@ export default function DashboardPage() {
               <SkeletonList rows={5} />
             ) : propStats && propStats.total > 0 ? (
               <div className="bar-list">
-                {propStats.porEstado
+                {(propStats.porEstado as { estado: string; _count: number }[])
                   .sort((a, b) => b._count - a._count)
                   .map((item) => (
                     <BarRow
@@ -189,7 +157,7 @@ export default function DashboardPage() {
               <SkeletonList rows={5} />
             ) : clienteStats && clienteStats.total > 0 ? (
               <div className="bar-list">
-                {clienteStats.porOrigen
+                {(clienteStats.porOrigen as { origen: string; _count: number }[])
                   .sort((a, b) => b._count - a._count)
                   .map((item) => (
                     <BarRow
@@ -212,7 +180,7 @@ export default function DashboardPage() {
           <div className="dash-panel dash-panel-wide">
             <h2 className="dash-panel-title">Inventario por tipo</h2>
             <div className="tipo-chips">
-              {propStats.porTipo
+              {(propStats.porTipo as { tipo: string; _count: number }[])
                 .sort((a, b) => b._count - a._count)
                 .map((item) => (
                   <div key={item.tipo} className="tipo-chip">

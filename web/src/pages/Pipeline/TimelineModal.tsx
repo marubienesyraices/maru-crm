@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../components/ConfirmDialog';
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ function VisitaItem({ visita, accessToken, onDelete }: { visita: any; accessToke
   const handleIcs = async () => {
     const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/visitas/${visita.id}/ics`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) { alert('Error descargando el archivo'); return; }
+    if (!res.ok) { return; }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(await res.blob());
     a.download = `visita-${visita.id}.ics`;
@@ -184,6 +186,8 @@ interface Props { item: any; onClose: () => void; }
 
 export default function TimelineModal({ item, onClose }: Props) {
   const { accessToken } = useAuthStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<'interacciones' | 'visitas'>('interacciones');
 
   // Interacciones state
@@ -229,24 +233,29 @@ export default function TimelineModal({ item, onClose }: Props) {
       });
       setForm({ tipo: 'LLAMADA', resultado: 'NEUTRO', notas: '', duracionMin: '', fecha: '' });
       await fetchTimeline();
-    } catch (err: any) { alert(err.message); }
+      toast.success('Interacción registrada');
+    } catch (err: any) { toast.error(err.message ?? 'Error al guardar'); }
     finally { setSaving(false); }
   };
 
   const handleDeleteInteraccion = async (id: string) => {
-    if (!confirm('¿Eliminar esta interacción?')) return;
+    const ok = await confirm({ title: '¿Eliminar interacción?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     try {
       await apiRequest(`/api/interacciones/${id}`, { method: 'DELETE', token: accessToken! });
       setInteracciones((prev) => prev.filter((i) => i.id !== id));
-    } catch (err: any) { alert(err.message); }
+      toast.success('Interacción eliminada');
+    } catch (err: any) { toast.error(err.message ?? 'Error al eliminar'); }
   };
 
   const handleDeleteVisita = async (id: string) => {
-    if (!confirm('¿Eliminar esta visita?')) return;
+    const ok = await confirm({ title: '¿Eliminar visita?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     try {
       await apiRequest(`/api/visitas/${id}`, { method: 'DELETE', token: accessToken! });
       setVisitas((prev) => prev.filter((v) => v.id !== id));
-    } catch (err: any) { alert(err.message); }
+      toast.success('Visita eliminada');
+    } catch (err: any) { toast.error(err.message ?? 'Error al eliminar'); }
   };
 
   const estadoColor: Record<string, string> = {

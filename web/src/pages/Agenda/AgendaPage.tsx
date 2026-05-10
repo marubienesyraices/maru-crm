@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { apiRequest } from '../../lib/api';
+import { useVisitas, useVisitasConfig, useCreateVisita, useUpdateVisita, useDeleteVisita, useReporteVisita, useCrearMeeting, useEliminarMeeting } from '../../hooks/useVisitas';
+import { usePipeline } from '../../hooks/usePipeline';
+import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../components/ConfirmDialog';
 import './Agenda.css';
 
 // ─── Week helpers ─────────────────────────────────────────────
@@ -57,18 +60,48 @@ const ESTADOS_VISITA = ['PENDIENTE', 'CONFIRMADA', 'CANCELADA', 'REALIZADA'];
 
 interface VisitaFormProps {
   pipeline: any[];
+  existingVisitas: any[];
   initial?: any;
   defaultDate?: Date;
-  accessToken: string;
   onSaved: () => void;
   onClose: () => void;
 }
 
-function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved, onClose }: VisitaFormProps) {
+function useConflictCheck(
+  fechaInicio: string,
+  fechaFin: string,
+  existingVisitas: any[],
+  bufferMin: number,
+  excludeId?: string,
+) {
+  if (!fechaInicio || !fechaFin) return null;
+  const start = new Date(fechaInicio);
+  const end = new Date(fechaFin);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+
+  const bufferMs = bufferMin * 60_000;
+  const conflict = existingVisitas.find((v) => {
+    if (v.id === excludeId) return false;
+    if (v.estado === 'CANCELADA') return false;
+    const vStart = new Date(v.fecha_inicio);
+    const vEnd = new Date(v.fecha_fin);
+    return start < new Date(vEnd.getTime() + bufferMs) &&
+           end > new Date(vStart.getTime() - bufferMs);
+  });
+  return conflict ?? null;
+}
+
+function VisitaFormModal({ pipeline, existingVisitas, initial, defaultDate, onSaved, onClose }: VisitaFormProps) {
   const isEdit = !!initial;
   const d = defaultDate ?? new Date();
   const dPlus1 = new Date(d);
   dPlus1.setHours(d.getHours() + 1);
+
+  const createVisita = useCreateVisita();
+  const updateVisita = useUpdateVisita();
+  const saving = createVisita.isPending || updateVisita.isPending;
+  const { data: config } = useVisitasConfig();
+  const bufferMin = config?.buffer_entre_citas_min ?? 30;
 
   const [form, setForm] = useState({
     interesId: initial?.interes_id ?? '',
@@ -78,9 +111,13 @@ function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved,
     notas: initial?.notas ?? '',
     estado: initial?.estado ?? 'PENDIENTE',
   });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+
+  const inicio = new Date(form.fechaInicio);
+  const fin = new Date(form.fechaFin);
+  const finBeforeInicio = form.fechaInicio && form.fechaFin && fin <= inicio;
+  const conflict = useConflictCheck(form.fechaInicio, form.fechaFin, existingVisitas, bufferMin, initial?.id);
 
   const filteredPipeline = search
     ? pipeline.filter((p) =>
@@ -89,43 +126,30 @@ function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved,
       )
     : pipeline;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.interesId) { setError('Selecciona un trámite'); return; }
-    setSaving(true);
     setError('');
-    try {
-      if (isEdit) {
-        await apiRequest(`/api/visitas/${initial.id}`, {
-          method: 'PATCH',
-          token: accessToken,
-          body: {
-            fechaInicio: new Date(form.fechaInicio).toISOString(),
-            fechaFin: new Date(form.fechaFin).toISOString(),
-            ubicacion: form.ubicacion || undefined,
-            notas: form.notas || undefined,
-            estado: form.estado,
-          },
-        });
-      } else {
-        await apiRequest('/api/visitas', {
-          method: 'POST',
-          token: accessToken,
-          body: {
-            interesId: form.interesId,
-            fechaInicio: new Date(form.fechaInicio).toISOString(),
-            fechaFin: new Date(form.fechaFin).toISOString(),
-            ubicacion: form.ubicacion || undefined,
-            notas: form.notas || undefined,
-          },
-        });
-      }
-      onSaved();
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
+    const onSuccess = () => { onSaved(); onClose(); };
+    const onError = (err: any) => setError(err.message);
+
+    if (isEdit) {
+      updateVisita.mutate({
+        id: initial.id,
+        fechaInicio: new Date(form.fechaInicio).toISOString(),
+        fechaFin: new Date(form.fechaFin).toISOString(),
+        ubicacion: form.ubicacion || undefined,
+        notas: form.notas || undefined,
+        estado: form.estado,
+      }, { onSuccess, onError });
+    } else {
+      createVisita.mutate({
+        interesId: form.interesId,
+        fechaInicio: new Date(form.fechaInicio).toISOString(),
+        fechaFin: new Date(form.fechaFin).toISOString(),
+        ubicacion: form.ubicacion || undefined,
+        notas: form.notas || undefined,
+      }, { onSuccess, onError });
     }
   };
 
@@ -183,7 +207,7 @@ function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved,
               <label className="agenda-label">Inicio *</label>
               <input
                 type="datetime-local"
-                className="agenda-input"
+                className={`agenda-input${finBeforeInicio || conflict ? ' agenda-input-warn' : ''}`}
                 value={form.fechaInicio}
                 onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
                 required
@@ -193,13 +217,26 @@ function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved,
               <label className="agenda-label">Fin *</label>
               <input
                 type="datetime-local"
-                className="agenda-input"
+                className={`agenda-input${finBeforeInicio || conflict ? ' agenda-input-warn' : ''}`}
                 value={form.fechaFin}
                 onChange={(e) => setForm((f) => ({ ...f, fechaFin: e.target.value }))}
                 required
               />
             </div>
           </div>
+
+          {finBeforeInicio && (
+            <div className="agenda-validation-warn">
+              ⚠️ La hora de fin debe ser posterior a la de inicio.
+            </div>
+          )}
+          {!finBeforeInicio && conflict && (
+            <div className="agenda-validation-warn">
+              ⚠️ Conflicto con visita existente ({fmtTime(conflict.fecha_inicio)}–{fmtTime(conflict.fecha_fin)}
+              {' '}· {conflict.interes?.cliente?.nombre}).
+              Se requiere un buffer de {bufferMin} min entre citas.
+            </div>
+          )}
 
           <div>
             <label className="agenda-label">Ubicación</label>
@@ -255,43 +292,38 @@ function VisitaFormModal({ pipeline, initial, defaultDate, accessToken, onSaved,
 
 interface ReporteModalProps {
   visita: any;
-  accessToken: string;
   onSaved: () => void;
   onClose: () => void;
 }
 
-function ReporteModal({ visita, accessToken, onSaved, onClose }: ReporteModalProps) {
+function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
+  const reporteMutation = useReporteVisita();
+  const saving = reporteMutation.isPending;
+
   const [form, setForm] = useState({
     notas: visita.reporte_notas ?? '',
     nivelInteres: visita.reporte_nivel_interes ?? '',
     reaccion: visita.reporte_reaccion ?? '',
     siguientePaso: visita.reporte_siguiente_paso ?? '',
   });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setError('');
-    try {
-      await apiRequest(`/api/visitas/${visita.id}/reporte`, {
-        method: 'PATCH',
-        token: accessToken,
-        body: {
-          notas: form.notas || undefined,
-          nivelInteres: form.nivelInteres || undefined,
-          reaccion: form.reaccion || undefined,
-          siguientePaso: form.siguientePaso || undefined,
-        },
-      });
-      onSaved();
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    reporteMutation.mutate(
+      {
+        id: visita.id,
+        notas: form.notas || undefined,
+        nivelInteres: form.nivelInteres || undefined,
+        reaccion: form.reaccion || undefined,
+        siguientePaso: form.siguientePaso || undefined,
+      },
+      {
+        onSuccess: () => { onSaved(); onClose(); },
+        onError: (err: any) => setError(err.message),
+      },
+    );
   };
 
   const yaCompletado = !!visita.reporte_fecha;
@@ -379,16 +411,21 @@ function ReporteModal({ visita, accessToken, onSaved, onClose }: ReporteModalPro
 
 // ─── Visita Card ──────────────────────────────────────────────
 
-function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte }: {
+function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, onEliminarZoom, isZoomLoading }: {
   visita: any;
   onEdit: () => void;
   onDelete: () => void;
   onIcs: () => void;
   onReporte: () => void;
+  onCrearZoom: () => void;
+  onEliminarZoom: () => void;
+  isZoomLoading: boolean;
 }) {
   const color = ESTADO_COLORS[visita.estado] ?? '#94a3b8';
   const isPast = new Date(visita.fecha_fin) < new Date();
   const needsReporte = isPast && visita.estado !== 'CANCELADA' && !visita.reporte_fecha;
+  const hasZoom = !!visita.zoom_join_url;
+
   return (
     <div className="agenda-event" style={{ borderLeft: `3px solid ${color}` }}>
       <div className="agenda-event-time">
@@ -401,6 +438,16 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte }: {
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>· {visita.ubicacion}</span>
         )}
       </div>
+      {hasZoom && (
+        <a
+          href={visita.zoom_join_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: '0.625rem', color: '#3b82f6', fontWeight: 600 }}
+        >
+          🎥 Zoom
+        </a>
+      )}
       <span className="agenda-event-estado" style={{ color, background: `${color}22` }}>
         {visita.estado}
       </span>
@@ -416,6 +463,36 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte }: {
           </button>
         )}
         <button onClick={onIcs} title="Descargar .ics">📅</button>
+        {hasZoom ? (
+          <>
+            <a
+              href={visita.zoom_join_url}
+              target="_blank"
+              rel="noreferrer"
+              className="agenda-event-actions-btn"
+              title="Unirse a Zoom"
+              style={{ fontSize: '0.6875rem', color: '#3b82f6', padding: '2px 5px', lineHeight: 1.4,
+                background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 4,
+                textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+            >
+              🎥
+            </a>
+            <button onClick={onEliminarZoom} title="Eliminar reunión Zoom" disabled={isZoomLoading}>
+              {isZoomLoading ? '⏳' : '🗑️'}
+            </button>
+          </>
+        ) : (
+          visita.estado !== 'CANCELADA' && visita.estado !== 'REALIZADA' && (
+            <button
+              onClick={onCrearZoom}
+              title="Crear reunión Zoom"
+              disabled={isZoomLoading}
+              style={{ color: '#3b82f6' }}
+            >
+              {isZoomLoading ? '⏳' : '📹'}
+            </button>
+          )
+        )}
         <button onClick={onDelete} title="Eliminar" className="agenda-delete">✕</button>
       </div>
     </div>
@@ -426,10 +503,9 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte }: {
 
 export default function AgendaPage() {
   const { accessToken } = useAuthStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
-  const [visitas, setVisitas] = useState<any[]>([]);
-  const [pipeline, setPipeline] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<
     | { mode: 'create'; defaultDate?: Date }
     | { mode: 'edit'; visita: any }
@@ -441,40 +517,42 @@ export default function AgendaPage() {
   const weekEnd = addDays(weekStart, 6);
   weekEnd.setHours(23, 59, 59, 999);
 
-  const fetchVisitas = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiRequest<any[]>(
-        `/api/visitas?from=${weekStart.toISOString()}&to=${weekEnd.toISOString()}`,
-        { token: accessToken! },
-      );
-      setVisitas(data);
-    } catch { }
-    finally { setLoading(false); }
-  }, [weekStart, accessToken]); // eslint-disable-line
-
-  const fetchPipeline = useCallback(async () => {
-    try {
-      const data = await apiRequest<Record<string, any[]>>('/api/pipeline', { token: accessToken! });
-      setPipeline(Object.values(data).flat());
-    } catch { }
-  }, [accessToken]);
-
-  useEffect(() => { fetchVisitas(); }, [fetchVisitas]);
-  useEffect(() => { fetchPipeline(); }, [fetchPipeline]);
+  const { data: visitas = [], isLoading: loading, isError } = useVisitas(weekStart, weekEnd);
+  const { data: pipelineMap = {} } = usePipeline();
+  const pipeline = Object.values(pipelineMap).flat();
+  const deleteMutation = useDeleteVisita();
+  const crearMeetingMutation = useCrearMeeting();
+  const eliminarMeetingMutation = useEliminarMeeting();
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta visita?')) return;
-    try {
-      await apiRequest(`/api/visitas/${id}`, { method: 'DELETE', token: accessToken! });
-      setVisitas((prev) => prev.filter((v) => v.id !== id));
-    } catch (err: any) { alert(err.message); }
+    const ok = await confirm({ title: '¿Eliminar visita?', message: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    deleteMutation.mutate(id, {
+      onSuccess: () => toast.success('Visita eliminada'),
+      onError: (err: any) => toast.error(err.message ?? 'Error al eliminar la visita'),
+    });
+  };
+
+  const handleCrearZoom = (id: string) => {
+    crearMeetingMutation.mutate(id, {
+      onSuccess: () => toast.success('Reunión Zoom creada'),
+      onError: (err: any) => toast.error(`Error al crear reunión Zoom: ${err.message}`),
+    });
+  };
+
+  const handleEliminarZoom = async (id: string) => {
+    const ok = await confirm({ title: '¿Eliminar reunión de Zoom?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    eliminarMeetingMutation.mutate(id, {
+      onSuccess: () => toast.success('Reunión Zoom eliminada'),
+      onError: (err: any) => toast.error(`Error al eliminar reunión Zoom: ${err.message}`),
+    });
   };
 
   const handleDownloadIcs = async (id: string) => {
     const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/visitas/${id}/ics`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) { alert('Error descargando el archivo'); return; }
+    if (!res.ok) { toast.error('Error descargando el archivo'); return; }
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -522,6 +600,20 @@ export default function AgendaPage() {
         </div>
       </div>
 
+      {/* ── Error state ── */}
+      {isError && (
+        <div className="page-error-state" style={{ margin: '32px auto' }}>
+          <div className="page-error-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Error al cargar la agenda</h3>
+          <p>No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
+      )}
+
       {/* ── Week grid ── */}
       <div className="agenda-grid">
         {days.map((day) => {
@@ -537,7 +629,9 @@ export default function AgendaPage() {
               </div>
               <div className="agenda-day-body">
                 {loading ? (
-                  <div className="agenda-loading">...</div>
+                  <div className="agenda-day-skeleton">
+                    <div className="skel" style={{ height: 48, borderRadius: 8, width: '100%' }} />
+                  </div>
                 ) : dayVisitas.length === 0 ? (
                   <button
                     className="agenda-add-slot"
@@ -556,6 +650,12 @@ export default function AgendaPage() {
                         onDelete={() => handleDelete(v.id)}
                         onIcs={() => handleDownloadIcs(v.id)}
                         onReporte={() => setModalState({ mode: 'reporte', visita: v })}
+                        onCrearZoom={() => handleCrearZoom(v.id)}
+                        onEliminarZoom={() => handleEliminarZoom(v.id)}
+                        isZoomLoading={
+                          (crearMeetingMutation.isPending && crearMeetingMutation.variables === v.id) ||
+                          (eliminarMeetingMutation.isPending && eliminarMeetingMutation.variables === v.id)
+                        }
                       />
                     ))}
                     <button
@@ -577,18 +677,17 @@ export default function AgendaPage() {
       {modalState && modalState.mode !== 'reporte' && (
         <VisitaFormModal
           pipeline={pipeline}
+          existingVisitas={visitas}
           initial={modalState.mode === 'edit' ? modalState.visita : undefined}
           defaultDate={modalState.mode === 'create' ? modalState.defaultDate : undefined}
-          accessToken={accessToken!}
-          onSaved={fetchVisitas}
+          onSaved={() => setModalState(null)}
           onClose={() => setModalState(null)}
         />
       )}
       {modalState?.mode === 'reporte' && (
         <ReporteModal
           visita={modalState.visita}
-          accessToken={accessToken!}
-          onSaved={fetchVisitas}
+          onSaved={() => setModalState(null)}
           onClose={() => setModalState(null)}
         />
       )}

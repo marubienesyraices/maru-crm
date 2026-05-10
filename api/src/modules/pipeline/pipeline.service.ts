@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import { EstadoInteres, NivelInteres } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 import { CreateInteresDto, CambiarEstadoInteresDto, UpdateInteresDto, FiltrosPipelineDto } from './dto';
 
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
@@ -14,7 +17,17 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
 
 @Injectable()
 export class PipelineService {
-  constructor(private prisma: PrismaService) {}
+  private readonly portalUrl: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
+  ) {
+    const portalBase = config.get<string>('PORTAL_URL');
+    this.portalUrl = portalBase ? portalBase.replace(/\/$/, '') : '';
+  }
 
   async crearInteres(tenantId: string, dto: CreateInteresDto, userId?: string) {
     // Verify client belongs to tenant
@@ -62,9 +75,9 @@ export class PipelineService {
     tenantId: string,
     id: string,
     dto: CambiarEstadoInteresDto,
-    usuarioRol: string = 'ADMIN',
-    usuarioId: string = '',
-    visibleUserIds: string[] | null = null,
+    usuarioRol: string,
+    usuarioId: string,
+    visibleUserIds: string[] | null,
   ) {
     const interes = await this.findOneWithTenantCheck(tenantId, id);
 
@@ -116,10 +129,11 @@ export class PipelineService {
 
     const propiedadId = interes.propiedad_id;
 
-    // ─── Concurrency: INTERESADO → EN_NEGOCIACION ──────────────
-    // Lock property atomically: DISPONIBLE → RESERVADA
+    // ─── Execute state transition (capture result for post-commit email) ──
+    let updated: Awaited<ReturnType<typeof this.prisma.clientePropiedad.update>>;
+
     if (estadoActual === 'INTERESADO' && nuevoEstado === 'EN_NEGOCIACION') {
-      return this.prisma.$transaction(async (tx) => {
+      updated = await this.prisma.$transaction(async (tx) => {
         const prop = await tx.propiedad.findUnique({
           where: { id: propiedadId },
           select: { estado: true },
@@ -135,12 +149,8 @@ export class PipelineService {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'RESERVADA' } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
       });
-    }
-
-    // ─── Concurrency: EN_NEGOCIACION → GANADO ─────────────────
-    // Close property (RESERVADA → VENDIDA/RENTADA) and calculate commission
-    if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'GANADO') {
-      return this.prisma.$transaction(async (tx) => {
+    } else if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'GANADO') {
+      updated = await this.prisma.$transaction(async (tx) => {
         const prop = await tx.propiedad.findUnique({
           where: { id: propiedadId },
           select: { gestion: true, precio_venta: true, precio_renta: true, comision_porcentaje: true },
@@ -148,7 +158,6 @@ export class PipelineService {
 
         const estadoPropFinal = prop?.gestion === 'RENTA' ? 'RENTADA' : 'VENDIDA';
 
-        // Determine closing price: agent-provided override or listed price
         const precioLista = prop?.gestion === 'RENTA' ? prop?.precio_renta : prop?.precio_venta;
         const precioCierre = dto.precioAcordado != null
           ? dto.precioAcordado
@@ -164,19 +173,65 @@ export class PipelineService {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: estadoPropFinal } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
       });
-    }
-
-    // ─── Concurrency: EN_NEGOCIACION → PERDIDO ────────────────
-    // Release property: RESERVADA → DISPONIBLE
-    if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'PERDIDO') {
-      return this.prisma.$transaction(async (tx) => {
+    } else if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'PERDIDO') {
+      updated = await this.prisma.$transaction(async (tx) => {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'DISPONIBLE' } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
       });
+    } else {
+      updated = await this.prisma.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
     }
 
-    // ─── Default: no property side-effect ─────────────────────
-    return this.prisma.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+    // ─── Fire-and-forget: email + invalidar caché BI ──────────
+    if (interes.cliente.email) {
+      this.sendPipelineEmail(nuevoEstado, interes).catch(() => {});
+    }
+    this.redis.deleteByPattern(`bi:${tenantId}:*`).catch(() => {});
+
+    return updated;
+  }
+
+  private async sendPipelineEmail(
+    nuevoEstado: string,
+    interes: { cliente: { email: string | null; nombre: string; tenant_id: string }; propiedad: { id: string; titulo: string; codigo: string } | null },
+  ) {
+    const { email, nombre, tenant_id: tenantId } = interes.cliente;
+    if (!email) return;
+    const propiedad = interes.propiedad;
+    if (!propiedad) return;
+
+    const propLabel = `<strong>${propiedad.titulo}</strong> (${propiedad.codigo})`;
+    const portalPropUrl = this.portalUrl
+      ? `${this.portalUrl}/propiedades/${propiedad.id}`
+      : undefined;
+
+    if (nuevoEstado === 'GANADO') {
+      await this.email.sendClientEmail({
+        to: email,
+        subject: `¡Felicitaciones! Tu trámite fue cerrado exitosamente`,
+        heading: `🎉 ¡Felicitaciones, ${nombre}!`,
+        body: `Nos complace informarte que tu trámite para ${propLabel} ha sido completado exitosamente. Gracias por confiar en nosotros.`,
+        tenantId,
+      });
+    } else if (nuevoEstado === 'EN_NEGOCIACION') {
+      await this.email.sendClientEmail({
+        to: email,
+        subject: `¡Tu solicitud está avanzando! — ${propiedad.titulo}`,
+        heading: `¡Tu solicitud está avanzando!`,
+        body: `Tu interés en ${propLabel} ha entrado en etapa de negociación. Nuestro equipo está trabajando para ofrecerte las mejores condiciones. Pronto nos pondremos en contacto contigo.`,
+        cta: portalPropUrl ? { label: 'Ver propiedad', url: portalPropUrl } : undefined,
+        tenantId,
+      });
+    } else if (nuevoEstado === 'PERDIDO') {
+      await this.email.sendClientEmail({
+        to: email,
+        subject: `Actualización sobre tu solicitud — ${propiedad.titulo}`,
+        heading: `Actualización sobre tu solicitud`,
+        body: `Lamentamos informarte que tu solicitud para ${propLabel} no pudo concretarse en esta ocasión. Estamos a tu disposición para ayudarte a encontrar la propiedad ideal.`,
+        cta: this.portalUrl ? { label: 'Ver otras propiedades', url: this.portalUrl } : undefined,
+        tenantId,
+      });
+    }
   }
 
   async updateInteres(tenantId: string, id: string, dto: UpdateInteresDto) {
@@ -268,7 +323,10 @@ export class PipelineService {
   private async findOneWithTenantCheck(tenantId: string, id: string) {
     const interes = await this.prisma.clientePropiedad.findFirst({
       where: { id },
-      include: { cliente: { select: { tenant_id: true, agente_id: true } } },
+      include: {
+        cliente: { select: { tenant_id: true, agente_id: true, email: true, nombre: true } },
+        propiedad: { select: { id: true, titulo: true, codigo: true } },
+      },
     });
     if (!interes || interes.cliente.tenant_id !== tenantId) {
       throw new NotFoundException('Interés no encontrado');

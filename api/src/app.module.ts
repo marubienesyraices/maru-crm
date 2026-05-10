@@ -3,6 +3,8 @@ import { HealthController } from './health.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { RedisModule } from './redis/redis.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -25,6 +27,10 @@ import { BrochureModule } from './modules/brochure/brochure.module';
 import { BiModule } from './modules/bi/bi.module';
 import { CampanasModule } from './modules/campanas/campanas.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
+import { MetaModule } from './modules/meta/meta.module';
+import { SindicacionModule } from './modules/sindicacion/sindicacion.module';
+import { FirmaDigitalModule } from './modules/firma-digital/firma-digital.module';
+import { VideollamadasModule } from './modules/videollamadas/videollamadas.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -32,6 +38,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../.env' }),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 120 }]),
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -42,6 +49,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
         },
       }),
     }),
+    RedisModule,
     PrismaModule,
     AuthModule,
     TenantsModule,
@@ -64,6 +72,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     BiModule,
     CampanasModule,
     WhatsappModule,
+    MetaModule,
+    SindicacionModule,
+    FirmaDigitalModule,
+    VideollamadasModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -71,6 +71,29 @@ export class BiController {
   ) {
     const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user.rol);
     return this.bi.getRanking(user.tenant_id, user.id, isAdmin, parseDate(desdeStr), parseDate(hastaStr));
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
+  @SkipAudit()
+  @Get('productividad')
+  @ApiOperation({ summary: 'Contador de llamadas/emails/mensajes por agente en el período' })
+  getProductividad(
+    @CurrentUser() user: any,
+    @Query('desde') desdeStr?: string,
+    @Query('hasta') hastaStr?: string,
+  ) {
+    return this.bi.getProductividad(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr));
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @SkipAudit()
+  @Post('cache/flush')
+  @ApiOperation({ summary: 'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)' })
+  async flushCache(@CurrentUser() user: any) {
+    await this.bi.flushTenantCache(user.tenant_id);
+    return { ok: true };
   }
 
   @UseGuards(RolesGuard)

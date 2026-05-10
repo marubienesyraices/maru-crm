@@ -12,9 +12,10 @@ export class PrismaService
   private pool: Pool;
 
   constructor(config: ConfigService) {
-    const connectionString =
-      config.get('DATABASE_URL') ||
-      'postgresql://maru_admin:maru_secret_2026@localhost:5432/maru_crm?schema=public';
+    const connectionString = config.get<string>('DATABASE_URL');
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is required');
+    }
 
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
@@ -32,12 +33,12 @@ export class PrismaService
     await this.pool.end();
   }
 
-  /**
-   * Sets the tenant context for RLS policies.
-   */
   async setTenantContext(tenantId: string) {
-    await this.$executeRawUnsafe(
-      `SET app.tenant_id = '${tenantId}'`,
-    );
+    // PostgreSQL SET commands don't support parameterized values, so we validate
+    // the UUID format strictly to prevent SQL injection before interpolating.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
+      throw new Error(`Invalid tenant ID format: ${tenantId}`);
+    }
+    await this.$executeRawUnsafe(`SET app.tenant_id = '${tenantId}'`);
   }
 }

@@ -67,3 +67,8 @@
 
 /* Loading / empty */
 .bi-loading, .bi-empty { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 12px; }
+
+/* Productividad tab */
+.prod-count-cell { text-align: center; }
+.prod-spark-cell { padding: 6px 12px; }
+.prod-totals-row td { border-top: 2px solid var(--border); background: var(--bg-hover); }

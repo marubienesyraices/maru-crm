@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { apiRequest } from '../lib/api';
+import { cacheOrFetch, cacheInvalidate } from '../cache/cacheStore';
 
 interface KpiData {
   totalPropiedades: number;
@@ -28,15 +29,30 @@ export default function DashboardScreen() {
   const [notifs, setNotifs] = useState<Notificacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
 
-  async function loadData() {
+  async function loadData(forceRefresh = false) {
     try {
-      const [biData, notifData] = await Promise.all([
-        apiRequest<{ resumen: KpiData }>('/api/bi/resumen'),
-        apiRequest<Notificacion[]>('/api/notificaciones?limit=5'),
+      if (forceRefresh) {
+        await cacheInvalidate('dashboard');
+      }
+
+      const [biResult, notifResult] = await Promise.all([
+        cacheOrFetch<{ resumen: KpiData }>(
+          'dashboard:bi',
+          () => apiRequest('/api/bi/resumen'),
+          10 * 60 * 1000, // 10 min
+        ),
+        cacheOrFetch<Notificacion[]>(
+          'dashboard:notifs',
+          () => apiRequest('/api/notificaciones?limit=5'),
+          2 * 60 * 1000, // 2 min
+        ),
       ]);
-      setKpis(biData.resumen);
-      setNotifs(Array.isArray(notifData) ? notifData : []);
+
+      setKpis(biResult.data.resumen);
+      setNotifs(Array.isArray(notifResult.data) ? notifResult.data : []);
+      setFromCache(biResult.fromCache);
     } catch (err) {
       console.warn('Error cargando dashboard:', err);
     } finally {
@@ -58,12 +74,12 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }} />}
     >
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Hola, {user?.nombre?.split(' ')[0]} 👋</Text>
-          <Text style={styles.role}>{user?.rol}</Text>
+          <Text style={styles.role}>{user?.rol}{fromCache ? ' · sin conexión' : ''}</Text>
         </View>
         <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
           <Text style={styles.logoutText}>Salir</Text>

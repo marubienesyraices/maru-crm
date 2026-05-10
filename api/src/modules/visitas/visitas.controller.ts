@@ -23,6 +23,13 @@ export class VisitasController {
     return this.service.create(req.user.tenantId, req.user.sub, dto);
   }
 
+  @Get('config')
+  @SkipAudit()
+  @ApiOperation({ summary: 'Configuración de visitas del tenant (buffer entre citas)' })
+  getConfig(@Req() req: any) {
+    return this.service.getConfig(req.user.tenantId);
+  }
+
   @Get()
   @SkipAudit()
   @ApiOperation({ summary: 'Listar visitas con filtros de fecha, agente y estado' })

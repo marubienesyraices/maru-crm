@@ -17,11 +17,31 @@ export class EmailTrackingController {
   private readonly logger = new Logger(EmailTrackingController.name);
   private readonly frontendUrl: string;
 
+  private readonly frontendHost: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    try {
+      this.frontendHost = new URL(this.frontendUrl).host;
+    } catch {
+      this.frontendHost = '';
+    }
+  }
+
+  private isSafeRedirectUrl(url: string): boolean {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      // Only allow http/https schemes
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      // Allow our frontend host or localhost (for development)
+      return parsed.host === this.frontendHost || parsed.hostname === 'localhost';
+    } catch {
+      return false;
+    }
   }
 
   @Get(':id/open.gif')
@@ -39,8 +59,7 @@ export class EmailTrackingController {
   @Get(':id/click')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async trackClick(@Param('id') id: string, @Query('url') url: string, @Res() res: any) {
-    // Only allow redirects to our own frontend (prevent open redirect)
-    const isSafe = url && (url.startsWith(this.frontendUrl) || url.startsWith('http://localhost'));
+    const isSafe = this.isSafeRedirectUrl(url);
     const target = isSafe ? url : this.frontendUrl;
 
     if (isSafe) {

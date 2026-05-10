@@ -43,6 +43,7 @@ export default function AdminTenantsPage() {
   const { accessToken } = useAuthStore();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -50,11 +51,12 @@ export default function AdminTenantsPage() {
   const [error, setError] = useState('');
 
   const fetchTenants = useCallback(async () => {
+    setIsError(false);
     try {
       const data = await apiRequest<Tenant[]>('/api/tenants', { token: accessToken! });
       setTenants(data);
-    } catch (err: any) {
-      console.error(err);
+    } catch {
+      setIsError(true);
     } finally {
       setLoading(false);
     }
@@ -94,9 +96,11 @@ export default function AdminTenantsPage() {
     setError('');
     try {
       if (editing) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { adminEmail, adminNombre, ...updateBody } = form;
         await apiRequest(`/api/tenants/${editing.id}`, {
           method: 'PUT',
-          body: form,
+          body: updateBody,
           token: accessToken!,
         });
       } else {
@@ -172,7 +176,16 @@ export default function AdminTenantsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="props-loading"><div className="spinner" /><span>Cargando...</span></div>
+        <div className="page-loading"><div className="spinner" /><span>Cargando empresas…</span></div>
+      ) : isError ? (
+        <div className="page-error-state">
+          <div className="page-error-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h3>Error al cargar empresas</h3>
+          <p>No se pudieron obtener los datos. Verifica tu conexión e intenta de nuevo.</p>
+          <button className="btn btn-ghost" onClick={fetchTenants}>Reintentar</button>
+        </div>
       ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -188,6 +201,9 @@ export default function AdminTenantsPage() {
               </tr>
             </thead>
             <tbody>
+              {tenants.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay empresas registradas aún</td></tr>
+              )}
               {tenants.map((t) => (
                 <tr key={t.id}>
                   <td>

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useToast } from '../../components/Toast';
 import './PropertyForm.css';
 
 const TIPOS = [
@@ -79,9 +80,11 @@ export default function PropertyFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { accessToken } = useAuthStore();
+  const toast = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     titulo: '',
@@ -117,6 +120,19 @@ export default function PropertyFormPage() {
 
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) setFieldErrors((p) => ({ ...p, [field]: '' }));
+  };
+
+  const validateStep = (s: number): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (s === 1) {
+      if (!form.titulo.trim()) errs.titulo = 'El título es requerido';
+    }
+    if (s === 2) {
+      if (form.gestion !== 'RENTA' && !form.precioVenta) errs.precioVenta = 'El precio de venta es requerido';
+      if (form.gestion !== 'VENTA' && !form.precioRenta) errs.precioRenta = 'El precio de renta es requerido';
+    }
+    return errs;
   };
 
   useEffect(() => {
@@ -252,6 +268,7 @@ export default function PropertyFormPage() {
           body,
           token: accessToken!,
         });
+        toast.success('Propiedad actualizada correctamente');
         navigate(`/propiedades/${id}`);
       } else {
         await apiRequest('/api/propiedades', {
@@ -259,6 +276,7 @@ export default function PropertyFormPage() {
           body,
           token: accessToken!,
         });
+        toast.success('Propiedad creada correctamente');
         navigate('/propiedades');
       }
     } catch (err: any) {
@@ -266,16 +284,6 @@ export default function PropertyFormPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const canAdvance = () => {
-    if (step === 1) return form.titulo.trim() !== '' && form.tipo !== '';
-    if (step === 2) {
-      if (form.gestion !== 'RENTA' && !form.precioVenta) return false;
-      if (form.gestion !== 'VENTA' && !form.precioRenta) return false;
-      return true;
-    }
-    return true;
   };
 
   return (
@@ -317,7 +325,14 @@ export default function PropertyFormPage() {
           <div className="pf-section">
             <div className="input-group">
               <label>Título *</label>
-              <input className="input-field" placeholder="Ej: Casa Moderna en Zona 14" value={form.titulo} onChange={(e) => updateField('titulo', e.target.value)} required />
+              <input
+                className={`input-field${fieldErrors.titulo ? ' input-error' : ''}`}
+                placeholder="Ej: Casa Moderna en Zona 14"
+                value={form.titulo}
+                onChange={(e) => updateField('titulo', e.target.value)}
+                aria-describedby={fieldErrors.titulo ? 'err-titulo' : undefined}
+              />
+              {fieldErrors.titulo && <span id="err-titulo" className="field-error">{fieldErrors.titulo}</span>}
             </div>
 
             <div className="input-group">
@@ -367,14 +382,30 @@ export default function PropertyFormPage() {
             {form.gestion !== 'RENTA' && (
               <div className="input-group">
                 <label>Precio de Venta ({MONEDAS_CA.find(m => m.code === form.moneda)?.symbol || ''} {form.moneda}) *</label>
-                <input className="input-field" type="number" placeholder="2,500,000" value={form.precioVenta} onChange={(e) => updateField('precioVenta', e.target.value)} />
+                <input
+                  className={`input-field${fieldErrors.precioVenta ? ' input-error' : ''}`}
+                  type="number"
+                  placeholder="2,500,000"
+                  value={form.precioVenta}
+                  onChange={(e) => updateField('precioVenta', e.target.value)}
+                  aria-describedby={fieldErrors.precioVenta ? 'err-precio-venta' : undefined}
+                />
+                {fieldErrors.precioVenta && <span id="err-precio-venta" className="field-error">{fieldErrors.precioVenta}</span>}
               </div>
             )}
 
             {form.gestion !== 'VENTA' && (
               <div className="input-group">
                 <label>Precio de Renta Mensual ({MONEDAS_CA.find(m => m.code === form.moneda)?.symbol || ''} {form.moneda}) *</label>
-                <input className="input-field" type="number" placeholder="15,000" value={form.precioRenta} onChange={(e) => updateField('precioRenta', e.target.value)} />
+                <input
+                  className={`input-field${fieldErrors.precioRenta ? ' input-error' : ''}`}
+                  type="number"
+                  placeholder="15,000"
+                  value={form.precioRenta}
+                  onChange={(e) => updateField('precioRenta', e.target.value)}
+                  aria-describedby={fieldErrors.precioRenta ? 'err-precio-renta' : undefined}
+                />
+                {fieldErrors.precioRenta && <span id="err-precio-renta" className="field-error">{fieldErrors.precioRenta}</span>}
               </div>
             )}
 
@@ -696,12 +727,13 @@ export default function PropertyFormPage() {
           )}
           <div style={{ flex: 1 }} />
           {step < 4 ? (
-            <button 
-              type="button" 
-              className="btn btn-primary" 
-              disabled={!canAdvance()} 
+            <button
+              type="button"
+              className="btn btn-primary"
               onClick={() => {
-                // Prevent double-click from instantly submitting on step 4
+                const errs = validateStep(step);
+                if (Object.keys(errs).length) { setFieldErrors(errs); return; }
+                setFieldErrors({});
                 if (step === 3) {
                   const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
                   if (submitBtn) {

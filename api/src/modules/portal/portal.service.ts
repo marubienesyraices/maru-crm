@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
+import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
 import { randomUUID } from 'crypto';
 
 const TENANT_ID = process.env.PORTAL_TENANT_ID;
@@ -17,12 +17,20 @@ export class PortalService {
   private readonly logger = new Logger(PortalService.name);
   private readonly frontendUrl: string;
 
+  private readonly portalUrl: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    // If PORTAL_URL is set, verification links go to the Next.js portal (/verificar)
+    // Otherwise fall back to the React CRM path (/portal/verificar)
+    const portalBase = config.get<string>('PORTAL_URL');
+    this.portalUrl = portalBase
+      ? `${portalBase.replace(/\/$/, '')}/verificar`
+      : `${this.frontendUrl}/portal/verificar`;
   }
 
   async findPublicProperties(filtros: FiltrosPublicasDto) {
@@ -186,10 +194,122 @@ export class PortalService {
     return { success: true, nombre: cliente.nombre };
   }
 
+  // ─── Chatbot lead capture ─────────────────────────────────────
+
+  async crearLeadChatbot(dto: ChatbotLeadDto) {
+    let tenantId: string;
+
+    if (dto.propiedad_id) {
+      const prop = await this.prisma.propiedad.findUnique({
+        where: { id: dto.propiedad_id },
+        select: { tenant_id: true },
+      });
+      tenantId = prop?.tenant_id ?? TENANT_ID ?? '';
+    } else {
+      tenantId = TENANT_ID ?? '';
+    }
+
+    if (!tenantId) throw new BadRequestException('No se pudo determinar el tenant');
+
+    const lines: string[] = [`Nombre: ${dto.nombre}`];
+    if (dto.email)           lines.push(`Email: ${dto.email}`);
+    if (dto.telefono)        lines.push(`Teléfono: ${dto.telefono}`);
+    if (dto.gestion_interes) lines.push(`Gestión: ${dto.gestion_interes}`);
+    if (dto.zona_interes)    lines.push(`Zona: ${dto.zona_interes}`);
+    if (dto.presupuesto_max) lines.push(`Presupuesto máx: Q${dto.presupuesto_max.toLocaleString('es-GT')}`);
+    if (dto.tipo_propiedad)  lines.push(`Tipo: ${dto.tipo_propiedad}`);
+    const notas = lines.join(' · ');
+
+    // Upsert cliente
+    let clienteId: string;
+    if (dto.email) {
+      const existing = await this.prisma.cliente.findUnique({
+        where: { tenant_id_email: { tenant_id: tenantId, email: dto.email } },
+      });
+      if (existing) {
+        clienteId = existing.id;
+        await this.prisma.cliente.update({
+          where: { id: existing.id },
+          data: {
+            nombre:          dto.nombre,
+            telefono:        dto.telefono ?? existing.telefono,
+            gestion_interes: (dto.gestion_interes as any) ?? existing.gestion_interes,
+            zona_interes:    dto.zona_interes ?? existing.zona_interes,
+            presupuesto_max: dto.presupuesto_max ? dto.presupuesto_max : existing.presupuesto_max,
+            notas:           notas,
+          },
+        });
+      } else {
+        const c = await this.prisma.cliente.create({
+          data: {
+            id:              randomUUID(),
+            tenant_id:       tenantId,
+            nombre:          dto.nombre,
+            email:           dto.email,
+            telefono:        dto.telefono ?? null,
+            origen:          'PORTAL_WEB',
+            gestion_interes: dto.gestion_interes as any ?? null,
+            zona_interes:    dto.zona_interes ?? null,
+            presupuesto_max: dto.presupuesto_max ?? null,
+            notas,
+          },
+        });
+        clienteId = c.id;
+      }
+    } else {
+      const c = await this.prisma.cliente.create({
+        data: {
+          id:              randomUUID(),
+          tenant_id:       tenantId,
+          nombre:          dto.nombre,
+          telefono:        dto.telefono ?? null,
+          origen:          'PORTAL_WEB',
+          gestion_interes: dto.gestion_interes as any ?? null,
+          zona_interes:    dto.zona_interes ?? null,
+          presupuesto_max: dto.presupuesto_max ?? null,
+          notas,
+        },
+      });
+      clienteId = c.id;
+    }
+
+    // Link to property if provided
+    if (dto.propiedad_id) {
+      await this.prisma.clientePropiedad.upsert({
+        where: { cliente_id_propiedad_id: { cliente_id: clienteId, propiedad_id: dto.propiedad_id } },
+        create: { id: randomUUID(), cliente_id: clienteId, propiedad_id: dto.propiedad_id, notas },
+        update: {},
+      });
+    }
+
+    // Notify all ADMIN users of the tenant
+    const admins = await this.prisma.user.findMany({
+      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+      select: { id: true },
+    });
+
+    const notifData = admins.map((u) => ({
+      id:         randomUUID(),
+      tenant_id:  tenantId,
+      user_id:    u.id,
+      tipo:       'SISTEMA' as const,
+      titulo:     '🤖 Nuevo lead via chatbot',
+      mensaje:    `${dto.nombre} está interesado/a. ${notas}`,
+      entidad:    'Cliente',
+      entidad_id: clienteId,
+    }));
+
+    if (notifData.length > 0) {
+      await this.prisma.notificacion.createMany({ data: notifData });
+    }
+
+    return { success: true, clienteId };
+  }
+
   // ─── Private helpers ─────────────────────────────────────────
 
   private async sendVerificationEmail(email: string, nombre: string, token: string) {
-    const url = `${this.frontendUrl}/portal/verificar?token=${token}`;
+    const url = `${this.portalUrl}?token=${token}`;
     try {
       await this.email.sendHtml({
         to: email,

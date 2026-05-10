@@ -1,0 +1,76 @@
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
+import { MetaService } from './meta.service';
+import { CreateMetaPublicacionDto, ProgramarMetaDto, UpdateMetaPublicacionDto } from './dto';
+
+@ApiTags('Meta (Facebook / Instagram)')
+@ApiBearerAuth('JWT')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
+@Controller('api/meta')
+export class MetaController {
+  constructor(private readonly svc: MetaService) {}
+
+  @SkipAudit()
+  @Get('status')
+  @ApiOperation({ summary: 'Verifica si las credenciales de Meta están configuradas' })
+  getStatus() {
+    return { configured: this.svc.isConfigured, ig_configured: this.svc.igConfigured };
+  }
+
+  @SkipAudit()
+  @Get()
+  @ApiOperation({ summary: 'Listar publicaciones Meta del tenant' })
+  list(@CurrentUser() user: any) {
+    return this.svc.list(user.tenant_id);
+  }
+
+  @SkipAudit()
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener publicación Meta por ID' })
+  get(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.svc.get(user.tenant_id, id);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Crear borrador de publicación Meta' })
+  create(@CurrentUser() user: any, @Body() dto: CreateMetaPublicacionDto) {
+    return this.svc.create(user.tenant_id, user.id, dto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Actualizar borrador (solo en estado BORRADOR)' })
+  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateMetaPublicacionDto) {
+    return this.svc.update(user.tenant_id, id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar publicación (no PUBLICADA)' })
+  delete(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.svc.delete(user.tenant_id, id);
+  }
+
+  @SkipAudit()
+  @Post('preview-texto/:propiedadId')
+  @ApiOperation({ summary: 'Generar texto sugerido de publicación a partir de una propiedad' })
+  previewTexto(@CurrentUser() user: any, @Param('propiedadId') propiedadId: string) {
+    return this.svc.previewTexto(user.tenant_id, propiedadId);
+  }
+
+  @Post(':id/publicar')
+  @ApiOperation({ summary: 'Publicar inmediatamente en Facebook / Instagram' })
+  publicar(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.svc.publicar(user.tenant_id, id);
+  }
+
+  @Post(':id/programar')
+  @ApiOperation({ summary: 'Programar publicación futura (mín. 10 min)' })
+  programar(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: ProgramarMetaDto) {
+    return this.svc.programar(user.tenant_id, id, new Date(dto.programado_para));
+  }
+}

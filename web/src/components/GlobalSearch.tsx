@@ -161,12 +161,18 @@ function CommandPalette({ open, onClose }: Props) {
   };
 
   return (
-    <div className="gs-backdrop" onClick={onClose}>
-      <div className="gs-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="gs-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="gs-panel"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Búsqueda global"
+      >
 
         {/* ── Input ── */}
         <div className="gs-input-row">
-          <span className="gs-icon">🔍</span>
+          <span className="gs-icon" aria-hidden="true">🔍</span>
           <input
             ref={inputRef}
             className="gs-input"
@@ -175,15 +181,19 @@ function CommandPalette({ open, onClose }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
             spellCheck={false}
+            aria-label="Buscar en el CRM"
+            aria-autocomplete="list"
+            aria-controls="gs-results-list"
+            aria-expanded={hasResults}
           />
-          <span className="gs-kbd">Esc</span>
+          <span className="gs-kbd" aria-label="Presiona Escape para cerrar">Esc</span>
         </div>
 
         {/* ── Results ── */}
-        <div className="gs-results">
+        <div className="gs-results" id="gs-results-list" role="listbox" aria-label="Resultados de búsqueda" aria-live="polite">
           {loading && (
-            <div className="gs-loading">
-              <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+            <div className="gs-loading" role="status" aria-live="polite">
+              <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} aria-hidden="true" />
               Buscando...
             </div>
           )}

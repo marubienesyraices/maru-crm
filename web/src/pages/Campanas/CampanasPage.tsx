@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../components/ConfirmDialog';
 import './Campanas.css';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -43,6 +45,8 @@ function PlantillasTab({ token }: { token: string }) {
   const [form, setForm] = useState({ nombre: '', asunto: '', cuerpo_html: '' });
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,8 +76,13 @@ function PlantillasTab({ token }: { token: string }) {
   };
 
   const del = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
-    try { await apiRequest(`/api/campanas/plantillas/${id}`, { token, method: 'DELETE' }); load(); } catch { /* noop */ }
+    const ok = await confirm({ title: '¿Eliminar plantilla?', message: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    try {
+      await apiRequest(`/api/campanas/plantillas/${id}`, { token, method: 'DELETE' });
+      toast.success('Plantilla eliminada');
+      load();
+    } catch { /* noop */ }
   };
 
   const doPreview = async () => {
@@ -190,6 +199,8 @@ function CampanasTab({ token }: { token: string }) {
   const [editing, setEditing] = useState<Campana | null>(null);
   const [sending, setSending] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [form, setForm] = useState({
     nombre: '',
@@ -259,10 +270,12 @@ function CampanasTab({ token }: { token: string }) {
   };
 
   const enviar = async (id: string) => {
-    if (!confirm('¿Enviar esta campaña ahora? Esta acción no se puede deshacer.')) return;
+    const ok = await confirm({ title: '¿Enviar campaña ahora?', message: 'Esta acción no se puede deshacer. Los emails se enviarán a todos los destinatarios.', confirmLabel: 'Enviar campaña' });
+    if (!ok) return;
     setSending(id);
     try {
       await apiRequest(`/api/campanas/${id}/enviar`, { token, method: 'POST' });
+      toast.success('Campaña enviada correctamente');
       load();
     } catch { /* noop */ } finally { setSending(null); }
   };

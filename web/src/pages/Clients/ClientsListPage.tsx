@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
-import { apiRequest } from '../../lib/api';
+import { useClientes, useClientesStats } from '../../hooks/useClientes';
 import ImportModal from '../../components/ImportModal';
 import './Clients.css';
 
@@ -17,40 +16,16 @@ const ORIGEN_COLORS: Record<string, string> = {
 
 export default function ClientsListPage() {
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [origen, setOrigen] = useState('');
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState<any>({ total: 0, totalPages: 1 });
   const [showImport, setShowImport] = useState(false);
 
-  const fetchClientes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (busqueda) params.set('busqueda', busqueda);
-      if (origen) params.set('origen', origen);
-      params.set('page', String(page));
-      params.set('limit', '20');
+  const { data: result, isLoading: loading, isError } = useClientes({ busqueda, origen, page });
+  const { data: stats } = useClientesStats();
 
-      const [list, s] = await Promise.all([
-        apiRequest<any>(`/api/clientes?${params}`, { token: accessToken! }),
-        apiRequest<any>('/api/clientes/stats', { token: accessToken! }),
-      ]);
-      setClientes(list.data);
-      setMeta(list.meta);
-      setStats(s);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, busqueda, origen, page]);
-
-  useEffect(() => { fetchClientes(); }, [fetchClientes]);
+  const clientes: any[] = result?.data ?? [];
+  const meta = result?.meta ?? { total: 0, totalPages: 1 };
 
   return (
     <div className="clients-page">
@@ -98,12 +73,35 @@ export default function ClientsListPage() {
 
       {/* List */}
       {loading ? (
-        <div className="clients-loading"><div className="spinner" /><span>Cargando...</span></div>
+        <div className="page-loading"><div className="spinner" /><span>Cargando clientes...</span></div>
+      ) : isError ? (
+        <div className="page-error-state">
+          <div className="page-error-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Error al cargar clientes</h3>
+          <p>No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
       ) : clientes.length === 0 ? (
-        <div className="clients-empty">
-          <h3>No hay clientes</h3>
-          <p>Agrega tu primer cliente para iniciar el pipeline</p>
-          <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Cliente</button>
+        <div className="page-empty-state">
+          <div className="page-empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3>{busqueda || origen ? 'Sin resultados' : 'Sin clientes'}</h3>
+          <p>
+            {busqueda || origen
+              ? 'Ningún cliente coincide con los filtros aplicados.'
+              : 'Agrega tu primer cliente para iniciar el pipeline.'}
+          </p>
+          {!busqueda && !origen && (
+            <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Cliente</button>
+          )}
         </div>
       ) : (
         <div className="clients-grid">
@@ -135,7 +133,7 @@ export default function ClientsListPage() {
       )}
 
       {showImport && (
-        <ImportModal entity="clientes" onClose={() => setShowImport(false)} onSuccess={fetchClientes} />
+        <ImportModal entity="clientes" onClose={() => setShowImport(false)} onSuccess={() => setPage(1)} />
       )}
 
       {/* Pagination */}

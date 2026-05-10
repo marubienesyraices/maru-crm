@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,7 @@ import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import * as geoip from 'geoip-lite';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import { LoginDto, Verify2FADto, ResetPasswordDto, OnboardingDto } from './dto';
 import { randomUUID } from 'crypto';
 
@@ -18,10 +20,13 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private redis: RedisService,
   ) {}
 
   // ─── LOGIN STEP 1: Email + Password ──────────────────────
@@ -96,12 +101,27 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
+    const totpFailKey = `totp_fail:${user.id}`;
+    const MAX_TOTP_ATTEMPTS = 5;
+    const TOTP_LOCKOUT_SECONDS = 900; // 15 min
+
+    const failCount = parseInt((await this.redis.get(totpFailKey)) ?? '0', 10);
+    if (failCount >= MAX_TOTP_ATTEMPTS) {
+      throw new ForbiddenException('Demasiados intentos fallidos. Intente en 15 minutos.');
+    }
+
     const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
     const isValid = totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
 
     if (!isValid) {
+      await this.redis.client.multi()
+        .incr(totpFailKey)
+        .expire(totpFailKey, TOTP_LOCKOUT_SECONDS)
+        .exec();
       throw new UnauthorizedException('Código 2FA inválido');
     }
+
+    await this.redis.client.del(totpFailKey);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -208,7 +228,9 @@ export class AuthService {
       data: { reset_token: token, reset_token_expires: expires },
     });
 
-    console.log(`[DEV] Reset link: ${this.config.get('FRONTEND_URL')}/reset-password?token=${token}`);
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`Reset link: ${this.config.get('FRONTEND_URL')}/reset-password?token=${token}`);
+    }
 
     return { message: 'Si el correo existe, recibirá un enlace de recuperación' };
   }

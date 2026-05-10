@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PortalService } from './portal.service';
-import { FiltrosPublicasDto, RegistroPortalDto, VerificarEmailDto } from './portal.dto';
+import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto, VerificarEmailDto } from './portal.dto';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
 /** All routes under /api/public are unauthenticated — no JwtAuthGuard */
@@ -35,5 +35,12 @@ export class PortalController {
   @ApiOperation({ summary: 'Verificar email de cliente con token de activación' })
   verificar(@Body() dto: VerificarEmailDto) {
     return this.service.verificarEmail(dto.token);
+  }
+
+  @Post('chatbot-lead')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Registrar lead capturado por el chatbot del portal' })
+  chatbotLead(@Body() dto: ChatbotLeadDto) {
+    return this.service.crearLeadChatbot(dto);
   }
 }

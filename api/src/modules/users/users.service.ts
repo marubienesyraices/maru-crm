@@ -1,12 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(UsersService.name);
+  private readonly frontendUrl: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    config: ConfigService,
+  ) {
+    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+  }
 
   async create(tenantId: string, dto: CreateUserDto) {
     // Check tenant user limit
@@ -47,7 +58,19 @@ export class UsersService {
       },
     });
 
-    console.log(`[DEV] Activation: ${process.env.FRONTEND_URL}/onboarding?token=${activationToken}`);
+    const activationUrl = `${this.frontendUrl}/onboarding?token=${activationToken}`;
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`Activation: ${activationUrl}`);
+    }
+
+    // Welcome email with activation link (fire-and-forget)
+    this.email.sendClientEmail({
+      to: user.email,
+      subject: '¡Bienvenido/a al CRM! — Maru Bienes y Raíces',
+      heading: `¡Bienvenido/a, ${user.nombre}!`,
+      body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en el CRM Maru Bienes y Raíces. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
+      cta: { label: 'Activar mi cuenta', url: activationUrl },
+    }).catch(() => {});
 
     return { ...user, activationToken };
   }

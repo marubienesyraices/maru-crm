@@ -21,6 +21,8 @@ import ImportPage from './pages/Import/ImportPage';
 import BiPage from './pages/BI/BiPage';
 import RankingPage from './pages/Ranking/RankingPage';
 import CampanasPage from './pages/Campanas/CampanasPage';
+import MetaPage from './pages/Meta/MetaPage';
+import HelpPage from './pages/Help/HelpPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
@@ -59,9 +61,11 @@ export default function App() {
           <Route path="/import" element={<ImportPage />} />
           <Route path="/bi" element={<BiPage />} />
           <Route path="/campanas" element={<CampanasPage />} />
+          <Route path="/meta" element={<MetaPage />} />
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+          <Route path="/help" element={<HelpPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

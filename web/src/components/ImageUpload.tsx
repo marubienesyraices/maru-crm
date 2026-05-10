@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { useToast } from './Toast';
+import { useConfirm } from './ConfirmDialog';
 import './ImageUpload.css';
 
 interface PropiedadImagen {
@@ -20,6 +22,8 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) {
   const { accessToken } = useAuthStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -56,13 +60,14 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
         throw new Error(err.message || 'Error al subir');
       }
 
+      toast.success('Imágenes subidas correctamente');
       onUpdate();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message ?? 'Error al subir imágenes');
     } finally {
       setUploading(false);
     }
-  }, [propiedadId, accessToken, onUpdate]);
+  }, [propiedadId, accessToken, onUpdate, toast]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -79,12 +84,14 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
   };
 
   const handleDelete = async (imagenId: string) => {
-    if (!confirm('¿Eliminar esta imagen?')) return;
+    const ok = await confirm({ title: '¿Eliminar imagen?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     setLightboxIndex(null);
     await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/${imagenId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    toast.success('Imagen eliminada');
     onUpdate();
   };
 

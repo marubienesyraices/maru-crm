@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getPropiedad, fmtPrecio, TIPO_LABELS, GESTION_LABELS } from '@/lib/api';
+import { getPropiedad, getPropiedades, fmtPrecio, TIPO_LABELS, GESTION_LABELS } from '@/lib/api';
 import Header from '@/components/Header';
 import ImageGallery from '@/components/ImageGallery';
+import PropertyCard from '@/components/PropertyCard';
+import RegistroInteresForm from '@/components/RegistroInteresForm';
 
 const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
 const EMAIL   = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
@@ -32,6 +34,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 export default async function PropiedadDetailPage({ params }: { params: { id: string } }) {
   const prop = await getPropiedad(params.id);
   if (!prop) notFound();
+
+  // Fetch related properties (same tipo, exclude current)
+  const related = await getPropiedades({ tipo: prop.tipo, page: '1' })
+    .then(r => r.data.filter(p => p.id !== prop.id).slice(0, 3))
+    .catch(() => []);
 
   const precio      = prop.gestion === 'RENTA' ? prop.precio_renta : (prop.precio_venta ?? prop.precio_renta);
   const precioLabel = fmtPrecio(precio, prop.moneda);
@@ -191,7 +198,7 @@ export default async function PropiedadDetailPage({ params }: { params: { id: st
             <div className="contact-info-row">
               <span>🏢</span> <span>{COMPANY}</span>
             </div>
-            {prop.agente && (
+            {(prop as any).agente && (
               <div className="contact-info-row">
                 <span>👤</span> <span>Agente: {(prop as any).agente.nombre}</span>
               </div>
@@ -199,12 +206,26 @@ export default async function PropiedadDetailPage({ params }: { params: { id: st
             <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', textAlign: 'center', marginTop: 4 }}>
               Código: <strong>{prop.codigo}</strong>
             </div>
+            <hr className="contact-divider" />
+            <RegistroInteresForm propiedadId={prop.id} />
             <Link href="/" className="contact-btn contact-btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               ← Ver más propiedades
             </Link>
           </div>
         </aside>
       </div>
+
+      {/* Related properties */}
+      {related.length > 0 && (
+        <section className="related-section">
+          <h2 className="related-title">
+            Propiedades similares — {TIPO_LABELS[prop.tipo] ?? prop.tipo}
+          </h2>
+          <div className="related-grid">
+            {related.map(p => <PropertyCard key={p.id} p={p} />)}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="portal-footer">

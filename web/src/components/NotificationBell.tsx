@@ -107,22 +107,29 @@ export default function NotificationBell() {
       <button
         className={`notif-bell-btn ${open ? 'notif-bell-open' : ''}`}
         onClick={() => setOpen((v) => !v)}
-        aria-label="Notificaciones"
+        aria-label={`Notificaciones${unread > 0 ? ` — ${unread} sin leer` : ''}`}
+        aria-expanded={open}
+        aria-haspopup="true"
         title="Notificaciones"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span className="notif-badge">{unread > 99 ? '99+' : unread}</span>
+          <span className="notif-badge" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>
         )}
       </button>
 
       {open && (
-        <div className="notif-dropdown">
+        <div
+          className="notif-dropdown"
+          role="dialog"
+          aria-label="Notificaciones"
+          aria-modal="false"
+        >
           <div className="notif-header">
-            <span className="notif-title">Notificaciones</span>
+            <span className="notif-title" id="notif-heading">Notificaciones</span>
             {unread > 0 && (
               <button className="notif-mark-all" onClick={handleMarkAllRead}>
                 Marcar todas leídas
@@ -130,25 +137,33 @@ export default function NotificationBell() {
             )}
           </div>
 
-          <div className="notif-list">
+          <div
+            className="notif-list"
+            role="list"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-labelledby="notif-heading"
+          >
             {loading ? (
-              <div className="notif-empty">Cargando...</div>
+              <div className="notif-empty" role="status">Cargando...</div>
             ) : items.length === 0 ? (
-              <div className="notif-empty">Sin notificaciones</div>
+              <div className="notif-empty" role="status">Sin notificaciones</div>
             ) : (
               items.map((n) => (
                 <button
                   key={n.id}
+                  role="listitem"
                   className={`notif-item ${n.leida ? 'notif-item-read' : 'notif-item-unread'}`}
                   onClick={() => !n.leida && handleMarkRead(n.id)}
+                  aria-label={`${n.titulo}${n.leida ? '' : ' — sin leer'}`}
                 >
-                  <span className="notif-item-icon">{TIPO_ICON[n.tipo] ?? 'ℹ️'}</span>
+                  <span className="notif-item-icon" aria-hidden="true">{TIPO_ICON[n.tipo] ?? 'ℹ️'}</span>
                   <div className="notif-item-body">
                     <span className="notif-item-titulo">{n.titulo}</span>
                     <span className="notif-item-mensaje">{n.mensaje}</span>
                     <span className="notif-item-time">{timeAgo(n.created_at)}</span>
                   </div>
-                  {!n.leida && <span className="notif-dot" />}
+                  {!n.leida && <span className="notif-dot" aria-hidden="true" />}
                 </button>
               ))
             )}

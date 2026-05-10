@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   LoginDto, Verify2FADto, ForgotPasswordDto,
@@ -18,6 +19,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Paso 1 de login: email + contraseña' })
   @ApiResponse({ status: 200, description: 'Token de acceso o solicitud de 2FA' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
@@ -29,6 +32,8 @@ export class AuthController {
 
   @Post('verify-2fa')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Paso 2 de login: verificar código TOTP' })
   @ApiResponse({ status: 200, description: 'Token de acceso completo' })
   async verify2FA(@Body() dto: Verify2FADto, @Req() req: any) {
@@ -78,6 +83,8 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 300000 } })
   @ApiOperation({ summary: 'Solicitar enlace de recuperación de contraseña' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);

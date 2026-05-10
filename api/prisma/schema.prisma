@@ -67,7 +67,8 @@ model Tenant {
   propiedades      Propiedad[]
   propietarios     Propietario[]
   clientes         Cliente[]
-  notificaciones   Notificacion[]
+  notificaciones      Notificacion[]
+  meta_publicaciones  MetaPublicacion[]
 
   @@map("tenants")
 }
@@ -101,8 +102,9 @@ model User {
   sessions     Session[]
   propiedades_asignadas Propiedad[]     @relation("PropiedadAgente")
   clientes_asignados    Cliente[]       @relation("ClienteAgente")
-  interacciones         Interaccion[]   @relation("InteraccionUsuario")
-  visitas               Visita[]        @relation("VisitaAgente")
+  interacciones         Interaccion[]       @relation("InteraccionUsuario")
+  visitas               Visita[]            @relation("VisitaAgente")
+  meta_publicaciones    MetaPublicacion[]   @relation("UserMeta")
 
   @@unique([tenant_id, email])
   @@map("users")
@@ -269,9 +271,12 @@ model Propiedad {
   tenant      Tenant              @relation(fields: [tenant_id], references: [id])
   propietario Propietario?        @relation(fields: [propietario_id], references: [id])
   agente      User?               @relation("PropiedadAgente", fields: [agente_id], references: [id])
-  imagenes    PropiedadImagen[]
-  documentos  PropiedadDocumento[]
-  interesados ClientePropiedad[]
+  imagenes              PropiedadImagen[]
+  documentos            PropiedadDocumento[]
+  interesados           ClientePropiedad[]
+  meta_publicaciones    MetaPublicacion[]         @relation("PropiedadMeta")
+  sindicaciones         SindicacionPublicacion[]
+  firma_solicitudes     FirmaSolicitud[]
 
   @@unique([tenant_id, codigo])
   @@index([tenant_id, estado])
@@ -458,6 +463,7 @@ model ClientePropiedad {
   @@unique([cliente_id, propiedad_id])
   @@index([propiedad_id, estado])
   @@index([estado])
+  @@index([estado, fecha_cierre])
   @@map("cliente_propiedades")
 }
 
@@ -477,6 +483,7 @@ model Interaccion {
   usuario  User             @relation("InteraccionUsuario", fields: [usuario_id], references: [id])
 
   @@index([interes_id, fecha])
+  @@index([usuario_id, fecha])
   @@map("interacciones")
 }
 
@@ -503,6 +510,10 @@ model Visita {
   reschedule_propuesta_fin   DateTime?
   reschedule_notas           String?
   reschedule_solicitado_at   DateTime?
+
+  // HU-12.02: Videollamada Zoom
+  zoom_meeting_id String?
+  zoom_join_url   String?
 
   created_at   DateTime     @default(now())
   updated_at   DateTime     @updatedAt
@@ -633,5 +644,112 @@ model EmailEvento {
   @@index([tenant_id, enviado_at])
   @@index([campana_id])
   @@map("email_eventos")
+}
+
+// ─── HU-12.01: Sindicación portales externos ────────────────
+
+enum PortalExterno {
+  ENCUENTRA24
+  MERCADOLIBRE
+}
+
+enum EstadoSindicacion {
+  PENDIENTE
+  PUBLICADO
+  ERROR
+  RETIRADO
+}
+
+model SindicacionPublicacion {
+  id           String            @id @default(uuid())
+  tenant_id    String
+  propiedad_id String
+  portal       PortalExterno
+  estado       EstadoSindicacion @default(PENDIENTE)
+  external_id  String?
+  external_url String?
+  error_msg    String?
+  publicado_at DateTime?
+  retirado_at  DateTime?
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+
+  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@unique([propiedad_id, portal])
+  @@index([tenant_id, portal])
+  @@map("sindicacion_publicaciones")
+}
+
+// ─── HU-12.02: Firma digital ─────────────────────────────────
+
+enum EstadoFirma {
+  PENDIENTE
+  ENVIADO
+  COMPLETADO
+  DECLINADO
+  VENCIDO
+}
+
+model FirmaSolicitud {
+  id              String      @id @default(uuid())
+  tenant_id       String
+  propiedad_id    String
+  agente_id       String
+  firmante_nombre String
+  firmante_email  String
+  estado          EstadoFirma @default(PENDIENTE)
+  envelope_id     String?
+  signing_url     String?
+  completado_at   DateTime?
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  propiedad Propiedad @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, estado])
+  @@index([propiedad_id])
+  @@map("firma_solicitudes")
+}
+
+// ─── Sprint 7+: Meta (Facebook / Instagram) ──────────────────
+
+enum MetaPlataforma {
+  FACEBOOK
+  INSTAGRAM
+  AMBAS
+}
+
+enum MetaEstado {
+  BORRADOR
+  PROGRAMADA
+  PUBLICADA
+  FALLIDA
+}
+
+model MetaPublicacion {
+  id              String         @id @default(uuid())
+  tenant_id       String
+  propiedad_id    String?
+  agente_id       String
+  plataforma      MetaPlataforma
+  mensaje         String
+  imagen_url      String?
+  estado          MetaEstado     @default(BORRADOR)
+  programado_para DateTime?
+  publicado_at    DateTime?
+  fb_post_id      String?
+  ig_post_id      String?
+  error_msg       String?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  propiedad Propiedad? @relation("PropiedadMeta", fields: [propiedad_id], references: [id], onDelete: SetNull)
+  agente    User       @relation("UserMeta", fields: [agente_id], references: [id])
+
+  @@index([tenant_id, estado])
+  @@index([tenant_id, created_at])
+  @@map("meta_publicaciones")
 }
 

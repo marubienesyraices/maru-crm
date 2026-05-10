@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
+import { useToast } from '../../components/Toast';
 import './Bi.css';
 
-type Tab = 'resumen' | 'agentes' | 'propiedades';
+type Tab = 'resumen' | 'agentes' | 'propiedades' | 'productividad';
 
 const FUNNEL_COLORS: Record<string, string> = {
   NUEVO: '#64748b', CONTACTADO: '#3b82f6', INTERESADO: '#f59e0b',
@@ -26,22 +27,33 @@ function fmtPct(v: number) { return `${v}%`; }
 function ResumenTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const fetch = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setIsError(false);
     try {
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
       const res = await apiRequest<any>(`/api/bi/resumen?${params}`, { token });
       setData(res);
-    } catch (e) { console.error(e); }
+    } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Calculando métricas…</span></div>;
+  if (isError) return (
+    <div className="page-error-state">
+      <div className="page-error-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3>Error al cargar el resumen</h3>
+      <p>No se pudieron obtener las métricas. Verifica tu conexión e intenta de nuevo.</p>
+      <button className="btn btn-ghost" onClick={fetch}>Reintentar</button>
+    </div>
+  );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
   const maxFunnel = Math.max(...(data.embudo || []).map((e: any) => e.count), 1);
@@ -106,18 +118,20 @@ type SortKey = 'nombre' | 'ganados' | 'activos' | 'tasaConversion' | 'comisionTo
 function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [sort, setSort] = useState<SortKey>('ganados');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+  const toast = useToast();
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setIsError(false);
     try {
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
       const res = await apiRequest<any>(`/api/bi/agentes?${params}`, { token });
       setData(res);
-    } catch (e) { console.error(e); }
+    } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
@@ -136,7 +150,7 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
     const res = await fetch(`${API}/api/bi/export/agentes?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return alert('Error al exportar');
+    if (!res.ok) { toast.error('Error al exportar el reporte'); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -145,6 +159,16 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
   };
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Cargando agentes…</span></div>;
+  if (isError) return (
+    <div className="page-error-state">
+      <div className="page-error-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3>Error al cargar agentes</h3>
+      <p>No se pudo obtener el reporte de agentes. Verifica tu conexión e intenta de nuevo.</p>
+      <button className="btn btn-ghost" onClick={fetchData}>Reintentar</button>
+    </div>
+  );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
   const sorted = [...(data.agentes || [])].sort((a: any, b: any) => {
@@ -216,22 +240,33 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
 function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setIsError(false);
     try {
       const params = new URLSearchParams({ limit: '15' });
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
       const res = await apiRequest<any>(`/api/bi/propiedades/top?${params}`, { token });
       setData(res);
-    } catch (e) { console.error(e); }
+    } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Cargando propiedades…</span></div>;
+  if (isError) return (
+    <div className="page-error-state">
+      <div className="page-error-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3>Error al cargar propiedades</h3>
+      <p>No se pudo obtener el ranking de propiedades. Verifica tu conexión e intenta de nuevo.</p>
+      <button className="btn btn-ghost" onClick={fetchData}>Reintentar</button>
+    </div>
+  );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
   const props: any[] = data.propiedades || [];
@@ -289,6 +324,185 @@ function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string;
   );
 }
 
+// ─── Productividad Tab ───────────────────────────────────────────────────────
+
+const TIPO_LABELS: Record<string, string> = {
+  LLAMADA: 'Llamadas', EMAIL: 'Email', WHATSAPP: 'WhatsApp',
+  MENSAJE: 'Mensaje', NOTA: 'Notas', VISITA: 'Visitas',
+};
+const TIPO_ICONS: Record<string, string> = {
+  LLAMADA: '📞', EMAIL: '📧', WHATSAPP: '📲', MENSAJE: '💬', NOTA: '📝', VISITA: '👁',
+};
+const TIPOS = ['LLAMADA', 'EMAIL', 'WHATSAPP', 'MENSAJE', 'NOTA', 'VISITA'] as const;
+
+function Sparkline({ data, width = 72, height = 26 }: { data: { total: number }[]; width?: number; height?: number }) {
+  if (!data.length) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  const max = Math.max(...data.map((d) => d.total), 1);
+  const n = data.length;
+  const gap = 1;
+  const barW = Math.max(2, Math.floor((width - (n - 1) * gap) / n));
+  return (
+    <svg width={width} height={height} style={{ display: 'block' }} aria-hidden="true">
+      {data.map((d, i) => {
+        const h = Math.max(2, Math.round((d.total / max) * (height - 2)));
+        return (
+          <rect
+            key={i}
+            x={i * (barW + gap)}
+            y={height - h}
+            width={barW}
+            height={h}
+            rx={1}
+            fill="var(--accent)"
+            opacity={0.75}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+type ProdSortKey = 'nombre' | 'total' | 'LLAMADA' | 'EMAIL' | 'WHATSAPP' | 'MENSAJE' | 'NOTA' | 'VISITA';
+
+function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [sort, setSort] = useState<ProdSortKey>('total');
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setIsError(false);
+    try {
+      const params = new URLSearchParams();
+      if (desde) params.set('desde', desde);
+      if (hasta) params.set('hasta', hasta);
+      const res = await apiRequest<any>(`/api/bi/productividad?${params}`, { token });
+      setData(res);
+    } catch { setIsError(true); }
+    finally { setLoading(false); }
+  }, [desde, hasta, token]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSort = (key: ProdSortKey) => {
+    if (sort === key) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSort(key); setDir('desc'); }
+  };
+
+  if (loading) return <div className="bi-loading"><div className="spinner" /><span>Cargando productividad…</span></div>;
+  if (isError) return (
+    <div className="page-error-state">
+      <div className="page-error-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h3>Error al cargar productividad</h3>
+      <p>No se pudo obtener el reporte de actividad. Verifica tu conexión e intenta de nuevo.</p>
+      <button className="btn btn-ghost" onClick={fetchData}>Reintentar</button>
+    </div>
+  );
+  if (!data) return <div className="bi-empty">Sin datos</div>;
+
+  const agentes: any[] = data.agentes ?? [];
+  const totalesTipo = data.totalesTipo ?? {};
+
+  const sorted = [...agentes].sort((a, b) => {
+    const va = sort === 'nombre' ? a.nombre : sort === 'total' ? a.total : (a.porTipo?.[sort] ?? 0);
+    const vb = sort === 'nombre' ? b.nombre : sort === 'total' ? b.total : (b.porTipo?.[sort] ?? 0);
+    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    return dir === 'asc' ? cmp : -cmp;
+  });
+
+  const SortIcon = ({ k }: { k: ProdSortKey }) =>
+    sort !== k ? <span> ↕</span> : dir === 'desc' ? <span> ↓</span> : <span> ↑</span>;
+
+  return (
+    <>
+      {/* KPI summary cards */}
+      <div className="bi-kpis" style={{ marginBottom: 24 }}>
+        <div className="bi-kpi">
+          <span className="bi-kpi-label">Total interacciones</span>
+          <span className="bi-kpi-value">{data.totalInteracciones ?? 0}</span>
+          <span className="bi-kpi-sub">En el período</span>
+        </div>
+        {(['LLAMADA', 'EMAIL', 'WHATSAPP'] as const).map((t) => (
+          <div className="bi-kpi" key={t}>
+            <span className="bi-kpi-label">{TIPO_ICONS[t]} {TIPO_LABELS[t]}</span>
+            <span className="bi-kpi-value">{totalesTipo[t] ?? 0}</span>
+            <span className="bi-kpi-sub">Por todos los agentes</span>
+          </div>
+        ))}
+        <div className="bi-kpi">
+          <span className="bi-kpi-label">💬 Mensajes + 📝 Notas</span>
+          <span className="bi-kpi-value">{(totalesTipo['MENSAJE'] ?? 0) + (totalesTipo['NOTA'] ?? 0)}</span>
+          <span className="bi-kpi-sub">Por todos los agentes</span>
+        </div>
+      </div>
+
+      {/* Per-agent table */}
+      <div className="bi-section">
+        <h3>Contador de actividad por agente</h3>
+        <div className="bi-table-wrap">
+          <table className="bi-table">
+            <thead>
+              <tr>
+                <th onClick={() => handleSort('nombre')}>Agente <SortIcon k="nombre" /></th>
+                {TIPOS.map((t) => (
+                  <th key={t} onClick={() => handleSort(t as ProdSortKey)}>
+                    {TIPO_ICONS[t]} {TIPO_LABELS[t]} <SortIcon k={t as ProdSortKey} />
+                  </th>
+                ))}
+                <th onClick={() => handleSort('total')}>Total <SortIcon k="total" /></th>
+                <th>Tendencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((a: any) => (
+                <tr key={a.id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{a.nombre}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.rol}</div>
+                  </td>
+                  {TIPOS.map((t) => (
+                    <td key={t} className="prod-count-cell">
+                      {a.porTipo?.[t] ?? 0}
+                    </td>
+                  ))}
+                  <td className="prod-count-cell" style={{ fontWeight: 700 }}>{a.total}</td>
+                  <td className="prod-spark-cell">
+                    <Sparkline data={a.tendencia ?? []} />
+                  </td>
+                </tr>
+              ))}
+              {/* Totals row */}
+              {sorted.length > 0 && (
+                <tr className="prod-totals-row">
+                  <td style={{ fontWeight: 600 }}>TOTAL</td>
+                  {TIPOS.map((t) => (
+                    <td key={t} className="prod-count-cell" style={{ fontWeight: 600 }}>{totalesTipo[t] ?? 0}</td>
+                  ))}
+                  <td className="prod-count-cell" style={{ fontWeight: 700 }}>{data.totalInteracciones ?? 0}</td>
+                  <td />
+                </tr>
+              )}
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={TIPOS.length + 3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                    Sin interacciones en el período
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
+          Datos en caché · actualizado {new Date(data.cacheAt).toLocaleTimeString('es-GT')}
+        </p>
+      </div>
+    </>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BiPage() {
@@ -321,11 +535,13 @@ export default function BiPage() {
         <button className={`bi-tab ${tab === 'resumen' ? 'active' : ''}`} onClick={() => setTab('resumen')}>Resumen</button>
         <button className={`bi-tab ${tab === 'agentes' ? 'active' : ''}`} onClick={() => setTab('agentes')}>Agentes</button>
         <button className={`bi-tab ${tab === 'propiedades' ? 'active' : ''}`} onClick={() => setTab('propiedades')}>Top Propiedades</button>
+        <button className={`bi-tab ${tab === 'productividad' ? 'active' : ''}`} onClick={() => setTab('productividad')}>Productividad</button>
       </div>
 
       {tab === 'resumen' && <ResumenTab {...sharedProps} />}
       {tab === 'agentes' && <AgentesTab {...sharedProps} />}
       {tab === 'propiedades' && <PropiedadesTab {...sharedProps} />}
+      {tab === 'productividad' && <ProductividadTab {...sharedProps} />}
     </div>
   );
 }

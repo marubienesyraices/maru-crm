@@ -38,6 +38,7 @@ export default function AdminUsersPage() {
   const { accessToken } = useAuthStore();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -45,11 +46,12 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('');
 
   const fetchUsers = useCallback(async () => {
+    setIsError(false);
     try {
       const data = await apiRequest<UserItem[]>('/api/users', { token: accessToken! });
       setUsers(data);
-    } catch (err: any) {
-      console.error(err);
+    } catch {
+      setIsError(true);
     } finally {
       setLoading(false);
     }
@@ -170,7 +172,16 @@ export default function AdminUsersPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="props-loading"><div className="spinner" /><span>Cargando...</span></div>
+        <div className="page-loading"><div className="spinner" /><span>Cargando usuarios…</span></div>
+      ) : isError ? (
+        <div className="page-error-state">
+          <div className="page-error-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h3>Error al cargar usuarios</h3>
+          <p>No se pudieron obtener los usuarios. Verifica tu conexión e intenta de nuevo.</p>
+          <button className="btn btn-ghost" onClick={fetchUsers}>Reintentar</button>
+        </div>
       ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -185,6 +196,9 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
+              {users.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay usuarios registrados aún</td></tr>
+              )}
               {users.map((u) => (
                 <tr key={u.id}>
                   <td>
