@@ -38,6 +38,22 @@ function isLight(hex: string): boolean {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 160;
 }
 
+/** Draw one image clipped to a rectangle; silently skips if file missing or load fails. */
+function drawImg(doc: any, storage: StorageService, imgUrl: string, x: number, y: number, w: number, h: number) {
+  const p = storage.localPath(imgUrl);
+  if (!p || !existsSync(p)) return false;
+  try {
+    doc.save();
+    doc.rect(x, y, w, h).clip();
+    doc.image(p, x, y, { width: w, height: h, cover: [w, h] });
+    doc.restore();
+    return true;
+  } catch {
+    doc.restore();
+    return false;
+  }
+}
+
 @Injectable()
 export class BrochureService {
   constructor(
@@ -51,7 +67,7 @@ export class BrochureService {
       include: {
         propietario: { select: { nombre: true, telefono: true } },
         agente: { select: { nombre: true, email: true } },
-        imagenes: { orderBy: { orden: 'asc' }, take: 4 },
+        imagenes: { orderBy: { orden: 'asc' }, take: 20 },
         tenant: { select: { nombre: true, color_primario: true, moneda: true } },
       },
     });
@@ -63,91 +79,104 @@ export class BrochureService {
     const MARGIN = 40;
     const CONTENT_W = W - MARGIN * 2;
 
-    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-
     const primary = propiedad.tenant.color_primario || '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';
     const gestionLabel = GESTION_LABELS[propiedad.gestion] || propiedad.gestion;
     const tipoLabel = TIPO_LABELS[propiedad.tipo] || propiedad.tipo;
+    const fecha = new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // ─── Background ──────────────────────────────────────────────
+    // Separate images into hero (0-2), gallery strip (3-6), page2 (7+)
+    const coverImg = propiedad.imagenes.find(i => i.tipo === 'portada') ?? propiedad.imagenes[0];
+    const rest = propiedad.imagenes.filter(i => i !== coverImg);
+    const heroSide = rest.slice(0, 2);       // up to 2 side images
+    const galleryRow = rest.slice(2, 6);     // up to 4 gallery strip images
+    const page2Imgs = rest.slice(6);         // remainder → page 2
+
+    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    // ════════════════════════════════════════════════════════════
+    // PAGE 1
+    // ════════════════════════════════════════════════════════════
+
     doc.rect(0, 0, W, H).fill('#f8fafc');
 
-    // ─── Header gradient band (0–90) ─────────────────────────────
+    // ─── Header (0–90) ───────────────────────────────────────────
     doc.rect(0, 0, W, 90).fill(primary);
-    // Accent dark strip at very top
     doc.rect(0, 0, W, 4).fill(primaryDark);
 
-    // Company name
     doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(20)
       .text(propiedad.tenant.nombre, MARGIN, 18, { width: CONTENT_W - 110, lineBreak: false });
 
-    // Gestión badge (top-right pill)
     const badgeW = 100;
     const badgeX = W - MARGIN - badgeW;
     doc.roundedRect(badgeX, 18, badgeW, 22, 4).fill(primaryDark);
     doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(7.5)
       .text(gestionLabel, badgeX, 25, { width: badgeW, align: 'center', lineBreak: false });
 
-    // Tipo label below company
     doc.fillColor(onPrimary).font('Helvetica').fontSize(10).opacity(0.8)
       .text(`${tipoLabel}  ·  ${propiedad.codigo}`, MARGIN, 47, { width: CONTENT_W })
       .opacity(1);
 
-    // ─── Property Image (90–290) ──────────────────────────────────
-    const IMG_H = 200;
-    const coverImg = propiedad.imagenes.find(i => i.tipo === 'portada') ?? propiedad.imagenes[0];
-    let imgBottom = 90;
+    // ─── Hero image section (90–290) ─────────────────────────────
+    // Layout: cover image takes left 63%, two side images stack on right 37%
+    const HERO_Y = 90;
+    const HERO_H = 200;
+    const MAIN_W = heroSide.length > 0 ? Math.round(W * 0.63) : W;
+    const SIDE_W = W - MAIN_W;
+    const SIDE_H = Math.round(HERO_H / 2) - 1;
 
+    let heroRendered = false;
     if (coverImg) {
-      const imgPath = this.storage.localPath(coverImg.url);
-      if (imgPath && existsSync(imgPath)) {
-        try {
-          doc.save();
-          doc.rect(0, 90, W, IMG_H).clip();
-          doc.image(imgPath, 0, 90, { width: W, height: IMG_H, cover: [W, IMG_H] });
-          doc.restore();
-          imgBottom = 90 + IMG_H;
-        } catch { /* skip */ }
+      heroRendered = drawImg(doc, this.storage, coverImg.url, 0, HERO_Y, MAIN_W, HERO_H);
+    }
+    if (!heroRendered) {
+      doc.rect(0, HERO_Y, MAIN_W, HERO_H).fill('#cbd5e1');
+      doc.fillColor('#94a3b8').font('Helvetica').fontSize(13)
+        .text(tipoLabel, 0, HERO_Y + HERO_H / 2 - 8, { width: MAIN_W, align: 'center' });
+    }
+
+    // Side images (stacked)
+    heroSide.forEach((img, i) => {
+      const sy = HERO_Y + i * (SIDE_H + 2);
+      const rendered = drawImg(doc, this.storage, img.url, MAIN_W + 1, sy, SIDE_W - 1, SIDE_H);
+      if (!rendered) {
+        doc.rect(MAIN_W + 1, sy, SIDE_W - 1, SIDE_H).fill('#e2e8f0');
       }
+    });
+    // Fill any unused side slots with a placeholder color
+    if (heroSide.length === 0 && MAIN_W < W) {
+      doc.rect(MAIN_W + 1, HERO_Y, SIDE_W - 1, HERO_H).fill('#e2e8f0');
+    } else if (heroSide.length === 1) {
+      doc.rect(MAIN_W + 1, HERO_Y + SIDE_H + 2, SIDE_W - 1, SIDE_H).fill('#e2e8f0');
     }
 
-    if (imgBottom === 90) {
-      // No image placeholder
-      doc.rect(0, 90, W, IMG_H).fill('#e2e8f0');
-      doc.fillColor('#94a3b8').font('Helvetica').fontSize(14)
-        .text(tipoLabel, 0, 90 + IMG_H / 2 - 10, { width: W, align: 'center' });
-      imgBottom = 90 + IMG_H;
+    // Thin separator line between main and side panel
+    if (heroSide.length > 0) {
+      doc.rect(MAIN_W, HERO_Y, 1, HERO_H).fill('#ffffff');
+      doc.rect(MAIN_W + 1, HERO_Y + SIDE_H, SIDE_W - 1, 2).fill('#ffffff');
     }
 
-    // Gradient overlay at bottom of image for legibility
-    // Simulate with semi-transparent rect
-    doc.rect(0, imgBottom - 50, W, 50).fill('#0f172a').opacity(0.45);
+    // Overlay gradient at bottom of cover for legibility
+    doc.rect(0, HERO_Y + HERO_H - 50, MAIN_W, 50).fill('#0f172a').opacity(0.42);
     doc.opacity(1);
 
-    // ─── Title card (floating over image bottom) ──────────────────
-    const CARD_Y = imgBottom - 20;
+    // ─── Title card (floating over hero bottom) ───────────────────
+    const CARD_Y = HERO_Y + HERO_H - 20;
     const CARD_H = 66;
     doc.roundedRect(MARGIN - 4, CARD_Y, CONTENT_W + 8, CARD_H, 6).fill('#ffffff');
-    // Left accent bar on card
     doc.rect(MARGIN - 4, CARD_Y, 4, CARD_H).fill(primary);
 
-    // Title
     doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(15)
-      .text(propiedad.titulo, MARGIN + 8, CARD_Y + 10,
-        { width: CONTENT_W - 8, lineBreak: true, lineGap: 1 });
-
-    const titleBottom = doc.y;
+      .text(propiedad.titulo, MARGIN + 8, CARD_Y + 10, { width: CONTENT_W - 8, lineBreak: true, lineGap: 1 });
     doc.fillColor('#64748b').font('Helvetica').fontSize(9)
-      .text(`${tipoLabel}  ·  ${propiedad.codigo}`, MARGIN + 8, Math.min(titleBottom + 1, CARD_Y + 44));
+      .text(`${tipoLabel}  ·  ${propiedad.codigo}`, MARGIN + 8, Math.min(doc.y + 1, CARD_Y + 44));
 
-    // ─── Price band ───────────────────────────────────────────────
+    // ─── Price cards ──────────────────────────────────────────────
     let y = CARD_Y + CARD_H + 12;
-
     const prices: { label: string; value: string }[] = [];
     if (propiedad.precio_venta) prices.push({ label: 'PRECIO DE VENTA', value: formatMoney(propiedad.precio_venta, currency)! });
     if (propiedad.precio_renta) prices.push({ label: 'RENTA MENSUAL', value: formatMoney(propiedad.precio_renta, currency)! });
@@ -169,26 +198,24 @@ export class BrochureService {
     doc.moveTo(MARGIN, y).lineTo(W - MARGIN, y).strokeColor(primary).lineWidth(1).stroke();
     y += 14;
 
-    // ─── Two-column layout ────────────────────────────────────────
+    // ─── Two-column content ───────────────────────────────────────
     const COL_GAP = 16;
     const COL_LEFT_W = Math.round(CONTENT_W * 0.62);
     const COL_RIGHT_W = CONTENT_W - COL_LEFT_W - COL_GAP;
     const COL_RIGHT_X = MARGIN + COL_LEFT_W + COL_GAP;
-
-    // Left column: description
     let yLeft = y;
     let yRight = y;
 
+    // Description
     if (propiedad.descripcion) {
-      doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9.5)
-        .text('DESCRIPCIÓN', MARGIN, yLeft);
+      doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9.5).text('DESCRIPCIÓN', MARGIN, yLeft);
       yLeft = doc.y + 4;
-      doc.fillColor('#4b5563').font('Helvetica').fontSize(9).lineGap(2)
+      doc.fillColor('#4b5563').font('Helvetica').fontSize(9)
         .text(propiedad.descripcion, MARGIN, yLeft, { width: COL_LEFT_W, lineGap: 2 });
       yLeft = doc.y + 14;
     }
 
-    // Features grid in left column
+    // Features grid
     const features: { label: string; value: string }[] = [];
     if (propiedad.habitaciones != null) features.push({ label: 'Habitaciones', value: String(propiedad.habitaciones) });
     if (propiedad.banos != null) features.push({ label: 'Baños', value: String(propiedad.banos) });
@@ -202,15 +229,12 @@ export class BrochureService {
     if (features.length) {
       doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9.5).text('CARACTERÍSTICAS', MARGIN, yLeft);
       yLeft += 14;
-
       const featureColW = (COL_LEFT_W - 8) / 2;
       features.forEach((f, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
         const fx = MARGIN + col * (featureColW + 8);
         const fy = yLeft + row * 34;
-
-        // Feature cell
         doc.rect(fx, fy, featureColW, 30).fill('#f1f5f9');
         doc.rect(fx, fy, 3, 30).fill(primary);
         doc.fillColor('#64748b').font('Helvetica').fontSize(7.5)
@@ -218,29 +242,24 @@ export class BrochureService {
         doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(12)
           .text(f.value, fx + 7, fy + 14, { width: featureColW - 10, lineBreak: false });
       });
-
-      const rows = Math.ceil(features.length / 2);
-      yLeft += rows * 34 + 14;
+      yLeft += Math.ceil(features.length / 2) * 34 + 14;
     }
 
-    // Amenidades (right side of left column or below)
-    if (propiedad.amenidades && Array.isArray(propiedad.amenidades) && (propiedad.amenidades as string[]).length > 0) {
+    // Amenidades
+    if (Array.isArray(propiedad.amenidades) && (propiedad.amenidades as string[]).length > 0) {
       doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9.5).text('AMENIDADES', MARGIN, yLeft);
       yLeft += 12;
-      const amenList = (propiedad.amenidades as string[]).slice(0, 10).join('  ·  ');
       doc.fillColor('#4b5563').font('Helvetica').fontSize(9)
-        .text(amenList, MARGIN, yLeft, { width: COL_LEFT_W });
+        .text((propiedad.amenidades as string[]).slice(0, 10).join('  ·  '), MARGIN, yLeft, { width: COL_LEFT_W });
       yLeft = doc.y + 10;
     }
 
-    // ─── Right column: Location + Agent ───────────────────────────
-    // Location card
+    // Right column: Location
     const locationParts = [propiedad.zona, propiedad.municipio, propiedad.departamento].filter(Boolean).join(', ');
     if (locationParts || propiedad.direccion) {
       doc.roundedRect(COL_RIGHT_X, yRight, COL_RIGHT_W, 2, 0).fill(primary);
       doc.rect(COL_RIGHT_X, yRight, COL_RIGHT_W, 80).fill('#f8fafc');
-      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
-        .text('UBICACIÓN', COL_RIGHT_X + 10, yRight + 8);
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5).text('UBICACIÓN', COL_RIGHT_X + 10, yRight + 8);
       doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9.5)
         .text(locationParts || '', COL_RIGHT_X + 10, yRight + 22, { width: COL_RIGHT_W - 20 });
       if (propiedad.direccion) {
@@ -248,20 +267,17 @@ export class BrochureService {
           .text(propiedad.direccion, COL_RIGHT_X + 10, doc.y + 2, { width: COL_RIGHT_W - 20 });
       }
       if (propiedad.pais) {
-        const locY = propiedad.direccion ? doc.y + 2 : yRight + 22 + 14;
         doc.fillColor('#94a3b8').font('Helvetica').fontSize(8)
-          .text(propiedad.pais, COL_RIGHT_X + 10, locY, { width: COL_RIGHT_W - 20 });
+          .text(propiedad.pais, COL_RIGHT_X + 10, doc.y + 2, { width: COL_RIGHT_W - 20 });
       }
       yRight += 88;
     }
 
-    // Agent card
+    // Right column: Agent
     if (propiedad.agente) {
       doc.roundedRect(COL_RIGHT_X, yRight, COL_RIGHT_W, 2, 0).fill(primary);
       doc.rect(COL_RIGHT_X, yRight, COL_RIGHT_W, 80).fill('#f0f9ff');
-      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
-        .text('AGENTE A CARGO', COL_RIGHT_X + 10, yRight + 8);
-      // Agent avatar circle (initials)
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5).text('AGENTE A CARGO', COL_RIGHT_X + 10, yRight + 8);
       const initials = propiedad.agente.nombre.split(' ').map((n: string) => n[0]).slice(0, 2).join('');
       doc.circle(COL_RIGHT_X + COL_RIGHT_W / 2, yRight + 40, 18).fill(primary);
       doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(11)
@@ -269,7 +285,6 @@ export class BrochureService {
       doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9)
         .text(propiedad.agente.nombre, COL_RIGHT_X + 10, yRight + 62, { width: COL_RIGHT_W - 20, align: 'center' });
       yRight += 88;
-
       if (propiedad.agente.email) {
         doc.fillColor('#475569').font('Helvetica').fontSize(8)
           .text(propiedad.agente.email, COL_RIGHT_X, yRight + 2, { width: COL_RIGHT_W, align: 'center' });
@@ -277,39 +292,113 @@ export class BrochureService {
       }
     }
 
-    // Thumbnail strip (extra images in right column)
-    const extraImgs = propiedad.imagenes.filter(i => i !== coverImg).slice(0, 2);
-    if (extraImgs.length > 0) {
-      const thumbW = (COL_RIGHT_W - 4) / extraImgs.length;
-      extraImgs.forEach((img, i) => {
-        const imgPath = this.storage.localPath(img.url);
-        if (imgPath && existsSync(imgPath)) {
-          try {
-            doc.save();
-            doc.rect(COL_RIGHT_X + i * (thumbW + 4), yRight, thumbW, 50).clip();
-            doc.image(imgPath, COL_RIGHT_X + i * (thumbW + 4), yRight, { width: thumbW, height: 50, cover: [thumbW, 50] });
-            doc.restore();
-          } catch { /* skip */ }
-        }
-      });
-      yRight += 56;
+    // ─── Gallery strip (images 3–6) ───────────────────────────────
+    const FOOTER_H = 38;
+    const FOOTER_Y = H - FOOTER_H;
+    const GALLERY_H = 75;
+    const GALLERY_LABEL_H = 16;
+    const GALLERY_TOTAL = GALLERY_LABEL_H + GALLERY_H + 10;
+
+    if (galleryRow.length > 0) {
+      const yContent = Math.max(yLeft, yRight);
+      // Place gallery strip just above footer; only draw if it doesn't overlap content
+      const GALLERY_Y = FOOTER_Y - GALLERY_TOTAL;
+
+      if (yContent + 12 < GALLERY_Y) {
+        // Section label
+        doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9.5)
+          .text('GALERÍA', MARGIN, GALLERY_Y);
+
+        // Thin separator
+        const sepX = MARGIN + 54;
+        doc.moveTo(sepX, GALLERY_Y + 7).lineTo(W - MARGIN, GALLERY_Y + 7)
+          .strokeColor('#e2e8f0').lineWidth(0.75).stroke();
+
+        const gap = 4;
+        const thumbW = (CONTENT_W - gap * (galleryRow.length - 1)) / galleryRow.length;
+        const thumbY = GALLERY_Y + GALLERY_LABEL_H;
+
+        galleryRow.forEach((img, i) => {
+          const tx = MARGIN + i * (thumbW + gap);
+          const rendered = drawImg(doc, this.storage, img.url, tx, thumbY, thumbW, GALLERY_H);
+          if (!rendered) {
+            doc.rect(tx, thumbY, thumbW, GALLERY_H).fill('#e2e8f0');
+          }
+          // Subtle color accent at bottom of each thumb
+          doc.rect(tx, thumbY + GALLERY_H - 3, thumbW, 3).fill(primary).opacity(0.6);
+          doc.opacity(1);
+        });
+      }
     }
 
     // ─── Footer ───────────────────────────────────────────────────
-    const FOOTER_H = 38;
-    const FOOTER_Y = H - FOOTER_H;
     doc.rect(0, FOOTER_Y, W, FOOTER_H).fill(primaryDark);
     doc.rect(0, FOOTER_Y, W, 2).fill(primary);
-
-    const fecha = new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
     doc.fillColor(onPrimary).opacity(0.9).font('Helvetica').fontSize(7.5)
-      .text(
-        `${propiedad.tenant.nombre}  ·  Código ${propiedad.codigo}  ·  ${fecha}`,
-        MARGIN, FOOTER_Y + 10,
-        { width: CONTENT_W - 60, align: 'left', lineBreak: false },
-      );
-    doc.font('Helvetica-Bold').text('CONFIDENCIAL', W - MARGIN - 60, FOOTER_Y + 10, { width: 60, align: 'right', lineBreak: false });
+      .text(`${propiedad.tenant.nombre}  ·  Código ${propiedad.codigo}  ·  ${fecha}`,
+        MARGIN, FOOTER_Y + 10, { width: CONTENT_W - 60, align: 'left', lineBreak: false });
+    doc.font('Helvetica-Bold')
+      .text('CONFIDENCIAL', W - MARGIN - 60, FOOTER_Y + 10, { width: 60, align: 'right', lineBreak: false });
     doc.opacity(1);
+
+    // ════════════════════════════════════════════════════════════
+    // PAGE 2 — Photo gallery (if more than 6 extra images)
+    // ════════════════════════════════════════════════════════════
+    if (page2Imgs.length > 0) {
+      doc.addPage({ size: 'A4', margin: 0 });
+      doc.rect(0, 0, W, H).fill('#f8fafc');
+
+      // Compact header
+      doc.rect(0, 0, W, 52).fill(primary);
+      doc.rect(0, 0, W, 3).fill(primaryDark);
+      doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(16)
+        .text(propiedad.tenant.nombre, MARGIN, 12, { width: CONTENT_W / 2, lineBreak: false });
+      doc.fillColor(onPrimary).font('Helvetica').fontSize(9).opacity(0.8)
+        .text(`Galería de fotos  ·  ${propiedad.codigo}`, MARGIN, 34, { width: CONTENT_W })
+        .opacity(1);
+
+      // Section title
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(12)
+        .text('GALERÍA FOTOGRÁFICA', MARGIN, 68, { width: CONTENT_W });
+      doc.moveTo(MARGIN, 84).lineTo(W - MARGIN, 84).strokeColor(primary).lineWidth(1).stroke();
+
+      // Grid: 2 columns × N rows
+      const GRID_COLS = 2;
+      const GRID_GAP = 8;
+      const GRID_IMG_W = (CONTENT_W - GRID_GAP) / GRID_COLS;
+      const GRID_IMG_H = 170;
+      const GRID_START_Y = 92;
+
+      page2Imgs.forEach((img, i) => {
+        const col = i % GRID_COLS;
+        const row = Math.floor(i / GRID_COLS);
+        const gx = MARGIN + col * (GRID_IMG_W + GRID_GAP);
+        const gy = GRID_START_Y + row * (GRID_IMG_H + GRID_GAP);
+
+        if (gy + GRID_IMG_H > FOOTER_Y - 10) return; // don't overflow footer
+
+        const rendered = drawImg(doc, this.storage, img.url, gx, gy, GRID_IMG_W, GRID_IMG_H);
+        if (!rendered) {
+          doc.rect(gx, gy, GRID_IMG_W, GRID_IMG_H).fill('#e2e8f0');
+          doc.fillColor('#94a3b8').font('Helvetica').fontSize(9)
+            .text('Sin imagen', gx, gy + GRID_IMG_H / 2 - 6, { width: GRID_IMG_W, align: 'center' });
+        }
+        // Image counter badge
+        doc.roundedRect(gx + GRID_IMG_W - 28, gy + GRID_IMG_H - 20, 24, 16, 3).fill(primaryDark).opacity(0.85);
+        doc.fillColor('#ffffff').opacity(1).font('Helvetica-Bold').fontSize(7.5)
+          .text(`${i + heroSide.length + galleryRow.length + 1}`, gx + GRID_IMG_W - 28, gy + GRID_IMG_H - 15,
+            { width: 24, align: 'center', lineBreak: false });
+        doc.opacity(1);
+      });
+
+      // Footer page 2
+      doc.rect(0, FOOTER_Y, W, FOOTER_H).fill(primaryDark);
+      doc.rect(0, FOOTER_Y, W, 2).fill(primary);
+      doc.fillColor(onPrimary).opacity(0.9).font('Helvetica').fontSize(7.5)
+        .text(`${propiedad.tenant.nombre}  ·  ${propiedad.codigo}  ·  ${fecha}  ·  Pág. 2`,
+          MARGIN, FOOTER_Y + 10, { width: CONTENT_W, align: 'center', lineBreak: false });
+      doc.opacity(1);
+    }
 
     await new Promise<void>((resolve, reject) => {
       doc.on('end', resolve);
