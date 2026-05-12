@@ -5,6 +5,7 @@ import { CreateTenantDto, UpdateTenantDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Empresas')
 @ApiBearerAuth('JWT')
@@ -12,6 +13,12 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantsController {
   constructor(private tenantsService: TenantsService) {}
+
+  @Get('branding')
+  @ApiOperation({ summary: 'Colores y marca del tenant del usuario autenticado' })
+  getBranding(@CurrentUser('tenantId') tenantId: string) {
+    return this.tenantsService.getBranding(tenantId);
+  }
 
   @Post()
   @Roles('SUPER_ADMIN')

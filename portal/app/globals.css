@@ -13,6 +13,25 @@
   --radius:      12px;
   --shadow:      0 4px 24px rgba(0,0,0,0.35);
   --transition:  0.18s ease;
+
+  /* Theme-derived — overridden per-tenant via layout */
+  --header-bg:       rgba(10,14,26,0.85);
+  --surface-hover:   rgba(255,255,255,0.06);
+  --input-bg:        rgba(255,255,255,0.06);
+  --input-border:    rgba(255,255,255,0.12);
+  --img-placeholder: #0f1728;
+  --hero-from:       #0a0e1a;
+  --hero-via:        #0f172a;
+  --hero-to:         #0a1628;
+  --hero-glow:       rgba(59,130,246,0.12);
+  --detail-overlay:  rgba(10,14,26,0.9);
+  --chatbot-bg:      #0d1526;
+  --chatbot-border:  rgba(255,255,255,0.1);
+  --chatbot-surface: rgba(255,255,255,0.08);
+  --chatbot-divider: rgba(255,255,255,0.07);
+  --chip-bg:         rgba(59,130,246,0.1);
+  --chip-border:     rgba(59,130,246,0.25);
+  --chip-color:      #93c5fd;
 }
 
 html { scroll-behavior: smooth; }
@@ -26,7 +45,7 @@ input, select, textarea { font-family: inherit; }
 /* ─── Header ──────────────────────────────────── */
 .portal-header {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(10,14,26,0.85); backdrop-filter: blur(16px);
+  background: var(--header-bg); backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
 }
 .portal-header-inner {
@@ -44,7 +63,7 @@ input, select, textarea { font-family: inherit; }
   padding: 8px 14px; border-radius: 8px; font-size: 0.875rem; color: var(--text-muted);
   transition: color var(--transition), background var(--transition);
 }
-.portal-nav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.portal-nav a:hover { color: var(--text); background: var(--surface-hover); }
 .portal-nav .cta {
   background: var(--accent); color: #fff; font-weight: 600;
   transition: background var(--transition);
@@ -53,13 +72,13 @@ input, select, textarea { font-family: inherit; }
 
 /* ─── Hero ─────────────────────────────────────── */
 .portal-hero {
-  background: linear-gradient(135deg, #0a0e1a 0%, #0f172a 50%, #0a1628 100%);
+  background: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-via) 50%, var(--hero-to) 100%);
   padding: 80px 24px 60px;
   text-align: center; position: relative; overflow: hidden;
 }
 .portal-hero::before {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(59,130,246,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 70% 60% at 50% 0%, var(--hero-glow) 0%, transparent 70%);
   pointer-events: none;
 }
 .portal-hero h1 {
@@ -85,8 +104,8 @@ input, select, textarea { font-family: inherit; }
 .portal-search-bar input,
 .portal-search-bar select {
   padding: 12px 16px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 10px; color: var(--text); font-size: 0.9375rem;
   outline: none; transition: border-color var(--transition);
 }
@@ -245,7 +264,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .filter-mobile-close:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
@@ -336,7 +355,7 @@ input, select, textarea { font-family: inherit; }
 }
 .prop-card-img {
   position: relative; height: 196px; overflow: hidden;
-  background: #0f1728;
+  background: var(--img-placeholder);
 }
 .prop-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
 .prop-card:hover .prop-card-img img { transform: scale(1.05); }
@@ -384,11 +403,11 @@ input, select, textarea { font-family: inherit; }
 .portal-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ─── Property Detail ───────────────────────────── */
-.detail-hero { position: relative; height: 460px; background: #0f1728; overflow: hidden; }
+.detail-hero { position: relative; height: 460px; background: var(--img-placeholder); overflow: hidden; }
 .detail-hero img { width: 100%; height: 100%; object-fit: cover; }
 .detail-hero-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(10,14,26,0.9) 0%, transparent 60%);
+  background: linear-gradient(to top, var(--detail-overlay) 0%, transparent 60%);
 }
 .detail-hero-info {
   position: absolute; bottom: 32px; left: 32px; right: 32px;
@@ -422,9 +441,9 @@ input, select, textarea { font-family: inherit; }
 
 .detail-amenidades { display: flex; flex-wrap: wrap; gap: 8px; }
 .amenidad-chip {
-  padding: 6px 14px; background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.25); border-radius: 100px;
-  font-size: 0.8125rem; color: #93c5fd;
+  padding: 6px 14px; background: var(--chip-bg);
+  border: 1px solid var(--chip-border); border-radius: 100px;
+  font-size: 0.8125rem; color: var(--chip-color);
 }
 
 /* ─── Contact Card ──────────────────────────────── */
@@ -595,7 +614,7 @@ input, select, textarea { font-family: inherit; }
 .chatbot-panel {
   position: fixed; bottom: 96px; right: 28px; z-index: 1000;
   width: 340px; max-height: 520px;
-  background: #0d1526; border: 1px solid rgba(255,255,255,0.1);
+  background: var(--chatbot-bg); border: 1px solid var(--chatbot-border);
   border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   display: flex; flex-direction: column; overflow: hidden;
   animation: chatSlideUp 0.2s ease;
@@ -609,7 +628,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .chatbot-head {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   padding: 14px 16px; display: flex; align-items: center;
   justify-content: space-between; flex-shrink: 0;
 }
@@ -635,7 +654,7 @@ input, select, textarea { font-family: inherit; }
   scroll-behavior: smooth;
 }
 .chatbot-msgs::-webkit-scrollbar { width: 4px; }
-.chatbot-msgs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.chatbot-msgs::-webkit-scrollbar-thumb { background: var(--chatbot-surface); border-radius: 4px; }
 
 .chatbot-msg { max-width: 82%; display: flex; flex-direction: column; }
 .chatbot-msg.bot  { align-self: flex-start; }
@@ -646,7 +665,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 0.8125rem; line-height: 1.55; word-break: break-word;
 }
 .chatbot-msg.bot  .chatbot-bubble {
-  background: rgba(255,255,255,0.08); color: var(--text);
+  background: var(--chatbot-surface); color: var(--text);
   border-bottom-left-radius: 4px;
 }
 .chatbot-msg.user .chatbot-bubble {
@@ -657,7 +676,7 @@ input, select, textarea { font-family: inherit; }
 /* Typing indicator */
 .chatbot-typing-dots {
   display: flex; gap: 5px; padding: 10px 14px;
-  background: rgba(255,255,255,0.08); border-radius: 14px;
+  background: var(--chatbot-surface); border-radius: 14px;
   border-bottom-left-radius: 4px; width: fit-content;
 }
 .chatbot-typing-dots span {
@@ -687,12 +706,12 @@ input, select, textarea { font-family: inherit; }
 
 /* Input row */
 .chatbot-input-area {
-  border-top: 1px solid rgba(255,255,255,0.07);
+  border-top: 1px solid var(--chatbot-divider);
   padding: 10px 12px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
 }
 .chatbot-input {
-  flex: 1; background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+  flex: 1; background: var(--input-bg);
+  border: 1px solid var(--input-border); border-radius: 20px;
   color: var(--text); padding: 8px 14px; font-size: 0.8125rem; outline: none;
   font-family: inherit;
 }
@@ -706,7 +725,7 @@ input, select, textarea { font-family: inherit; }
   transition: background var(--transition);
 }
 .chatbot-send:hover:not(:disabled) { background: var(--accent-dark); }
-.chatbot-send:disabled { background: rgba(255,255,255,0.1); cursor: not-allowed; }
+.chatbot-send:disabled { background: var(--chatbot-surface); cursor: not-allowed; }
 .chatbot-skip {
   background: none; border: none; color: var(--text-faint); font-size: 0.75rem;
   cursor: pointer; white-space: nowrap; padding: 4px; font-family: inherit;
@@ -738,11 +757,11 @@ input, select, textarea { font-family: inherit; }
   font-size: 1.125rem; cursor: pointer; padding: 2px 6px;
   line-height: 1; border-radius: 6px; transition: color var(--transition), background var(--transition);
 }
-.registro-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.registro-close:hover { color: var(--text); background: var(--surface-hover); }
 
 .registro-input {
   width: 100%; padding: 10px 12px;
-  background: rgba(255,255,255,0.04);
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 8px; color: var(--text);
   font-size: 0.875rem; outline: none;
@@ -798,7 +817,7 @@ input, select, textarea { font-family: inherit; }
   position: fixed;
   bottom: 168px; right: 28px; z-index: 50;
   width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--header-bg);
   border: 1px solid var(--border);
   color: var(--text-muted);
   display: flex; align-items: center; justify-content: center;

@@ -49,9 +49,12 @@ model Tenant {
   id               String        @id @default(uuid())
   nombre           String
   logo_url         String?
-  color_primario   String        @default("#3b82f6")
-  color_secundario String        @default("#1e293b")
-  color_acento     String        @default("#8b5cf6")
+  color_primario      String        @default("#3b82f6")
+  color_secundario    String        @default("#1e293b")
+  color_acento        String        @default("#8b5cf6")
+  color_fondo_alterno   String        @default("#111827")
+  color_fondo_principal String        @default("#0a0e1a")
+  color_texto           String        @default("#f1f5f9")
   plan             Plan          @default(FREE)
   moneda           String        @default("GTQ")
   zona_horaria     String        @default("America/Guatemala")

@@ -204,6 +204,17 @@
   gap: 1rem;
 }
 
+.admin-form-row-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 700px) {
+  .admin-form-row-3,
+  .admin-form-row-4 { grid-template-columns: 1fr 1fr; }
+}
+
 /* ─── Color swatch ──────────────────────────────────────── */
 
 .admin-color-group {

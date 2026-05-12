@@ -10,6 +10,9 @@ interface Tenant {
   color_primario: string;
   color_secundario: string;
   color_acento: string;
+  color_fondo_alterno: string;
+  color_fondo_principal: string;
+  color_texto: string;
   plan: string;
   moneda: string;
   zona_horaria: string;
@@ -34,6 +37,9 @@ const emptyForm = {
   colorPrimario: '#3b82f6',
   colorSecundario: '#1e293b',
   colorAcento: '#8b5cf6',
+  colorFondoAlterno: '#111827',
+  colorFondoPrincipal: '#0a0e1a',
+  colorTexto: '#f1f5f9',
   limiteUsuarios: 25,
   limitePropiedades: 500,
   estado: 'ACTIVA',
@@ -83,6 +89,9 @@ export default function AdminTenantsPage() {
       colorPrimario: t.color_primario,
       colorSecundario: t.color_secundario,
       colorAcento: t.color_acento,
+      colorFondoAlterno: t.color_fondo_alterno,
+      colorFondoPrincipal: t.color_fondo_principal,
+      colorTexto: t.color_texto,
       limiteUsuarios: t.limite_usuarios,
       limitePropiedades: t.limite_propiedades,
       estado: t.estado,
@@ -309,17 +318,40 @@ export default function AdminTenantsPage() {
                 </div>
               </div>
               <div className="input-group">
+                <label>Color Acento</label>
+                <div className="admin-color-group">
+                  <input type="color" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
+                  <input className="input-field" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
+                </div>
+              </div>
+              <div className="input-group">
                 <label>Color Secundario</label>
                 <div className="admin-color-group">
                   <input type="color" value={form.colorSecundario} onChange={(e) => updateField('colorSecundario', e.target.value)} />
                   <input className="input-field" value={form.colorSecundario} onChange={(e) => updateField('colorSecundario', e.target.value)} />
                 </div>
               </div>
+            </div>
+            <div className="admin-form-row-3" style={{ marginTop: 12 }}>
               <div className="input-group">
-                <label>Color Acento</label>
+                <label>Fondo Alterno (tarjetas)</label>
                 <div className="admin-color-group">
-                  <input type="color" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
-                  <input className="input-field" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
+                  <input type="color" value={form.colorFondoAlterno} onChange={(e) => updateField('colorFondoAlterno', e.target.value)} />
+                  <input className="input-field" value={form.colorFondoAlterno} onChange={(e) => updateField('colorFondoAlterno', e.target.value)} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Fondo Principal (portal)</label>
+                <div className="admin-color-group">
+                  <input type="color" value={form.colorFondoPrincipal} onChange={(e) => updateField('colorFondoPrincipal', e.target.value)} />
+                  <input className="input-field" value={form.colorFondoPrincipal} onChange={(e) => updateField('colorFondoPrincipal', e.target.value)} />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Color de Texto (portal)</label>
+                <div className="admin-color-group">
+                  <input type="color" value={form.colorTexto} onChange={(e) => updateField('colorTexto', e.target.value)} />
+                  <input className="input-field" value={form.colorTexto} onChange={(e) => updateField('colorTexto', e.target.value)} />
                 </div>
               </div>
             </div>

@@ -77,7 +77,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     FirmaDigitalModule,
     VideollamadasModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
   ],

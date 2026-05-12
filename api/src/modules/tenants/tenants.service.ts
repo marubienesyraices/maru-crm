@@ -17,6 +17,9 @@ export class TenantsService {
         color_primario: dto.colorPrimario || '#3b82f6',
         color_secundario: dto.colorSecundario || '#1e293b',
         color_acento: dto.colorAcento || '#8b5cf6',
+        color_fondo_alterno: dto.colorFondoAlterno || '#111827',
+        color_fondo_principal: dto.colorFondoPrincipal || '#0a0e1a',
+        color_texto: dto.colorTexto || '#f1f5f9',
         plan: (dto.plan as Plan) || 'FREE',
         moneda: dto.moneda || 'GTQ',
         zona_horaria: dto.zonaHoraria || 'America/Guatemala',
@@ -54,6 +57,15 @@ export class TenantsService {
     return { tenant, admin: { id: admin.id, email: admin.email, activationToken } };
   }
 
+  async getBranding(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, color_fondo_alterno: true, color_fondo_principal: true, color_texto: true },
+    });
+    if (!tenant) throw new NotFoundException('Empresa no encontrada');
+    return tenant;
+  }
+
   async findAll() {
     return this.prisma.tenant.findMany({
       include: { _count: { select: { usuarios: true } } },
@@ -80,6 +92,9 @@ export class TenantsService {
         color_primario: dto.colorPrimario,
         color_secundario: dto.colorSecundario,
         color_acento: dto.colorAcento,
+        color_fondo_alterno: dto.colorFondoAlterno,
+        color_fondo_principal: dto.colorFondoPrincipal,
+        color_texto: dto.colorTexto,
         plan: dto.plan as Plan | undefined,
         moneda: dto.moneda,
         zona_horaria: dto.zonaHoraria,

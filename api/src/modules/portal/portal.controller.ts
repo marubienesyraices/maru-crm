@@ -11,6 +11,12 @@ import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 export class PortalController {
   constructor(private readonly service: PortalService) {}
 
+  @Get('branding')
+  @ApiOperation({ summary: 'Colores y nombre del tenant del portal (empresa por defecto)' })
+  getBranding() {
+    return this.service.getDefaultBranding();
+  }
+
   @Get('propiedades')
   @ApiOperation({ summary: 'Listar propiedades públicas con filtros' })
   findAll(@Query() filtros: FiltrosPublicasDto) {

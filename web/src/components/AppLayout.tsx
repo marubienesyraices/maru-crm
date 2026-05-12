@@ -5,6 +5,47 @@ import NotificationBell from './NotificationBell';
 import CommandPalette, { useGlobalSearch, GlobalSearchTrigger } from './GlobalSearch';
 import '../pages/Dashboard/Dashboard.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function hexDarken(hex: string, amount = 0.15): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const ch = (shift: number) =>
+    Math.max(0, Math.round(((n >> shift) & 255) * (1 - amount))).toString(16).padStart(2, '0');
+  return `#${ch(16)}${ch(8)}${ch(0)}`;
+}
+
+function hexLighten(hex: string, amount = 0.08): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const ch = (shift: number) =>
+    Math.min(255, Math.round(((n >> shift) & 255) + 255 * amount)).toString(16).padStart(2, '0');
+  return `#${ch(16)}${ch(8)}${ch(0)}`;
+}
+
+function applyBranding(b: { color_primario: string; color_acento: string; color_fondo_alterno: string }) {
+  const root = document.documentElement;
+  root.style.setProperty('--accent-blue',       b.color_primario);
+  root.style.setProperty('--accent-blue-hover', hexDarken(b.color_primario));
+  root.style.setProperty('--accent-violet',     b.color_acento);
+  root.style.setProperty('--accent-gradient',   `linear-gradient(135deg, ${b.color_primario}, ${b.color_acento})`);
+  root.style.setProperty('--border-focus',       b.color_primario);
+  root.style.setProperty('--shadow-glow',        `0 0 40px ${hexToRgba(b.color_primario, 0.15)}`);
+  root.style.setProperty('--bg-secondary',       b.color_fondo_alterno);
+  root.style.setProperty('--bg-card',            b.color_fondo_alterno);
+  root.style.setProperty('--bg-card-hover',      hexLighten(b.color_fondo_alterno));
+}
+
+function clearBranding() {
+  const root = document.documentElement;
+  ['--accent-blue', '--accent-blue-hover', '--accent-violet', '--accent-gradient',
+   '--border-focus', '--shadow-glow', '--bg-secondary', '--bg-card', '--bg-card-hover']
+    .forEach((v) => root.style.removeProperty(v));
+}
+
 const rolLabels: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrador',
@@ -28,6 +69,19 @@ export default function AppLayout() {
       return !v;
     });
   };
+
+  // Apply tenant brand colors
+  useEffect(() => {
+    if (!user) { clearBranding(); return; }
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    fetch(`${API_URL}/api/tenants/branding`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (b) applyBranding(b); })
+      .catch(() => {});
+  }, [user?.tenantId]);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {

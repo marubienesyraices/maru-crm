@@ -23,6 +23,15 @@ export class CreateTenantDto {
   colorAcento?: string;
 
   @IsOptional() @IsString()
+  colorFondoAlterno?: string;
+
+  @IsOptional() @IsString()
+  colorFondoPrincipal?: string;
+
+  @IsOptional() @IsString()
+  colorTexto?: string;
+
+  @IsOptional() @IsString()
   plan?: string;
 
   @IsOptional() @IsString()
@@ -53,6 +62,15 @@ export class UpdateTenantDto {
 
   @IsOptional() @IsString()
   colorAcento?: string;
+
+  @IsOptional() @IsString()
+  colorFondoAlterno?: string;
+
+  @IsOptional() @IsString()
+  colorFondoPrincipal?: string;
+
+  @IsOptional() @IsString()
+  colorTexto?: string;
 
   @IsOptional() @IsString()
   plan?: string;

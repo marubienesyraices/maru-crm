@@ -35,7 +35,7 @@ export class PortalService {
 
   async findPublicProperties(filtros: FiltrosPublicasDto) {
     const page  = filtros.page  || 1;
-    const limit = Math.min(filtros.limit || 12, 50);
+    const limit = Math.min(filtros.limit || 12, 500);
     const skip  = (page - 1) * limit;
 
     const where: any = { estado: 'DISPONIBLE' };
@@ -304,6 +304,27 @@ export class PortalService {
     }
 
     return { success: true, clienteId };
+  }
+
+  // ─── Branding ─────────────────────────────────────────────────
+
+  async getDefaultBranding() {
+    const where = TENANT_ID ? { id: TENANT_ID } : undefined;
+    const tenant = await this.prisma.tenant.findFirst({
+      where,
+      orderBy: { created_at: 'asc' },
+      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, color_fondo_alterno: true, color_fondo_principal: true, color_texto: true },
+    });
+    return tenant ?? {
+      nombre: 'Maru Bienes y Raíces',
+      logo_url: null,
+      color_primario: '#3b82f6',
+      color_secundario: '#1e293b',
+      color_acento: '#8b5cf6',
+      color_fondo_alterno: '#111827',
+      color_fondo_principal: '#0a0e1a',
+      color_texto: '#f1f5f9',
+    };
   }
 
   // ─── Private helpers ─────────────────────────────────────────

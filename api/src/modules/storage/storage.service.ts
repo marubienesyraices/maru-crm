@@ -16,7 +16,7 @@ export class StorageService {
   constructor(private config: ConfigService) {
     this.bucket = config.get('R2_BUCKET') || null;
     this.publicUrl = config.get('R2_PUBLIC_URL') || null;
-    this.uploadDir = join(__dirname, '..', '..', '..', 'uploads');
+    this.uploadDir = join(process.cwd(), 'uploads');
 
     if (this.bucket) {
       const accountId = config.get('R2_ACCOUNT_ID');
