@@ -122,14 +122,18 @@ export default function AppLayout() {
         aria-label="Navegación lateral"
       >
         <div className="sidebar-header">
-          <div className="sidebar-logo" aria-label="Maru CRM">
-            <div className="sidebar-logo-icon" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </div>
-            <span>Maru CRM</span>
+          <div className="sidebar-logo" aria-label="GestPro">
+            <img
+              src="/gestpro.png"
+              alt="GestPro"
+              style={{
+                height: 36,
+                width: collapsed ? 36 : 'auto',
+                maxWidth: 148,
+                objectFit: 'cover',
+                objectPosition: 'left center',
+              }}
+            />
           </div>
         </div>
 

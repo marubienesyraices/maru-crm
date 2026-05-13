@@ -316,7 +316,7 @@ export class PortalService {
       select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, color_fondo_alterno: true, color_fondo_principal: true, color_texto: true },
     });
     return tenant ?? {
-      nombre: 'Maru Bienes y Raíces',
+      nombre: 'GestPro',
       logo_url: null,
       color_primario: '#3b82f6',
       color_secundario: '#1e293b',
@@ -334,7 +334,7 @@ export class PortalService {
     try {
       await this.email.sendHtml({
         to: email,
-        subject: 'Confirma tu registro — Maru Bienes y Raíces',
+        subject: 'Confirma tu registro — GestPro',
         html: this.buildVerificationHtml(nombre, url),
       });
     } catch (err) {
@@ -353,7 +353,7 @@ export class PortalService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#0f172a;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">Maru Bienes y Raíces</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
           </td>
         </tr>
         <tr>
@@ -361,7 +361,7 @@ export class PortalService {
             <p style="font-size:2rem;margin:0 0 16px;">🏠</p>
             <h2 style="margin:0 0 12px;font-size:1.125rem;color:#0f172a;">¡Hola, ${nombre}!</h2>
             <p style="margin:0 0 24px;">
-              Gracias por registrarte en el portal de Maru Bienes y Raíces. Haz clic en el botón para confirmar tu correo y activar tu cuenta:
+              Gracias por registrarte en el portal de GestPro. Haz clic en el botón para confirmar tu correo y activar tu cuenta:
             </p>
             <a href="${url}"
                style="display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:.9375rem;font-weight:600;">
@@ -374,7 +374,7 @@ export class PortalService {
         </tr>
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
-            <p style="margin:0;font-size:.75rem;color:#94a3b8;">Maru Bienes y Raíces · Portal público</p>
+            <p style="margin:0;font-size:.75rem;color:#94a3b8;">GestPro · Portal público</p>
           </td>
         </tr>
       </table>

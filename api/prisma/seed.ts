@@ -52,7 +52,7 @@ async function main() {
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000002',
-      nombre: 'Maru Bienes y Raíces',
+      nombre: 'GestPro Demo',
       color_primario: '#2563eb',
       color_secundario: '#1e293b',
       color_acento: '#8b5cf6',
@@ -147,7 +147,7 @@ async function main() {
     },
   });
 
-  console.log('  ✅ Tenant: Maru Bienes y Raíces');
+  console.log('  ✅ Tenant: GestPro Demo');
   console.log('  ✅ Admin: admin@marubr.com / Admin@2026');
   console.log('  ✅ Senior: carlos.senior@marubr.com / Agent@2026');
   console.log('  ✅ Junior: ana.junior@marubr.com / Agent@2026');

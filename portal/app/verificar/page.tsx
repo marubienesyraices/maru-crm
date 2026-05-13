@@ -26,8 +26,8 @@ export default function VerificarPage() {
       </main>
 
       <footer className="portal-footer">
-        <strong>Maru Bienes y Raíces</strong><br />
-        © {new Date().getFullYear()} Maru Bienes y Raíces. Todos los derechos reservados.
+        <strong>GestPro</strong><br />
+        © {new Date().getFullYear()} GestPro. Todos los derechos reservados.
       </footer>
     </div>
   );

@@ -7,7 +7,7 @@ import BackToTop from '@/components/BackToTop';
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 const API     = process.env.NEXT_PUBLIC_API_URL  || 'http://localhost:3000';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'Maru Bienes y Raíces';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
 
 export const metadata: Metadata = {
   title:       { default: `${COMPANY} | Propiedades en Guatemala`, template: `%s | ${COMPANY}` },

@@ -133,7 +133,7 @@ export default function HelpPage() {
     <div className="help-page">
       <div className="help-header">
         <h1 className="help-title">Centro de ayuda</h1>
-        <p className="help-subtitle">Guías y preguntas frecuentes sobre el CRM Maru Bienes y Raíces</p>
+        <p className="help-subtitle">Guías y preguntas frecuentes sobre GestPro CRM</p>
         <input
           className="help-search"
           type="search"

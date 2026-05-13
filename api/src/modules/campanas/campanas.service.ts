@@ -234,7 +234,7 @@ export class CampanasService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#1e293b;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">Maru Bienes y Raíces</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
           </td>
         </tr>
         <tr>
@@ -245,7 +245,7 @@ export class CampanasService {
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
             <p style="margin:0;font-size:.75rem;color:#94a3b8;">
-              Recibiste este mensaje porque eres usuario de CRM Maru Bienes y Raíces.
+              Recibiste este mensaje porque eres usuario de GestPro CRM.
             </p>
           </td>
         </tr>

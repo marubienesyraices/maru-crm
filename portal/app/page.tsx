@@ -6,7 +6,7 @@ import PropertyCard from '@/components/PropertyCard';
 import PropertyFilters from '@/components/PropertyFilters';
 
 const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'Maru Bienes y Raíces';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
 
 interface PageProps {
   searchParams: {

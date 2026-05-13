@@ -37,7 +37,7 @@ async function bootstrap() {
 
   // ─── Swagger / OpenAPI ─────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('CRM Maru Bienes y Raíces — API')
+    .setTitle('GestPro CRM — API')
     .setDescription(
       'API multi-tenant para gestión de propiedades, clientes, pipeline de ventas y automatización de marketing.\n\n' +
       '**Autenticación:** JWT Bearer. Obtén el token con `POST /api/auth/login` y pégalo en el botón "Authorize" (sin el prefijo "Bearer").',
@@ -79,7 +79,7 @@ async function bootstrap() {
       filter: true,
       showRequestDuration: true,
     },
-    customSiteTitle: 'Maru CRM — API Docs',
+    customSiteTitle: 'GestPro CRM — API Docs',
   });
 
   const port = process.env.PORT || 3000;

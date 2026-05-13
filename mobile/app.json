@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Maru CRM",
-    "slug": "maru-crm",
+    "name": "GestPro CRM",
+    "slug": "gestpro-crm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

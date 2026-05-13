@@ -285,7 +285,7 @@ export default function PortalPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          Maru Bienes y Raíces
+          GestPro
         </div>
         <div className="portal-header-actions">
           <button

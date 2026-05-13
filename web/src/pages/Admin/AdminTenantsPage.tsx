@@ -258,7 +258,7 @@ export default function AdminTenantsPage() {
 
             <div className="input-group">
               <label>Nombre de la Empresa *</label>
-              <input className="input-field" value={form.nombre} onChange={(e) => updateField('nombre', e.target.value)} placeholder="Maru Bienes y Raíces" />
+              <input className="input-field" value={form.nombre} onChange={(e) => updateField('nombre', e.target.value)} placeholder="Mi Inmobiliaria" />
             </div>
 
             {!editing && (

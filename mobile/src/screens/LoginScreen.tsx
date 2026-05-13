@@ -39,7 +39,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Maru CRM</Text>
+        <Text style={styles.title}>GestPro CRM</Text>
         <Text style={styles.subtitle}>Inicia sesión</Text>
 
         <TextInput

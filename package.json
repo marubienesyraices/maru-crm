@@ -1,13 +1,14 @@
 {
-  "name": "maru-crm",
+  "name": "gestpro-crm",
   "version": "0.1.0",
   "private": true,
-  "description": "CRM Inmobiliario Maru Bienes y Raíces",
+  "description": "GestPro — CRM Inmobiliario",
   "workspaces": [
     "shared",
     "api",
     "web",
-    "portal"
+    "portal",
+    "mcp-drawio"
   ],
   "scripts": {
     "dev:api":    "npm run dev -w api",

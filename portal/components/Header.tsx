@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'Maru Bienes y Raíces';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
 const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
 
 export default function Header() {

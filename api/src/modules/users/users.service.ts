@@ -66,9 +66,9 @@ export class UsersService {
     // Welcome email with activation link (fire-and-forget)
     this.email.sendClientEmail({
       to: user.email,
-      subject: '¡Bienvenido/a al CRM! — Maru Bienes y Raíces',
+      subject: '¡Bienvenido/a al CRM! — GestPro',
       heading: `¡Bienvenido/a, ${user.nombre}!`,
-      body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en el CRM Maru Bienes y Raíces. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
+      body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en GestPro CRM. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
     }).catch(() => {});
 

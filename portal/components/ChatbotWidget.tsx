@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 const API     = process.env.NEXT_PUBLIC_API_URL     || 'http://localhost:3000';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'Maru Bienes y Raíces';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
 
 // ─── Types ──────────────────────────────────────────────────────
 

@@ -56,7 +56,7 @@ export class UploadController {
     ]);
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
 
-    const tenantName = tenant?.nombre ?? 'Maru CRM';
+    const tenantName = tenant?.nombre ?? 'GestPro';
 
     const maxOrder = await this.prisma.propiedadImagen.aggregate({
       where: { propiedad_id: propiedadId },

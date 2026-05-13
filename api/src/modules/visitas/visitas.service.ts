@@ -212,7 +212,7 @@ export class VisitasService {
     );
 
     const lines = [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Maru CRM//CRM//ES',
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GestPro CRM//CRM//ES',
       'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
       `UID:${visita.id}@maru.crm`, `DTSTAMP:${fmt(new Date())}`,
       `DTSTART:${fmt(visita.fecha_inicio)}`, `DTEND:${fmt(visita.fecha_fin)}`,
@@ -423,7 +423,7 @@ export class VisitasService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#0f172a;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">Maru Bienes y Raíces</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
           </td>
         </tr>
         <tr>
@@ -453,7 +453,7 @@ export class VisitasService {
         </tr>
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
-            <p style="margin:0;font-size:.75rem;color:#94a3b8;">Maru Bienes y Raíces · Portal de clientes</p>
+            <p style="margin:0;font-size:.75rem;color:#94a3b8;">GestPro · Portal de clientes</p>
           </td>
         </tr>
       </table>

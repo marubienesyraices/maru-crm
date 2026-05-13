@@ -141,7 +141,7 @@ export class AuthService {
 
     const secret = new OTPAuth.Secret();
     const totpInstance = new OTPAuth.TOTP({
-      issuer: 'MaruCRM',
+      issuer: 'GestPro',
       label: user.email,
       secret,
     });
