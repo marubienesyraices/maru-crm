@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { usePortalConfig, displayName } from '@/components/PortalConfigProvider';
 
-const API     = process.env.NEXT_PUBLIC_API_URL     || 'http://localhost:3000';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -65,6 +65,8 @@ function mkMsg(from: 'bot' | 'user', text: string): Msg {
 }
 
 export default function ChatbotWidget() {
+  const cfg     = usePortalConfig();
+  const company = displayName(cfg);
   const [open, setOpen]     = useState(false);
   const [badge, setBadge]   = useState(true);
   const [msgs, setMsgs]     = useState<Msg[]>([]);
@@ -110,7 +112,7 @@ export default function ChatbotWidget() {
     setOpen(true);
     if (msgs.length === 0) {
       setTimeout(() => {
-        addBot(`¡Hola! 👋 Soy el asistente de ${COMPANY}. ¿En qué te puedo ayudar hoy?`);
+        addBot(cfg.chatbot_mensaje_bienvenida ?? `¡Hola! 👋 Soy el asistente de ${company}. ¿En qué te puedo ayudar hoy?`);
       }, 300);
     }
   };
@@ -307,7 +309,7 @@ export default function ChatbotWidget() {
               <div className="chatbot-avatar">🤖</div>
               <div>
                 <h4>Asistente Virtual</h4>
-                <p>{COMPANY}</p>
+                <p>{company}</p>
               </div>
             </div>
             <button className="chatbot-close" onClick={() => setOpen(false)} aria-label="Cerrar chat">✕</button>

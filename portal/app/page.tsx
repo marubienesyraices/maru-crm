@@ -4,9 +4,7 @@ import { getPropiedades, Filtros, PropiedadesResponse } from '@/lib/api';
 import Header from '@/components/Header';
 import PropertyCard from '@/components/PropertyCard';
 import PropertyFilters from '@/components/PropertyFilters';
-
-const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
+import { getPortalConfig, displayName } from '@/lib/portal-config';
 
 interface PageProps {
   searchParams: {
@@ -16,6 +14,10 @@ interface PageProps {
 }
 
 export default async function HomePage({ searchParams }: PageProps) {
+  const cfg = await getPortalConfig();
+  const COMPANY = displayName(cfg);
+  const WA = cfg.whatsapp ?? '';
+
   const filtros: Filtros = {
     tipo:            searchParams.tipo,
     gestion:         searchParams.gestion,

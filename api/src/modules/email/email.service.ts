@@ -4,6 +4,7 @@ import { TipoNotificacion } from '@prisma/client';
 import { Resend } from 'resend';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
 
 export interface SendEmailParams {
   to: string;
@@ -19,28 +20,35 @@ export interface SendEmailParams {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private resend: Resend | null = null;
-  private readonly from: string;
+  private readonly globalResend: Resend | null;
+  private readonly globalFrom: string;
   private readonly appUrl: string;
   private readonly frontendUrl: string;
+  /** Cache of per-tenant Resend clients keyed by tenantId. */
+  private readonly clientCache = new Map<string, { resend: Resend | null; from: string }>();
 
   constructor(
     private config: ConfigService,
     @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly integraciones?: ConfigIntegracionesService,
   ) {
     const apiKey = config.get<string>('RESEND_API_KEY');
-    if (apiKey) this.resend = new Resend(apiKey);
-    this.from = config.get<string>('EMAIL_FROM') ?? 'GestPro CRM <onboarding@resend.dev>';
-    this.appUrl = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.globalResend = apiKey ? new Resend(apiKey) : null;
+    this.globalFrom    = config.get<string>('EMAIL_FROM') ?? 'GestPro CRM <onboarding@resend.dev>';
+    this.appUrl        = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    this.frontendUrl   = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
   }
 
   get isConfigured(): boolean {
-    return this.resend !== null;
+    return this.globalResend !== null;
+  }
+
+  /** Invalidate cached client so the next send re-reads credentials from DB. */
+  invalidateTenantCache(tenantId: string) {
+    this.clientCache.delete(tenantId);
   }
 
   // ─── Automated email to external clients (portal users) ──────────
-  // Separate from CRM-user notifications: uses portal branding, no "Ver en CRM" link.
   async sendClientEmail(params: {
     to: string;
     subject: string;
@@ -49,7 +57,8 @@ export class EmailService {
     cta?: { label: string; url: string };
     tenantId?: string;
   }): Promise<void> {
-    if (!this.resend) return;
+    const { resend, from } = await this.resolveClient(params.tenantId);
+    if (!resend) return;
 
     let eventId: string | undefined;
     if (this.prisma && params.tenantId) {
@@ -110,26 +119,27 @@ export class EmailService {
 </html>`;
 
     try {
-      await this.resend.emails.send({ from: this.from, to: [params.to], subject: params.subject, html });
+      await resend.emails.send({ from, to: [params.to], subject: params.subject, html });
     } catch (err) {
       this.logger.error(`sendClientEmail failed to ${params.to}: ${err}`);
     }
   }
 
-  async sendHtml(params: { to: string; subject: string; html: string }): Promise<void> {
-    if (!this.resend) return;
+  async sendHtml(params: { to: string; subject: string; html: string; tenantId?: string }): Promise<void> {
+    const { resend, from } = await this.resolveClient(params.tenantId);
+    if (!resend) return;
     try {
-      await this.resend.emails.send({ from: this.from, to: [params.to], subject: params.subject, html: params.html });
+      await resend.emails.send({ from, to: [params.to], subject: params.subject, html: params.html });
     } catch (err) {
       this.logger.error(`sendHtml failed to ${params.to}: ${err}`);
     }
   }
 
   async send(params: SendEmailParams): Promise<void> {
-    if (!this.resend) return;
+    const { resend, from } = await this.resolveClient(params.tenantId);
+    if (!resend) return;
 
     let eventId: string | undefined;
-
     if (this.prisma && params.tenantId) {
       try {
         eventId = randomUUID();
@@ -149,8 +159,8 @@ export class EmailService {
     }
 
     try {
-      await this.resend.emails.send({
-        from: this.from,
+      await resend.emails.send({
+        from,
         to: [params.to],
         subject: params.titulo,
         html: this.buildHtml(params, eventId),
@@ -162,13 +172,30 @@ export class EmailService {
 
   // ─── Private helpers ────────────────────────────────────────
 
+  private async resolveClient(tenantId?: string): Promise<{ resend: Resend | null; from: string }> {
+    if (!tenantId || !this.integraciones) {
+      return { resend: this.globalResend, from: this.globalFrom };
+    }
+
+    if (this.clientCache.has(tenantId)) {
+      return this.clientCache.get(tenantId)!;
+    }
+
+    const creds = await this.integraciones.getCredentials(tenantId);
+    const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : this.globalResend;
+    const from   = creds.email_from ?? this.globalFrom;
+    const entry  = { resend, from };
+    this.clientCache.set(tenantId, entry);
+    return entry;
+  }
+
   private resolveCtaUrl(entidad?: string, entidadId?: string): string {
     if (!entidad || !entidadId) return `${this.frontendUrl}/dashboard`;
     const map: Record<string, string> = {
-      propiedad: `${this.frontendUrl}/propiedades/${entidadId}`,
+      propiedad:        `${this.frontendUrl}/propiedades/${entidadId}`,
       PropiedadDocumento: `${this.frontendUrl}/propiedades`,
       clientePropiedad: `${this.frontendUrl}/pipeline`,
-      cliente: `${this.frontendUrl}/clientes/${entidadId}`,
+      cliente:          `${this.frontendUrl}/clientes/${entidadId}`,
     };
     return map[entidad] ?? `${this.frontendUrl}/dashboard`;
   }
@@ -183,12 +210,10 @@ export class EmailService {
       LEAD_INACTIVO: '👤',
     };
     const icon = icons[params.tipo] ?? 'ℹ️';
-
     const directUrl = this.resolveCtaUrl(params.entidad, params.entidadId);
     const ctaUrl = eventId
       ? `${this.appUrl}/api/email/track/${eventId}/click?url=${encodeURIComponent(directUrl)}`
       : directUrl;
-
     const pixel = eventId
       ? `<img src="${this.appUrl}/api/email/track/${eventId}/open.gif" width="1" height="1" style="display:none;border:0;" alt="" />`
       : '';

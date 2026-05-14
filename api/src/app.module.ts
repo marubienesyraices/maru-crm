@@ -34,6 +34,9 @@ import { VideollamadasModule } from './modules/videollamadas/videollamadas.modul
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { EncryptionModule } from './common/encryption/encryption.module';
+import { ConfigIntegracionesModule } from './modules/config-integraciones/config-integraciones.module';
+import { ConfigPortalModule } from './modules/config-portal/config-portal.module';
 
 @Module({
   imports: [
@@ -49,6 +52,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
         },
       }),
     }),
+    EncryptionModule,
     RedisModule,
     PrismaModule,
     AuthModule,
@@ -76,6 +80,8 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     SindicacionModule,
     FirmaDigitalModule,
     VideollamadasModule,
+    ConfigIntegracionesModule,
+    ConfigPortalModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',

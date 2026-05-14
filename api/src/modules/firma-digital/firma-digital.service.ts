@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
+
+interface DocuSignToken { token: string; expiry: number; }
 
 interface EnvelopeBody {
   emailSubject: string;
@@ -21,24 +23,13 @@ interface EnvelopeBody {
 @Injectable()
 export class FirmaDigitalService {
   private readonly logger = new Logger(FirmaDigitalService.name);
-  private readonly integrationKey: string;
-  private readonly clientSecret: string;
-  private readonly accountId: string;
-  private readonly baseUrl: string;
-  private readonly userId: string;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
+  /** Per-tenant DocuSign token cache */
+  private readonly tokenCache = new Map<string, DocuSignToken>();
 
   constructor(
     private readonly prisma: PrismaService,
-    config: ConfigService,
-  ) {
-    this.integrationKey = config.get<string>('DOCUSIGN_INTEGRATION_KEY') ?? '';
-    this.clientSecret   = config.get<string>('DOCUSIGN_CLIENT_SECRET') ?? '';
-    this.accountId      = config.get<string>('DOCUSIGN_ACCOUNT_ID') ?? '';
-    this.userId         = config.get<string>('DOCUSIGN_USER_ID') ?? '';
-    this.baseUrl        = (config.get<string>('DOCUSIGN_BASE_URL') ?? 'https://demo.docusign.net/restapi').replace(/\/$/, '');
-  }
+    private readonly integraciones: ConfigIntegracionesService,
+  ) {}
 
   async getSolicitudes(tenantId: string, propiedadId: string) {
     await this.assertPropiedad(tenantId, propiedadId);
@@ -54,19 +45,22 @@ export class FirmaDigitalService {
     agenteId: string,
     dto: { firmanteNombre: string; firmanteEmail: string; documentoBase64?: string; documentoNombre?: string },
   ) {
-    if (!this.integrationKey) throw new BadRequestException('DocuSign no está configurado (DOCUSIGN_INTEGRATION_KEY)');
+    const creds = await this.integraciones.getCredentials(tenantId);
+    if (!creds.docusign_integration_key) {
+      throw new BadRequestException('DocuSign no está configurado para este tenant (docusign_integration_key)');
+    }
 
     const prop = await this.assertPropiedad(tenantId, propiedadId);
-
-    const firmante = { nombre: dto.firmanteNombre, email: dto.firmanteEmail };
+    const firmante  = { nombre: dto.firmanteNombre, email: dto.firmanteEmail };
     const docBase64 = dto.documentoBase64 ?? (await this.getCartaComisionBase64(prop));
-    const docNombre = dto.documentoNombre ?? `Carta_Comision_${(prop as any).codigo}.pdf`;
+    const docNombre = dto.documentoNombre  ?? `Carta_Comision_${(prop as any).codigo}.pdf`;
+    const baseUrl   = (creds.docusign_base_url ?? 'https://demo.docusign.net/restapi').replace(/\/$/, '');
 
-    const token = await this.getAccessToken();
+    const token = await this.getAccessToken(tenantId, creds);
 
     const envelope: EnvelopeBody = {
       emailSubject: `Firma requerida — ${(prop as any).titulo}`,
-      emailBlurb: `Por favor firme la carta de comisión para la propiedad ${(prop as any).titulo}.`,
+      emailBlurb:   `Por favor firme la carta de comisión para la propiedad ${(prop as any).titulo}.`,
       documents: [{
         documentBase64: docBase64,
         name: docNombre,
@@ -92,7 +86,7 @@ export class FirmaDigitalService {
       status: 'sent',
     };
 
-    const res = await fetch(`${this.baseUrl}/v2.1/accounts/${this.accountId}/envelopes`, {
+    const res = await fetch(`${baseUrl}/v2.1/accounts/${creds.docusign_account_id}/envelopes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(envelope),
@@ -106,9 +100,8 @@ export class FirmaDigitalService {
     const envData: any = await res.json();
     const envelopeId = envData.envelopeId as string;
 
-    // Get embedded signing URL (for direct link)
     const viewRes = await fetch(
-      `${this.baseUrl}/v2.1/accounts/${this.accountId}/envelopes/${envelopeId}/views/recipient`,
+      `${baseUrl}/v2.1/accounts/${creds.docusign_account_id}/envelopes/${envelopeId}/views/recipient`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -130,14 +123,14 @@ export class FirmaDigitalService {
 
     return this.prisma.firmaSolicitud.create({
       data: {
-        tenant_id: tenantId,
-        propiedad_id: propiedadId,
-        agente_id: agenteId,
+        tenant_id:       tenantId,
+        propiedad_id:    propiedadId,
+        agente_id:       agenteId,
         firmante_nombre: firmante.nombre,
-        firmante_email: firmante.email,
-        estado: 'ENVIADO',
-        envelope_id: envelopeId,
-        signing_url: signingUrl,
+        firmante_email:  firmante.email,
+        estado:          'ENVIADO',
+        envelope_id:     envelopeId,
+        signing_url:     signingUrl,
       },
     });
   }
@@ -155,32 +148,27 @@ export class FirmaDigitalService {
     const update = map[status];
     if (!update) return;
 
-    await this.prisma.firmaSolicitud.updateMany({
-      where: { envelope_id: envelopeId },
-      data: update,
-    });
+    await this.prisma.firmaSolicitud.updateMany({ where: { envelope_id: envelopeId }, data: update });
     this.logger.log(`Firma ${envelopeId} → ${update.estado}`);
   }
 
   // ─── Private ─────────────────────────────────────────────────
 
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry - 60_000) return this.accessToken;
+  private async getAccessToken(tenantId: string, creds: Awaited<ReturnType<ConfigIntegracionesService['getCredentials']>>): Promise<string> {
+    const cached = this.tokenCache.get(tenantId);
+    if (cached && Date.now() < cached.expiry - 60_000) return cached.token;
 
-    // JWT Grant
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
     const now    = Math.floor(Date.now() / 1000);
     const claims = Buffer.from(JSON.stringify({
-      iss: this.integrationKey,
-      sub: this.userId,
+      iss: creds.docusign_integration_key,
+      sub: creds.docusign_user_id,
       aud: 'account-d.docusign.com',
       iat: now,
       exp: now + 3600,
       scope: 'signature',
     })).toString('base64url');
 
-    // In production: sign with RSA private key (DOCUSIGN_RSA_PRIVATE_KEY env var)
-    // For demo, use client_credentials with clientSecret
     const tokenRes = await fetch('https://account-d.docusign.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -191,26 +179,21 @@ export class FirmaDigitalService {
     });
 
     if (!tokenRes.ok) {
-      // Fallback: log and throw — real implementation needs RSA signing
-      throw new Error('DocuSign JWT auth requires RSA private key (DOCUSIGN_RSA_PRIVATE_KEY). Consulta la documentación de configuración.');
+      throw new Error('DocuSign JWT auth requires RSA private key (docusign_rsa_private_key). Consulta la documentación de configuración.');
     }
 
     const td: any = await tokenRes.json();
-    this.accessToken = td.access_token;
-    this.tokenExpiry = Date.now() + td.expires_in * 1000;
-    return this.accessToken!;
+    this.tokenCache.set(tenantId, { token: td.access_token, expiry: Date.now() + td.expires_in * 1000 });
+    return td.access_token;
   }
 
   private async assertPropiedad(tenantId: string, propiedadId: string) {
-    const prop = await this.prisma.propiedad.findFirst({
-      where: { id: propiedadId, tenant_id: tenantId },
-    });
+    const prop = await this.prisma.propiedad.findFirst({ where: { id: propiedadId, tenant_id: tenantId } });
     if (!prop) throw new NotFoundException('Propiedad no encontrada');
     return prop;
   }
 
   private async getCartaComisionBase64(prop: any): Promise<string> {
-    // Minimal placeholder PDF (in production: call BrochureService/CartaComisionService)
     return Buffer.from(`%PDF-1.4 Carta de Comisión — ${prop.titulo}`).toString('base64');
   }
 }

@@ -1,34 +1,32 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
+
+interface ZoomToken { token: string; expiry: number; }
 
 @Injectable()
 export class VideollamadasService {
   private readonly logger = new Logger(VideollamadasService.name);
-  private readonly accountId: string;
-  private readonly clientId: string;
-  private readonly clientSecret: string;
-  private accessToken: string | null = null;
-  private tokenExpiry = 0;
+  /** Per-tenant Zoom token cache: tenantId → { token, expiry } */
+  private readonly tokenCache = new Map<string, ZoomToken>();
 
   constructor(
     private readonly prisma: PrismaService,
-    config: ConfigService,
-  ) {
-    this.accountId    = config.get<string>('ZOOM_ACCOUNT_ID')    ?? '';
-    this.clientId     = config.get<string>('ZOOM_CLIENT_ID')     ?? '';
-    this.clientSecret = config.get<string>('ZOOM_CLIENT_SECRET') ?? '';
-  }
+    private readonly integraciones: ConfigIntegracionesService,
+  ) {}
 
   async crearMeeting(tenantId: string, visitaId: string) {
-    if (!this.accountId) throw new BadRequestException('Zoom no está configurado (ZOOM_ACCOUNT_ID / ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET)');
+    const creds = await this.integraciones.getCredentials(tenantId);
+    if (!creds.zoom_account_id) {
+      throw new BadRequestException('Zoom no está configurado para este tenant (zoom_account_id / zoom_client_id / zoom_client_secret)');
+    }
 
     const visita = await this.prisma.visita.findFirst({
       where: { id: visitaId },
       include: {
         interes: {
           include: {
-            cliente: { select: { tenant_id: true, nombre: true } },
+            cliente:   { select: { tenant_id: true, nombre: true } },
             propiedad: { select: { titulo: true } },
           },
         },
@@ -43,33 +41,27 @@ export class VideollamadasService {
       throw new BadRequestException('Esta visita ya tiene una videollamada asociada');
     }
 
-    const token = await this.getAccessToken();
-
+    const token = await this.getAccessToken(tenantId, creds);
     const duracionMin = Math.max(
       30,
       Math.round((visita.fecha_fin.getTime() - visita.fecha_inicio.getTime()) / 60_000),
     );
 
-    const body = {
-      topic: `Visita — ${visita.interes.propiedad.titulo}`,
-      type: 2, // scheduled
-      start_time: visita.fecha_inicio.toISOString(),
-      duration: duracionMin,
-      timezone: 'America/Guatemala',
-      agenda: `Visita de propiedad con ${visita.interes.cliente.nombre}. Agente: ${visita.agente.nombre}.`,
-      settings: {
-        host_video: true,
-        participant_video: true,
-        join_before_host: true,
-        waiting_room: false,
-        auto_recording: 'none',
-      },
-    };
-
     const res = await fetch('https://api.zoom.us/v2/users/me/meetings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        topic:      `Visita — ${visita.interes.propiedad.titulo}`,
+        type:       2,
+        start_time: visita.fecha_inicio.toISOString(),
+        duration:   duracionMin,
+        timezone:   'America/Guatemala',
+        agenda:     `Visita de propiedad con ${visita.interes.cliente.nombre}. Agente: ${visita.agente.nombre}.`,
+        settings: {
+          host_video: true, participant_video: true,
+          join_before_host: true, waiting_room: false, auto_recording: 'none',
+        },
+      }),
     });
 
     if (!res.ok) {
@@ -81,14 +73,8 @@ export class VideollamadasService {
 
     return this.prisma.visita.update({
       where: { id: visitaId },
-      data: {
-        zoom_meeting_id: String(meeting.id),
-        zoom_join_url:   meeting.join_url,
-      },
-      select: {
-        id: true, zoom_meeting_id: true, zoom_join_url: true,
-        fecha_inicio: true, fecha_fin: true,
-      },
+      data: { zoom_meeting_id: String(meeting.id), zoom_join_url: meeting.join_url },
+      select: { id: true, zoom_meeting_id: true, zoom_join_url: true, fecha_inicio: true, fecha_fin: true },
     });
   }
 
@@ -104,7 +90,8 @@ export class VideollamadasService {
     if (!visita.zoom_meeting_id) throw new BadRequestException('No hay videollamada asociada');
 
     try {
-      const token = await this.getAccessToken();
+      const creds = await this.integraciones.getCredentials(tenantId);
+      const token = await this.getAccessToken(tenantId, creds);
       await fetch(`https://api.zoom.us/v2/meetings/${visita.zoom_meeting_id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -115,27 +102,27 @@ export class VideollamadasService {
 
     return this.prisma.visita.update({
       where: { id: visitaId },
-      data: { zoom_meeting_id: null, zoom_join_url: null },
+      data:  { zoom_meeting_id: null, zoom_join_url: null },
       select: { id: true, zoom_meeting_id: true, zoom_join_url: true },
     });
   }
 
   // ─── Private ─────────────────────────────────────────────────
 
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry - 60_000) return this.accessToken;
+  private async getAccessToken(tenantId: string, creds: Awaited<ReturnType<ConfigIntegracionesService['getCredentials']>>): Promise<string> {
+    const cached = this.tokenCache.get(tenantId);
+    if (cached && Date.now() < cached.expiry - 60_000) return cached.token;
 
-    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const credentials = Buffer.from(`${creds.zoom_client_id}:${creds.zoom_client_secret}`).toString('base64');
     const res = await fetch(
-      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${this.accountId}`,
+      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${creds.zoom_account_id}`,
       { method: 'POST', headers: { Authorization: `Basic ${credentials}` } },
     );
 
     if (!res.ok) throw new Error(`Zoom OAuth error: ${res.status}`);
 
     const data: any = await res.json();
-    this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + data.expires_in * 1000;
-    return this.accessToken!;
+    this.tokenCache.set(tenantId, { token: data.access_token, expiry: Date.now() + data.expires_in * 1000 });
+    return data.access_token;
   }
 }

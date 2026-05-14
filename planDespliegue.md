@@ -2,6 +2,30 @@
 
 Guía completa para llevar el proyecto de desarrollo local a producción: dominio, DNS, correos corporativos, hosting y despliegue de los tres servicios.
 
+> **Sistema:** GestPro CRM (anteriormente "Maru CRM") — renombrado en la 5ta entrega.
+
+---
+
+## Registro de cambios recientes
+
+### v5 — mayo 2026
+
+| Área | Cambio |
+|------|--------|
+| **Marca** | Sistema renombrado a **GestPro**; logo integrado en CRM y portal |
+| **Portal** | Página 404 personalizada (`not-found.tsx`); colores de tema configurables por tenant; `sitemap.xml` y `robots.txt` automáticos |
+| **Módulo Meta** | Publicación automática de propiedades en Facebook e Instagram vía Meta Graph API; cola BullMQ propia |
+| **Módulo Sindicación** | Publicación en portales externos (Encuentra24, MercadoLibre) |
+| **Módulo Firma Digital** | Integración DocuSign para firma de contratos desde el CRM |
+| **Módulo Videollamadas** | Integración Zoom Server-to-Server para visitas con meet link automático |
+| **WhatsApp Business** | Envío de mensajes vía Cloud API (fallback a enlace wa.me si no se configura) |
+| **Brochure PDF** | Galería ampliada a 8+ fotos; nuevo diseño de carta de comisión |
+| **BI / Dashboard** | Índices de rendimiento en base de datos; nuevas métricas |
+| **Migraciones nuevas** | `reporte_visita`, `meta_publicaciones`, `bi_indexes`, `sindicacion_firma_zoom`, `color_fondo_alterno`, `portal_theme_colors` |
+| **RLS** | `migration_v2.sql` cubre tablas Fase 2–12; obligatoria en producción |
+| **Tests de seguridad** | Suite OWASP Top 10 (`api/src/__tests__/security/owasp.security.spec.ts`) |
+| **Variables de entorno** | Nuevas vars para Meta, WhatsApp, DocuSign, Zoom, Sentry, Sindicación, Mapbox server-side |
+
 ---
 
 ## Visión general de la arquitectura final
@@ -133,12 +157,15 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 3. Guardar esta URL — se usará como `DATABASE_URL` en producción.
 4. En el **SQL Editor** de Neon, ejecutar en orden:
    ```sql
-   -- Paso 1: script de roles y RLS
+   -- Paso 1: roles, permisos y RLS Fase 1
    -- Pegar contenido de: api/prisma/sql/rls_policies/migration.sql
-   
-   -- Paso 2: tablas Fase 2–12
+
+   -- Paso 2: RLS Fase 2–12 (todas las tablas nuevas incluidas)
    -- Pegar contenido de: api/prisma/sql/rls_policies/migration_v2.sql
    ```
+
+   > `migration_v2.sql` cubre las tablas añadidas en la 4ta y 5ta entrega: `reporte_visita`, `meta_publicaciones`, `sindicacion`, `firma_digital`, `videollamadas`, `brochure_descargas`, entre otras. Siempre usar la versión más reciente del archivo.
+
 5. Cambiar la contraseña del rol `maru_app` inmediatamente:
    ```sql
    ALTER ROLE maru_app PASSWORD 'contraseña-segura-aqui';
@@ -168,25 +195,70 @@ Railway ejecuta el Dockerfile existente sin configuración extra.
 5. En **Variables** → agregar todas las variables de producción:
 
    ```env
+   # ── Core ──────────────────────────────────────────────
    NODE_ENV=production
    DATABASE_URL=postgresql://...neon.tech/...?sslmode=require
    REDIS_HOST=tu-endpoint.upstash.io
    REDIS_PORT=6379
    JWT_ACCESS_SECRET=secreto-32-chars-generado
    JWT_REFRESH_SECRET=secreto-32-chars-generado
+   JWT_ACCESS_EXPIRES_IN=15m
+   JWT_REFRESH_EXPIRES_IN=7d
    PORT=3000
    FRONTEND_URL=https://crm.maruinmobiliaria.com
    PORTAL_URL=https://www.maruinmobiliaria.com
    APP_URL=https://api.maruinmobiliaria.com
+
+   # ── Email (Resend) ────────────────────────────────────
    RESEND_API_KEY=re_...
-   EMAIL_FROM=Maru Bienes y Raíces <noreply@maruinmobiliaria.com>
+   EMAIL_FROM=GestPro CRM <noreply@maruinmobiliaria.com>
+
+   # ── Almacenamiento (Cloudflare R2) ───────────────────
    R2_ACCOUNT_ID=...
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
    R2_BUCKET=maru-crm-files
    R2_PUBLIC_URL=https://...r2.cloudflarestorage.com
+
+   # ── Mapbox ────────────────────────────────────────────
+   MAPBOX_TOKEN=pk.eyJ1...          # geocodificación server-side
+   VITE_MAPBOX_TOKEN=pk.eyJ1...     # mapa en el browser
+
+   # ── Google Maps (geocodificación en formulario) ──────
+   VITE_GOOGLE_MAPS_API_KEY=AIzaSy...
+
+   # ── WhatsApp Business Cloud API (opcional) ───────────
+   WHATSAPP_API_TOKEN=EAAxxxxxxxx
+   WHATSAPP_PHONE_NUMBER_ID=123456789012345
+
+   # ── Meta Graph API — Facebook / Instagram (opcional) ─
+   META_PAGE_ACCESS_TOKEN=EAAxxxxxxxx
+   META_PAGE_ID=123456789012345
+   META_IG_USER_ID=987654321098765
+
+   # ── Sindicación portales externos (opcional) ─────────
+   ENCUENTRA24_API_KEY=...
+   ENCUENTRA24_API_URL=https://api.encuentra24.com/v1
+   ML_ACCESS_TOKEN=APP_USR-...
+
+   # ── DocuSign — firma digital (opcional) ──────────────
+   DOCUSIGN_INTEGRATION_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   DOCUSIGN_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+   DOCUSIGN_ACCOUNT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   DOCUSIGN_USER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   DOCUSIGN_RSA_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+   DOCUSIGN_BASE_URL=https://www.docusign.net/restapi   # producción
+
+   # ── Zoom — videollamadas (opcional) ──────────────────
+   ZOOM_ACCOUNT_ID=xxxxxxxxxx
+   ZOOM_CLIENT_ID=xxxxxxxxxx
+   ZOOM_CLIENT_SECRET=xxxxxxxxxxxxxxxxxx
+
+   # ── Sentry — monitoreo de errores (opcional) ─────────
+   SENTRY_DSN=https://xxxxxxxx@oXXXXXX.ingest.sentry.io/XXXXX
    ```
-   Y cualquier otra variable opcional (Mapbox, Zoom, DocuSign, etc.).
+
+   > **Integraciones opcionales:** las variables de Meta, WhatsApp, DocuSign, Zoom y Sindicación pueden dejarse vacías para deshabilitar esas funcionalidades. El sistema opera normalmente sin ellas.
 
 6. En **Settings** → **Networking** → **Add Custom Domain** → escribir `api.maruinmobiliaria.com`.
 7. Railway mostrará un registro CNAME. En Cloudflare → **DNS** → agregar:
@@ -216,10 +288,12 @@ Vercel es el hosting oficial de Next.js y ofrece plan gratuito generoso.
 
    ```env
    NEXT_PUBLIC_API_URL=https://api.maruinmobiliaria.com
-   NEXT_PUBLIC_COMPANY_NAME=Maru Bienes y Raíces
+   NEXT_PUBLIC_COMPANY_NAME=GestPro
    NEXT_PUBLIC_COMPANY_EMAIL=info@maruinmobiliaria.com
    NEXT_PUBLIC_WHATSAPP=50212345678
    NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
+   NEXT_PUBLIC_SITE_URL=https://www.maruinmobiliaria.com   # usado en sitemap.xml y robots.txt
+   PORTAL_TENANT_ID=                                        # UUID del tenant a mostrar; vacío = primer tenant
    ```
 
 5. Hacer clic en **Deploy**.
@@ -251,7 +325,8 @@ El CRM React es un sitio estático (Vite + Nginx en Docker). Cloudflare Pages lo
    ```env
    VITE_API_URL=https://api.maruinmobiliaria.com
    VITE_MAPBOX_TOKEN=pk.eyJ1...
-   VITE_SENTRY_DSN=https://...
+   VITE_GOOGLE_MAPS_API_KEY=AIzaSy...
+   VITE_SENTRY_DSN=https://xxxxxxxx@oXXXXXX.ingest.sentry.io/XXXXX
    ```
 
 4. Hacer clic en **Save and Deploy**.
@@ -296,6 +371,8 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 
 ## Costos estimados mensuales
 
+### Servicios base (obligatorios)
+
 | Servicio | Plan | Costo USD/mes |
 |----------|------|---------------|
 | Dominio `.com` | — | ~$1 |
@@ -306,9 +383,22 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 | Neon PostgreSQL | Free / Launch | $0–19 |
 | Upstash Redis | Free / Pay-as-you-go | $0–5 |
 | Cloudflare R2 (10 GB) | — | $0–1.5 |
-| Resend emails (3000/mes) | Free | $0 |
+| Resend emails (3 000/mes) | Free | $0 |
 | Google Workspace (2 usuarios) | Starter | $12 |
-| **Total estimado** | | **$18–58** |
+| **Subtotal base** | | **$18–58** |
+
+### Integraciones opcionales
+
+| Servicio | Plan | Costo USD/mes |
+|----------|------|---------------|
+| Sentry (monitoreo errores) | Developer | $0–26 |
+| Zoom (videollamadas) | Basic gratuito | $0–15 |
+| DocuSign (firma digital) | Personal | $0–10/sobre |
+| Meta Ads API (publicación FB/IG) | Sin costo de API | $0 |
+| Encuentra24 (sindicación) | Por acuerdo | variable |
+| MercadoLibre (sindicación) | Por acuerdo | variable |
+| Mapbox | Free 50 000 req/mes | $0–50 |
+| **Total estimado con opcionales** | | **$18–159+** |
 
 ---
 
@@ -316,17 +406,37 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 
 Antes de considerar el despliegue completo:
 
+### Infraestructura y acceso
 - [ ] Dominio registrado y apuntando a Cloudflare
 - [ ] SSL en modo Full (strict) en Cloudflare
 - [ ] Registros MX configurados y emails probados
 - [ ] SPF, DKIM y DMARC configurados (verificar en [mail-tester.com](https://mail-tester.com))
+
+### Servicios desplegados
 - [ ] API desplegada y respondiendo en `https://api.maruinmobiliaria.com/health`
 - [ ] Portal desplegado y cargando propiedades en `https://www.maruinmobiliaria.com`
 - [ ] CRM desplegado y login funciona en `https://crm.maruinmobiliaria.com`
+- [ ] `sitemap.xml` accesible en `https://www.maruinmobiliaria.com/sitemap.xml`
+- [ ] `robots.txt` accesible en `https://www.maruinmobiliaria.com/robots.txt`
+- [ ] Página 404 personalizada funcionando en el portal
+
+### Base de datos
 - [ ] Variables de entorno de producción completas (sin valores de desarrollo)
-- [ ] Migraciones de Prisma aplicadas en Neon
-- [ ] RLS policies aplicadas en Neon (migration.sql y migration_v2.sql)
+- [ ] Migraciones de Prisma aplicadas (`npx prisma migrate deploy` en Railway)
+- [ ] RLS policies aplicadas en Neon (`migration.sql` y `migration_v2.sql` en ese orden)
 - [ ] Contraseña del rol `maru_app` cambiada en producción
 - [ ] Seed ejecutado y credenciales del super admin cambiadas
+
+### Almacenamiento y email
 - [ ] Dominio verificado en Resend y emails de prueba recibidos sin ir a spam
 - [ ] R2 configurado y subida de imágenes probada
+- [ ] Brochure PDF generado correctamente con galería de imágenes
+
+### Integraciones opcionales (marcar las que apliquen)
+- [ ] **Mapbox** — mapa y geocodificación funcionando en formulario de propiedad
+- [ ] **WhatsApp Business** — mensajes enviados desde el módulo de visitas
+- [ ] **Meta (Facebook/Instagram)** — publicación de propiedad de prueba exitosa
+- [ ] **Sindicación** — propiedad sincronizada en Encuentra24 o MercadoLibre
+- [ ] **DocuSign** — sobre de prueba enviado y firmado correctamente
+- [ ] **Zoom** — link de videollamada generado al crear visita con tipo Zoom
+- [ ] **Sentry** — error de prueba aparece en el dashboard de Sentry

@@ -65,7 +65,9 @@ model Tenant {
   updated_at       DateTime      @updatedAt
 
   usuarios         User[]
-  config_seguridad ConfigSeguridad?
+  config_seguridad     ConfigSeguridad?
+  config_integraciones ConfigIntegraciones?
+  config_portal        ConfigPortal?
   audit_logs       AuditLog[]
   propiedades      Propiedad[]
   propietarios     Propietario[]
@@ -74,6 +76,95 @@ model Tenant {
   meta_publicaciones  MetaPublicacion[]
 
   @@map("tenants")
+}
+
+model ConfigIntegraciones {
+  id        String @id @default(uuid())
+  tenant_id String @unique
+
+  // ── Email (Resend) ────────────────────────────
+  resend_api_key String?
+  email_from     String?
+
+  // ── WhatsApp Business Cloud API ───────────────
+  whatsapp_token           String?
+  whatsapp_phone_number_id String?
+
+  // ── Meta Graph API (Facebook / Instagram) ─────
+  meta_page_token  String?
+  meta_page_id     String?
+  meta_ig_user_id  String?
+
+  // ── Zoom Server-to-Server OAuth ───────────────
+  zoom_account_id    String?
+  zoom_client_id     String?
+  zoom_client_secret String?
+
+  // ── DocuSign JWT ──────────────────────────────
+  docusign_integration_key String?
+  docusign_account_id      String?
+  docusign_user_id         String?
+  docusign_rsa_private_key String?
+  docusign_base_url        String?
+
+  // ── Sindicación portales externos ─────────────
+  encuentra24_api_key String?
+  ml_access_token     String?
+
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  updated_at DateTime @updatedAt
+
+  @@map("config_integraciones")
+}
+
+model ConfigPortal {
+  id        String @id @default(uuid())
+  tenant_id String @unique
+
+  // ── Identidad de la empresa ───────────────────
+  nombre_empresa   String?
+  slogan           String?
+  email_contacto   String?
+  telefono         String?
+  whatsapp         String?
+  direccion        String?
+  horario_atencion String?
+
+  // ── Dominio y acceso ──────────────────────────
+  dominio_personalizado String?  @unique
+  subdominio            String?  @unique
+  portal_activo         Boolean  @default(true)
+
+  // ── Apariencia ────────────────────────────────
+  favicon_url      String?
+  imagen_hero      String?
+  titulo_hero      String?
+  descripcion_hero String?
+  footer_texto     String?
+
+  // ── SEO ───────────────────────────────────────
+  seo_titulo      String?
+  seo_descripcion String?
+  seo_keywords    String?
+
+  // ── Chatbot ───────────────────────────────────
+  chatbot_activo             Boolean @default(true)
+  chatbot_mensaje_bienvenida String?
+
+  // ── Analytics ─────────────────────────────────
+  google_analytics_id String?
+  facebook_pixel_id   String?
+
+  // ── Mapa ──────────────────────────────────────
+  mapbox_token_publico String?
+  mapa_lat_default     Float?
+  mapa_lng_default     Float?
+  mapa_zoom_default    Int?     @default(12)
+
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  updated_at DateTime @updatedAt
+
+  @@map("config_portal")
 }
 
 model User {

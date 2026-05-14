@@ -141,6 +141,29 @@ CREATE POLICY superadmin_bypass_meta_publicaciones ON meta_publicaciones
   USING (current_setting('app.bypass_rls', true)::text = 'true');
 ALTER TABLE meta_publicaciones FORCE ROW LEVEL SECURITY;
 
+-- ── config_integraciones ────────────────────────────────────
+ALTER TABLE config_integraciones ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_config_integraciones ON config_integraciones
+  USING (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY tenant_insert_config_integraciones ON config_integraciones
+  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY superadmin_bypass_config_integraciones ON config_integraciones
+  USING (current_setting('app.bypass_rls', true)::text = 'true');
+ALTER TABLE config_integraciones FORCE ROW LEVEL SECURITY;
+
+-- ── config_portal ───────────────────────────────────────────
+-- config_portal es leída también por rutas públicas (portal-config).
+-- La política USING permite al portal leer sin tenant_id activo cuando
+-- la búsqueda es por dominio (la consulta usa bypass_rls en ese caso).
+ALTER TABLE config_portal ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_config_portal ON config_portal
+  USING (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY tenant_insert_config_portal ON config_portal
+  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY superadmin_bypass_config_portal ON config_portal
+  USING (current_setting('app.bypass_rls', true)::text = 'true');
+ALTER TABLE config_portal FORCE ROW LEVEL SECURITY;
+
 
 -- ============================================================
 -- SECCIÓN B: Tablas sin tenant_id (defensa en profundidad)
@@ -278,5 +301,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   whatsapp_envios,
   sindicacion_publicaciones,
   firma_solicitudes,
-  meta_publicaciones
+  meta_publicaciones,
+  config_integraciones,
+  config_portal
 TO maru_app;

@@ -23,6 +23,8 @@ import RankingPage from './pages/Ranking/RankingPage';
 import CampanasPage from './pages/Campanas/CampanasPage';
 import MetaPage from './pages/Meta/MetaPage';
 import HelpPage from './pages/Help/HelpPage';
+import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
+import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+          <Route path="/settings/portal" element={<SettingsPortalPage />} />
+          <Route path="/settings/integraciones" element={<SettingsIntegracionesPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Route>
 

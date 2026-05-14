@@ -19,8 +19,8 @@ export class MetaController {
   @SkipAudit()
   @Get('status')
   @ApiOperation({ summary: 'Verifica si las credenciales de Meta están configuradas' })
-  getStatus() {
-    return { configured: this.svc.isConfigured, ig_configured: this.svc.igConfigured };
+  getStatus(@CurrentUser() user: any) {
+    return this.svc.getStatus(user.tenantId);
   }
 
   @SkipAudit()

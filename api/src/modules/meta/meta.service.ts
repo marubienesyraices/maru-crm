@@ -12,28 +12,34 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMetaPublicacionDto, UpdateMetaPublicacionDto } from './dto';
 import { META_QUEUE, MetaJobData } from './meta.constants';
 import { MetaPlataforma } from '@prisma/client';
+import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
 
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
+
+interface MetaCreds {
+  pageToken: string | null;
+  pageId: string | null;
+  igUserId: string | null;
+}
 
 @Injectable()
 export class MetaService {
   private readonly logger = new Logger(MetaService.name);
-  private readonly pageToken: string | null;
-  private readonly pageId: string | null;
-  private readonly igUserId: string | null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly integraciones: ConfigIntegracionesService,
     @InjectQueue(META_QUEUE) private readonly queue: Queue<MetaJobData>,
-  ) {
-    this.pageToken = config.get<string>('META_PAGE_ACCESS_TOKEN') ?? null;
-    this.pageId    = config.get<string>('META_PAGE_ID') ?? null;
-    this.igUserId  = config.get<string>('META_IG_USER_ID') ?? null;
-  }
+  ) {}
 
-  get isConfigured(): boolean { return !!(this.pageToken && this.pageId); }
-  get igConfigured(): boolean  { return !!(this.pageToken && this.igUserId); }
+  async getStatus(tenantId: string) {
+    const c = await this.getMetaCreds(tenantId);
+    return {
+      configured:    !!(c.pageToken && c.pageId),
+      ig_configured: !!(c.pageToken && c.igUserId),
+    };
+  }
 
   // ─── CRUD ────────────────────────────────────────────────────
 
@@ -65,7 +71,6 @@ export class MetaService {
       const prop = await this.prisma.propiedad.findFirst({ where: { id: dto.propiedad_id, tenant_id: tenantId } });
       if (!prop) throw new NotFoundException('Propiedad no encontrada');
     }
-
     return this.prisma.metaPublicacion.create({
       data: {
         id: randomUUID(),
@@ -112,22 +117,21 @@ export class MetaService {
     if (!prop) throw new NotFoundException('Propiedad no encontrada');
 
     const lines: string[] = [`🏠 ${prop.titulo}`, ''];
-    if (prop.tipo) lines.push(`Tipo: ${prop.tipo}`);
-    if (prop.gestion) lines.push(`Gestión: ${prop.gestion}`);
+    if (prop.tipo)         lines.push(`Tipo: ${prop.tipo}`);
+    if (prop.gestion)      lines.push(`Gestión: ${prop.gestion}`);
     if (prop.departamento) lines.push(`Zona: ${prop.departamento}${prop.municipio ? ', ' + prop.municipio : ''}`);
     lines.push('');
-    if (prop.precio_venta)  lines.push(`💰 Venta: ${prop.moneda} ${Number(prop.precio_venta).toLocaleString('es-GT')}`);
-    if (prop.precio_renta)  lines.push(`🔑 Renta: ${prop.moneda} ${Number(prop.precio_renta).toLocaleString('es-GT')}`);
-    if (prop.habitaciones)  lines.push(`🛏 ${prop.habitaciones} habitaciones`);
-    if (prop.banos)         lines.push(`🚿 ${prop.banos} baños`);
-    if (prop.area_terreno_m2)      lines.push(`📐 Terreno: ${Number(prop.area_terreno_m2).toLocaleString()} m²`);
-    if (prop.area_construccion_m2) lines.push(`🏗 Construcción: ${Number(prop.area_construccion_m2).toLocaleString()} m²`);
+    if (prop.precio_venta)          lines.push(`💰 Venta: ${prop.moneda} ${Number(prop.precio_venta).toLocaleString('es-GT')}`);
+    if (prop.precio_renta)          lines.push(`🔑 Renta: ${prop.moneda} ${Number(prop.precio_renta).toLocaleString('es-GT')}`);
+    if (prop.habitaciones)          lines.push(`🛏 ${prop.habitaciones} habitaciones`);
+    if (prop.banos)                 lines.push(`🚿 ${prop.banos} baños`);
+    if (prop.area_terreno_m2)       lines.push(`📐 Terreno: ${Number(prop.area_terreno_m2).toLocaleString()} m²`);
+    if (prop.area_construccion_m2)  lines.push(`🏗 Construcción: ${Number(prop.area_construccion_m2).toLocaleString()} m²`);
     lines.push('');
     lines.push('📞 Contáctanos para más información o para agendar una visita.');
     if (prop.agente?.nombre) lines.push(`Agente: ${prop.agente.nombre}`);
 
-    const imagen_url = prop.imagenes[0]?.url ?? null;
-    return { mensaje: lines.join('\n'), imagen_url };
+    return { mensaje: lines.join('\n'), imagen_url: prop.imagenes[0]?.url ?? null };
   }
 
   // ─── Publish now ─────────────────────────────────────────────
@@ -137,7 +141,6 @@ export class MetaService {
     if (!['BORRADOR', 'FALLIDA'].includes(pub.estado)) {
       throw new BadRequestException('Solo se pueden publicar posts en estado BORRADOR o FALLIDA');
     }
-
     await this.prisma.metaPublicacion.update({ where: { id }, data: { estado: 'PROGRAMADA' } });
     return this.ejecutarPublicacion(id, tenantId);
   }
@@ -160,33 +163,37 @@ export class MetaService {
     });
   }
 
-  // ─── Core publish logic (called by controller + processor) ───
+  // ─── Core publish logic (called by controller + BullMQ processor) ──
 
   async ejecutarPublicacion(id: string, tenantId: string) {
     const pub = await this.get(tenantId, id);
+    const creds = await this.getMetaCreds(tenantId);
     const plataforma = pub.plataforma as string;
 
     let fbPostId: string | null = null;
     let igPostId: string | null = null;
-    let error: string | null = null;
+    let error: string | null    = null;
 
     try {
-      if ((plataforma === 'FACEBOOK' || plataforma === 'AMBAS') && this.isConfigured) {
-        fbPostId = await this.publishFacebook(pub.mensaje, pub.imagen_url);
+      const fbConfigured = !!(creds.pageToken && creds.pageId);
+      const igConfigured = !!(creds.pageToken && creds.igUserId);
+
+      if ((plataforma === 'FACEBOOK' || plataforma === 'AMBAS') && fbConfigured) {
+        fbPostId = await this.publishFacebook(creds, pub.mensaje, pub.imagen_url);
       }
-      if ((plataforma === 'INSTAGRAM' || plataforma === 'AMBAS') && this.igConfigured && pub.imagen_url) {
-        igPostId = await this.publishInstagram(pub.mensaje, pub.imagen_url);
-      } else if ((plataforma === 'INSTAGRAM' || plataforma === 'AMBAS') && this.igConfigured && !pub.imagen_url) {
-        this.logger.warn(`Instagram post ${id} skipped — no image URL (Instagram requires an image)`);
+      if ((plataforma === 'INSTAGRAM' || plataforma === 'AMBAS') && igConfigured && pub.imagen_url) {
+        igPostId = await this.publishInstagram(creds, pub.mensaje, pub.imagen_url);
+      } else if ((plataforma === 'INSTAGRAM' || plataforma === 'AMBAS') && igConfigured && !pub.imagen_url) {
+        this.logger.warn(`Instagram post ${id} skipped — no image URL`);
       }
 
       if (!fbPostId && !igPostId) {
-        throw new Error(!this.isConfigured ? 'Credenciales de Meta no configuradas en el servidor' : 'No se pudo publicar en ninguna plataforma');
+        throw new Error(!fbConfigured ? 'Credenciales de Meta no configuradas para este tenant' : 'No se pudo publicar en ninguna plataforma');
       }
 
       return this.prisma.metaPublicacion.update({
         where: { id },
-        data: { estado: 'PUBLICADA', publicado_at: new Date(), fb_post_id: fbPostId, ig_post_id: igPostId, error_msg: null },
+        data:  { estado: 'PUBLICADA', publicado_at: new Date(), fb_post_id: fbPostId, ig_post_id: igPostId, error_msg: null },
       });
     } catch (err: any) {
       error = String(err?.message ?? err);
@@ -196,11 +203,21 @@ export class MetaService {
     }
   }
 
+  // ─── Credential resolution ───────────────────────────────────
+
+  private async getMetaCreds(tenantId: string): Promise<MetaCreds> {
+    const c = await this.integraciones.getCredentials(tenantId);
+    return {
+      pageToken: c.meta_page_token,
+      pageId:    c.meta_page_id,
+      igUserId:  c.meta_ig_user_id,
+    };
+  }
+
   // ─── Graph API helpers ───────────────────────────────────────
 
-  private async publishFacebook(mensaje: string, imagenUrl: string | null): Promise<string> {
-    const token = this.pageToken!;
-    const pageId = this.pageId!;
+  private async publishFacebook(creds: MetaCreds, mensaje: string, imagenUrl: string | null): Promise<string> {
+    const { pageToken: token, pageId } = creds;
 
     if (imagenUrl) {
       const res = await fetch(`${GRAPH_BASE}/${pageId}/photos`, {
@@ -225,11 +242,9 @@ export class MetaService {
     return json.id;
   }
 
-  private async publishInstagram(caption: string, imagenUrl: string): Promise<string> {
-    const token  = this.pageToken!;
-    const userId = this.igUserId!;
+  private async publishInstagram(creds: MetaCreds, caption: string, imagenUrl: string): Promise<string> {
+    const { pageToken: token, igUserId: userId } = creds;
 
-    // Step 1: create media container
     const step1 = await fetch(`${GRAPH_BASE}/${userId}/media`, {
       method:  'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -239,7 +254,6 @@ export class MetaService {
     const container: any = await step1.json();
     if (!step1.ok || !container.id) throw new Error(container.error?.message ?? `IG container HTTP ${step1.status}`);
 
-    // Step 2: publish container
     const step2 = await fetch(`${GRAPH_BASE}/${userId}/media_publish`, {
       method:  'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
@@ -18,6 +18,20 @@ export class TenantsController {
   @ApiOperation({ summary: 'Colores y marca del tenant del usuario autenticado' })
   getBranding(@CurrentUser('tenantId') tenantId: string) {
     return this.tenantsService.getBranding(tenantId);
+  }
+
+  @Get('mi-tenant')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Obtener datos del propio tenant (ADMIN)' })
+  getMyTenant(@CurrentUser('tenantId') tenantId: string) {
+    return this.tenantsService.findOne(tenantId);
+  }
+
+  @Patch('mi-tenant')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Actualizar nombre, logo y colores del propio tenant (ADMIN)' })
+  updateMyTenant(@CurrentUser('tenantId') tenantId: string, @Body() dto: UpdateTenantDto) {
+    return this.tenantsService.update(tenantId, dto);
   }
 
   @Post()
