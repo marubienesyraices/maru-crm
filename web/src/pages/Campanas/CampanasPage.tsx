@@ -53,7 +53,7 @@ function PlantillasTab({ token }: { token: string }) {
     try {
       const data = await apiRequest<Plantilla[]>('/api/campanas/plantillas', { token });
       setList(data);
-    } catch { /* noop */ } finally { setLoading(false); }
+    } catch (err: any) { toast.error(err.message ?? 'Error al cargar plantillas'); } finally { setLoading(false); }
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
@@ -70,9 +70,10 @@ function PlantillasTab({ token }: { token: string }) {
       } else {
         await apiRequest('/api/campanas/plantillas', { token, method: 'POST', body: form });
       }
+      toast.success(editing ? 'Plantilla actualizada' : 'Plantilla creada');
       setShowModal(false);
       load();
-    } catch { /* noop */ } finally { setSaving(false); }
+    } catch (err: any) { toast.error(err.message ?? 'Error al guardar'); } finally { setSaving(false); }
   };
 
   const del = async (id: string) => {
@@ -82,7 +83,7 @@ function PlantillasTab({ token }: { token: string }) {
       await apiRequest(`/api/campanas/plantillas/${id}`, { token, method: 'DELETE' });
       toast.success('Plantilla eliminada');
       load();
-    } catch { /* noop */ }
+    } catch (err: any) { toast.error(err.message ?? 'Error al eliminar'); }
   };
 
   const doPreview = async () => {
@@ -220,7 +221,7 @@ function CampanasTab({ token }: { token: string }) {
       ]);
       setList(camp);
       setPlantillas(plant);
-    } catch { /* noop */ } finally { setLoading(false); }
+    } catch (err: any) { toast.error(err.message ?? 'Error al cargar campañas'); } finally { setLoading(false); }
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
@@ -264,9 +265,10 @@ function CampanasTab({ token }: { token: string }) {
       } else {
         await apiRequest('/api/campanas', { token, method: 'POST', body: form });
       }
+      toast.success(editing ? 'Campaña actualizada' : 'Campaña creada');
       setShowModal(false);
       load();
-    } catch { /* noop */ } finally { setSaving(false); }
+    } catch (err: any) { toast.error(err.message ?? 'Error al guardar'); } finally { setSaving(false); }
   };
 
   const enviar = async (id: string) => {
