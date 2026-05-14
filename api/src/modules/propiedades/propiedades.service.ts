@@ -348,82 +348,94 @@ export class PropiedadesService {
     };
   }
 
+  /** Haversine distance in metres — no PostGIS required. */
+  private haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6_371_000;
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   private async queryComparablesByGeo(
     tenantId: string,
     dto: PrecioSugeridoQueryDto,
     radioM: number,
   ): Promise<PrecioComparable[]> {
-    const gestFilter = dto.gestion !== 'AMBAS'
-      ? Prisma.sql`AND (p.gestion::text = ${dto.gestion} OR p.gestion::text = 'AMBAS')`
-      : Prisma.sql``;
-    const excludeFilter = dto.excludeId
-      ? Prisma.sql`AND p.id != ${dto.excludeId}::uuid`
-      : Prisma.sql``;
+    const gestWhere =
+      dto.gestion !== 'AMBAS'
+        ? { OR: [{ gestion: dto.gestion as TipoGestion }, { gestion: 'AMBAS' as TipoGestion }] }
+        : {};
 
-    return this.prisma.$queryRaw<PrecioComparable[]>`
-      SELECT
-        p.id,
-        p.codigo,
-        p.titulo,
-        p.precio_venta::float           AS precio_venta,
-        p.precio_renta::float           AS precio_renta,
-        p.area_construccion_m2::float   AS area_construccion_m2,
-        ROUND(
-          ST_Distance(
-            ST_SetSRID(ST_MakePoint(${dto.lng!}::float8, ${dto.lat!}::float8), 4326)::geography,
-            ST_SetSRID(ST_MakePoint(p.longitud::float8, p.latitud::float8), 4326)::geography
-          )::numeric, 0
-        )::float AS distancia_m
-      FROM propiedades p
-      WHERE p.tenant_id    = ${tenantId}
-        AND p.tipo::text   = ${dto.tipo}
-        AND p.estado::text = ANY(ARRAY['DISPONIBLE','VENDIDA','RENTADA'])
-        AND p.latitud      IS NOT NULL
-        AND p.longitud     IS NOT NULL
-        AND ST_DWithin(
-          ST_SetSRID(ST_MakePoint(${dto.lng!}::float8, ${dto.lat!}::float8), 4326)::geography,
-          ST_SetSRID(ST_MakePoint(p.longitud::float8, p.latitud::float8), 4326)::geography,
-          ${radioM}
-        )
-        ${gestFilter}
-        ${excludeFilter}
-      ORDER BY distancia_m ASC
-      LIMIT 20
-    `;
+    const rows = await this.prisma.propiedad.findMany({
+      where: {
+        tenant_id: tenantId,
+        tipo:   dto.tipo as TipoPropiedad,
+        estado: { in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[] },
+        latitud:  { not: null },
+        longitud: { not: null },
+        ...(dto.excludeId ? { id: { not: dto.excludeId } } : {}),
+        ...gestWhere,
+      },
+      select: {
+        id: true, codigo: true, titulo: true,
+        precio_venta: true, precio_renta: true,
+        area_construccion_m2: true, latitud: true, longitud: true,
+      },
+    });
+
+    return rows
+      .map((r) => ({
+        id:                  r.id,
+        codigo:              r.codigo,
+        titulo:              r.titulo,
+        precio_venta:        r.precio_venta        ? Number(r.precio_venta)        : null,
+        precio_renta:        r.precio_renta        ? Number(r.precio_renta)        : null,
+        area_construccion_m2:r.area_construccion_m2? Number(r.area_construccion_m2): null,
+        distancia_m: this.haversineM(dto.lat!, dto.lng!, Number(r.latitud), Number(r.longitud)),
+      }))
+      .filter((r) => r.distancia_m <= radioM)
+      .sort((a, b) => a.distancia_m! - b.distancia_m!)
+      .slice(0, 20);
   }
 
   private async queryComparablesByDepartamento(
     tenantId: string,
     dto: PrecioSugeridoQueryDto,
   ): Promise<PrecioComparable[]> {
-    const deptFilter = dto.departamento
-      ? Prisma.sql`AND p.departamento = ${dto.departamento}`
-      : Prisma.sql``;
-    const gestFilter = dto.gestion !== 'AMBAS'
-      ? Prisma.sql`AND (p.gestion::text = ${dto.gestion} OR p.gestion::text = 'AMBAS')`
-      : Prisma.sql``;
-    const excludeFilter = dto.excludeId
-      ? Prisma.sql`AND p.id != ${dto.excludeId}::uuid`
-      : Prisma.sql``;
+    const gestWhere =
+      dto.gestion !== 'AMBAS'
+        ? { OR: [{ gestion: dto.gestion as TipoGestion }, { gestion: 'AMBAS' as TipoGestion }] }
+        : {};
 
-    return this.prisma.$queryRaw<PrecioComparable[]>`
-      SELECT
-        p.id,
-        p.codigo,
-        p.titulo,
-        p.precio_venta::float           AS precio_venta,
-        p.precio_renta::float           AS precio_renta,
-        p.area_construccion_m2::float   AS area_construccion_m2,
-        NULL::float                     AS distancia_m
-      FROM propiedades p
-      WHERE p.tenant_id    = ${tenantId}
-        AND p.tipo::text   = ${dto.tipo}
-        AND p.estado::text = ANY(ARRAY['DISPONIBLE','VENDIDA','RENTADA'])
-        ${deptFilter}
-        ${gestFilter}
-        ${excludeFilter}
-      LIMIT 20
-    `;
+    const rows = await this.prisma.propiedad.findMany({
+      where: {
+        tenant_id: tenantId,
+        tipo:   dto.tipo as TipoPropiedad,
+        estado: { in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[] },
+        ...(dto.departamento ? { departamento: dto.departamento } : {}),
+        ...(dto.excludeId    ? { id: { not: dto.excludeId } }    : {}),
+        ...gestWhere,
+      },
+      select: {
+        id: true, codigo: true, titulo: true,
+        precio_venta: true, precio_renta: true, area_construccion_m2: true,
+      },
+      take: 20,
+    });
+
+    return rows.map((r) => ({
+      id:                  r.id,
+      codigo:              r.codigo,
+      titulo:              r.titulo,
+      precio_venta:        r.precio_venta        ? Number(r.precio_venta)        : null,
+      precio_renta:        r.precio_renta        ? Number(r.precio_renta)        : null,
+      area_construccion_m2:r.area_construccion_m2? Number(r.area_construccion_m2): null,
+      distancia_m:         null,
+    }));
   }
 
   // ─── PRIVATE: geocoding ─────────────────────────────────────
