@@ -58,9 +58,9 @@
 
 /* Activity score badge */
 .bi-score { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-.bi-score-high { background: #dcfce7; color: #16a34a; }
-.bi-score-mid  { background: #fef9c3; color: #a16207; }
-.bi-score-low  { background: #fee2e2; color: #b91c1c; }
+.bi-score-high { background: rgba(34, 197, 94, 0.15);  color: #86efac; }
+.bi-score-mid  { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+.bi-score-low  { background: rgba(239, 68, 68, 0.15);  color: #fca5a5; }
 
 /* Export button */
 .bi-export-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; }

@@ -27,9 +27,9 @@
   text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
   border: 1px solid var(--border-subtle); border-bottom: none; position: relative;
 }
-.podium-slot-1 .podium-card { background: linear-gradient(145deg, #fef9c3, #fde68a); border-color: #f59e0b; min-height: 190px; }
-.podium-slot-2 .podium-card { background: linear-gradient(145deg, #f1f5f9, #e2e8f0); border-color: #94a3b8; min-height: 155px; }
-.podium-slot-3 .podium-card { background: linear-gradient(145deg, #fff7ed, #fed7aa); border-color: #f97316; min-height: 130px; }
+.podium-slot-1 .podium-card { background: linear-gradient(145deg, rgba(245,158,11,0.2), rgba(217,119,6,0.3)); border-color: #d97706; min-height: 190px; }
+.podium-slot-2 .podium-card { background: linear-gradient(145deg, rgba(148,163,184,0.1), rgba(100,116,139,0.18)); border-color: #64748b; min-height: 155px; }
+.podium-slot-3 .podium-card { background: linear-gradient(145deg, rgba(234,88,12,0.15), rgba(194,65,12,0.25)); border-color: #c2410c; min-height: 130px; }
 
 .podium-medal { font-size: 2rem; line-height: 1; }
 .podium-avatar {
