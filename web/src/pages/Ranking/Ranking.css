@@ -39,8 +39,8 @@
 .podium-slot-1 .podium-avatar { background: #d97706; width: 60px; height: 60px; font-size: 1.5rem; box-shadow: 0 0 0 3px #fbbf24; }
 .podium-slot-2 .podium-avatar { background: #64748b; }
 .podium-slot-3 .podium-avatar { background: #c2410c; }
-.podium-name { font-size: 0.9375rem; font-weight: 700; color: #1e293b; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.podium-pts { font-size: 1.125rem; font-weight: 800; color: #1e293b; }
+.podium-name { font-size: 0.9375rem; font-weight: 700; color: var(--text-primary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium-pts { font-size: 1.125rem; font-weight: 800; color: var(--accent-blue); }
 .podium-pts span { font-size: 0.75rem; font-weight: 400; }
 .podium-yo { position: absolute; top: 8px; right: 8px; font-size: 0.6875rem; background: var(--accent-blue); color: #fff; border-radius: 20px; padding: 2px 7px; font-weight: 700; }
 

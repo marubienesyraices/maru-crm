@@ -55,7 +55,7 @@ function PropertyMap({ lat, lng }: { lat: number; lng: number }) {
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="portal-detail-map" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', fontSize: '0.875rem' }}>
+      <div className="portal-detail-map" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
         Mapa no disponible
       </div>
     );

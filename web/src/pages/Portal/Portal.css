@@ -100,7 +100,7 @@
 }
 
 .portal-input::placeholder {
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .portal-select {
@@ -283,7 +283,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.875rem;
   text-align: center;
   padding: 24px;
@@ -668,7 +668,7 @@
   box-sizing: border-box;
 }
 .portal-form-input:focus { border-color: #3b82f6; }
-.portal-form-input::placeholder { color: #475569; }
+.portal-form-input::placeholder { color: var(--text-muted); }
 .portal-form-input:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .portal-form-textarea { resize: vertical; min-height: 72px; }
