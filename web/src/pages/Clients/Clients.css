@@ -228,7 +228,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .pipeline-timeline-btn {
   position: relative; display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-subtle);
-  background: var(--bg-panel); color: var(--text-muted); font-size: 0.75rem;
+  background: var(--bg-card); color: var(--text-muted); font-size: 0.75rem;
   cursor: pointer; transition: all var(--transition); line-height: 1;
 }
 .pipeline-timeline-btn:hover { border-color: rgba(59,130,246,0.4); color: var(--text-primary); background: rgba(59,130,246,0.08); }
@@ -242,7 +242,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .timeline-drawer {
   position: fixed; top: 0; right: 0; width: min(520px, 100vw); height: 100vh;
-  background: var(--bg-panel); border-left: 1px solid var(--border-subtle);
+  background: var(--bg-secondary); border-left: 1px solid var(--border-subtle);
   box-shadow: -12px 0 40px rgba(0,0,0,0.35); display: flex; flex-direction: column;
   overflow: hidden; z-index: 201;
 }
@@ -258,13 +258,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: var(--bg-card);
 }
 .timeline-form select, .timeline-form input {
-  padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
   font-size: 0.8125rem; outline: none; transition: border-color var(--transition);
 }
 .timeline-form select:focus, .timeline-form input:focus { border-color: var(--accent-blue); }
 .timeline-form textarea {
-  padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
   font-size: 0.8125rem; outline: none; resize: vertical; transition: border-color var(--transition);
 }

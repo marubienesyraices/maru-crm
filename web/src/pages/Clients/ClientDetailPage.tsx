@@ -96,7 +96,7 @@ function NuevoTramiteModal({
             {!selectedProp && (
               <div style={{
                 maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border-subtle)',
-                borderRadius: 8, marginTop: 4, background: 'var(--bg-panel)',
+                borderRadius: 8, marginTop: 4, background: 'var(--bg-card)',
               }}>
                 {loadingProps ? (
                   <div style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Cargando...</div>

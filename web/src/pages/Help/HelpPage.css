@@ -11,13 +11,13 @@
 .help-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary, #111827);
+  color: var(--text-primary);
   margin: 0 0 6px;
 }
 
 .help-subtitle {
   font-size: 0.9375rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   margin: 0 0 20px;
 }
 
@@ -26,16 +26,21 @@
   max-width: 480px;
   padding: 10px 16px;
   font-size: 0.9375rem;
-  border: 1px solid var(--border, #e5e7eb);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--surface, #fff);
-  color: var(--text-primary, #111827);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.help-search::placeholder {
+  color: var(--text-muted);
 }
 
 .help-search:focus {
-  border-color: var(--accent-primary, #3b82f6);
+  border-color: var(--accent-blue);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
@@ -65,23 +70,24 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary, #374151);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
   transition: background 0.12s, color 0.12s;
   width: 100%;
+  font-family: inherit;
 }
 
 .help-nav-item:hover {
-  background: var(--surface-hover, #f3f4f6);
-  color: var(--text-primary, #111827);
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
 }
 
 .help-nav-active {
-  background: var(--accent-soft, #eff6ff);
-  color: var(--accent-primary, #3b82f6);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-blue);
   font-weight: 600;
 }
 
@@ -94,7 +100,7 @@
 .help-section-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary, #111827);
+  color: var(--text-primary);
   margin: 0 0 20px;
   display: flex;
   align-items: center;
@@ -110,10 +116,10 @@
 }
 
 .help-faq-item {
-  border: 1px solid var(--border, #e5e7eb);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
-  background: var(--surface, #fff);
+  background: var(--bg-card);
 }
 
 .help-faq-question {
@@ -124,64 +130,64 @@
   padding: 14px 18px;
   border: none;
   background: transparent;
-  color: var(--text-primary, #111827);
+  color: var(--text-primary);
   font-size: 0.9375rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
   transition: background 0.12s;
   gap: 12px;
+  font-family: inherit;
 }
 
 .help-faq-question:hover {
-  background: var(--surface-hover, #f9fafb);
+  background: var(--bg-card-hover);
 }
 
 .help-faq-chevron {
   font-size: 0.75rem;
   flex-shrink: 0;
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-muted);
 }
 
 .help-faq-answer {
-  padding: 0 18px 16px;
+  padding: 14px 18px 16px;
   font-size: 0.9rem;
   line-height: 1.65;
-  color: var(--text-secondary, #374151);
-  border-top: 1px solid var(--border, #e5e7eb);
-  padding-top: 14px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .help-empty {
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-muted);
   font-size: 0.9rem;
   padding: 24px 0;
 }
 
 /* Contact card */
 .help-contact-card {
-  border: 1px solid var(--border, #e5e7eb);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 20px 24px;
-  background: var(--surface-alt, #f9fafb);
+  background: var(--bg-secondary);
 }
 
 .help-contact-title {
   font-weight: 700;
-  color: var(--text-primary, #111827);
+  color: var(--text-primary);
   margin: 0 0 6px;
   font-size: 0.9375rem;
 }
 
 .help-contact-text {
-  color: var(--text-secondary, #374151);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   margin: 0;
   line-height: 1.6;
 }
 
 .help-contact-text a {
-  color: var(--accent-primary, #3b82f6);
+  color: var(--accent-blue);
   text-decoration: none;
 }
 

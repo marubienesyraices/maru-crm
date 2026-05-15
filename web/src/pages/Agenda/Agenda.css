@@ -55,7 +55,7 @@
   justify-content: space-between;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-panel);
+  background: var(--bg-card);
   flex-shrink: 0;
 }
 
@@ -129,7 +129,7 @@
 /* ─── Event Card ────────────────────────────────────────────── */
 
 .agenda-event {
-  background: var(--bg-panel);
+  background: var(--bg-card);
   border-radius: 6px;
   padding: 7px 8px;
   display: flex;
@@ -227,7 +227,7 @@
 }
 
 .agenda-modal {
-  background: var(--bg-panel);
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);

@@ -62,7 +62,7 @@ function AgendarVisitaForm({
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', boxSizing: 'border-box',
-    background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)',
+    background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
     borderRadius: 6, color: 'var(--text-primary)', fontFamily: 'inherit',
     fontSize: '0.8125rem', outline: 'none',
   };
