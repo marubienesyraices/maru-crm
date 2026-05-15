@@ -246,7 +246,7 @@ function NuevaTab({ token, onCreated }: { token: string; onCreated: () => void }
             className="meta-field select"
             value={propiedadId}
             onChange={(e) => setPropiedadId(e.target.value)}
-            style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', padding: '8px 12px', fontSize: '0.875rem' }}
+            style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, color: 'var(--text-primary)', padding: '8px 12px', fontSize: '0.875rem' }}
           >
             <option value="">Sin propiedad</option>
             {propiedades.map((p) => (
@@ -320,7 +320,7 @@ function NuevaTab({ token, onCreated }: { token: string; onCreated: () => void }
               min={minDatetime}
               value={programadoPara}
               onChange={(e) => setProgramadoPara(e.target.value)}
-              style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', padding: '8px 12px', fontSize: '0.875rem' }}
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, color: 'var(--text-primary)', padding: '8px 12px', fontSize: '0.875rem' }}
             />
           </div>
         )}

@@ -415,7 +415,7 @@ export default function PropertyFormPage() {
             </div>
 
             {/* ── Motor de precios sugerido (PostGIS) ── */}
-            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>💡 Motor de Precios</span>
                 <button
@@ -440,7 +440,7 @@ export default function PropertyFormPage() {
 
               {suggestion && (
                 <div style={{
-                  background: 'var(--bg-elevated)',
+                  background: 'var(--bg-card)',
                   border: `1px solid ${suggestion.confianza === 'ALTA' ? '#22c55e44' : suggestion.confianza === 'MEDIA' ? '#f59e0b44' : '#6b728044'}`,
                   borderRadius: 8,
                   padding: '14px 16px',
@@ -537,7 +537,7 @@ export default function PropertyFormPage() {
                         </thead>
                         <tbody>
                           {suggestion.comparables.map((c: any) => (
-                            <tr key={c.id} style={{ borderTop: '1px solid var(--border)' }}>
+                            <tr key={c.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
                               <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)' }}>{c.codigo}</td>
                               <td style={{ padding: '4px 8px' }}>{c.titulo}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right' }}>
@@ -668,7 +668,7 @@ export default function PropertyFormPage() {
               if (isNaN(lat) || isNaN(lng)) return null;
               const src = `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-s+3b82f6(${lng},${lat})/${lng},${lat},14,0/640x180@2x?access_token=${token}`;
               return (
-                <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
                   <img src={src} alt="Mapa" style={{ width: '100%', display: 'block' }} />
                   <p style={{ margin: 0, padding: '6px 12px', fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'var(--bg-card)' }}>
                     📍 {lat.toFixed(5)}, {lng.toFixed(5)}

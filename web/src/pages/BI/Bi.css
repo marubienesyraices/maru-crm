@@ -6,25 +6,25 @@
 .bi-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bi-filters label { font-size: 0.8125rem; color: var(--text-muted); }
 .bi-filters input[type="date"] {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px;
   color: var(--text-primary); padding: 6px 10px; font-size: 0.8125rem; cursor: pointer;
 }
-.bi-filters input[type="date"]:focus { outline: none; border-color: var(--accent); }
+.bi-filters input[type="date"]:focus { outline: none; border-color: var(--accent-blue); }
 
 /* Tabs */
-.bi-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.bi-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 24px; }
 .bi-tab {
   padding: 8px 18px; background: none; border: none; border-bottom: 2px solid transparent;
   cursor: pointer; color: var(--text-muted); font-size: 0.9375rem; font-weight: 500;
   transition: color 0.15s, border-color 0.15s;
 }
 .bi-tab:hover { color: var(--text-primary); }
-.bi-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.bi-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
 
 /* KPI grid */
 .bi-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .bi-kpi {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px;
   padding: 20px; display: flex; flex-direction: column; gap: 6px;
 }
 .bi-kpi-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -32,11 +32,11 @@
 .bi-kpi-sub { font-size: 0.8125rem; color: var(--text-muted); }
 
 /* Funnel */
-.bi-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.bi-section { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .bi-section h3 { margin: 0 0 16px; font-size: 1rem; }
 .funnel-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .funnel-label { width: 130px; font-size: 0.8125rem; color: var(--text-muted); flex-shrink: 0; }
-.funnel-bar-wrap { flex: 1; background: var(--bg-base); border-radius: 6px; height: 24px; overflow: hidden; }
+.funnel-bar-wrap { flex: 1; background: var(--bg-input); border-radius: 6px; height: 24px; overflow: hidden; }
 .funnel-bar { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
 .funnel-count { width: 40px; text-align: right; font-size: 0.8125rem; font-weight: 600; }
 
@@ -46,15 +46,15 @@
 .bi-table th {
   text-align: left; padding: 10px 12px; font-size: 0.75rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
-  border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap;
+  border-bottom: 1px solid var(--border-subtle); cursor: pointer; user-select: none; white-space: nowrap;
 }
 .bi-table th:hover { color: var(--text-primary); }
-.bi-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.bi-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
 .bi-table tr:last-child td { border-bottom: none; }
-.bi-table tr:hover td { background: var(--bg-hover); }
+.bi-table tr:hover td { background: var(--bg-card-hover); }
 .bi-conv-bar { display: flex; align-items: center; gap: 8px; }
-.bi-conv-track { width: 80px; height: 8px; background: var(--bg-base); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-.bi-conv-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+.bi-conv-track { width: 80px; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.bi-conv-fill { height: 100%; border-radius: 4px; background: var(--accent-blue); }
 
 /* Activity score badge */
 .bi-score { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
@@ -71,4 +71,4 @@
 /* Productividad tab */
 .prod-count-cell { text-align: center; }
 .prod-spark-cell { padding: 6px 12px; }
-.prod-totals-row td { border-top: 2px solid var(--border); background: var(--bg-hover); }
+.prod-totals-row td { border-top: 2px solid var(--border-subtle); background: var(--bg-card-hover); }

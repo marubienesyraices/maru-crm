@@ -353,7 +353,7 @@ function Sparkline({ data, width = 72, height = 26 }: { data: { total: number }[
             width={barW}
             height={h}
             rx={1}
-            fill="var(--accent)"
+            fill="var(--accent-blue)"
             opacity={0.75}
           />
         );

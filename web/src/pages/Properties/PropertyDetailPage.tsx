@@ -544,7 +544,7 @@ export default function PropertyDetailPage() {
           <div style={{
             background: 'var(--bg-card)', borderRadius: 12, padding: 28,
             width: '100%', maxWidth: 480,
-            border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 16,
+            border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 16,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0 }}>📲 Compartir por WhatsApp</h3>
@@ -618,7 +618,7 @@ export default function PropertyDetailPage() {
 
             {/* Historial */}
             {waHistorial.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 14 }}>
                 <p style={{ margin: '0 0 10px', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                   Envíos anteriores
                 </p>

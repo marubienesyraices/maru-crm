@@ -64,7 +64,7 @@ export default function ImportPage() {
       {/* Instructions */}
       <div style={{
         marginTop: 32, padding: '20px 24px',
-        background: 'var(--bg-card)', border: '1px solid var(--border)',
+        background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
         borderRadius: 10,
       }}>
         <h3 style={{ margin: '0 0 12px', fontSize: '0.9375rem', fontWeight: 600 }}>
