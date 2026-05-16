@@ -462,12 +462,12 @@ export default function PropertyFormPage() {
                         Confianza {suggestion.confianza}
                       </span>
                     )}
-                    {suggestion.usa_postgis && (
+                    {suggestion.usa_geo && (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         📍 Radio {suggestion.radio_km} km
                       </span>
                     )}
-                    {!suggestion.usa_postgis && suggestion.comparable_count > 0 && (
+                    {!suggestion.usa_geo && suggestion.comparable_count > 0 && (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>📂 Por departamento</span>
                     )}
                   </div>
@@ -532,7 +532,7 @@ export default function PropertyFormPage() {
                             <th style={{ padding: '4px 8px', fontWeight: 500 }}>Título</th>
                             <th style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Precio venta</th>
                             <th style={{ padding: '4px 8px', fontWeight: 500, textAlign: 'right' }}>Precio renta</th>
-                            {suggestion.usa_postgis && <th style={{ padding: '4px 0 4px 8px', fontWeight: 500, textAlign: 'right' }}>Distancia</th>}
+                            {suggestion.usa_geo && <th style={{ padding: '4px 0 4px 8px', fontWeight: 500, textAlign: 'right' }}>Distancia</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -546,7 +546,7 @@ export default function PropertyFormPage() {
                               <td style={{ padding: '4px 8px', textAlign: 'right' }}>
                                 {c.precio_renta ? Number(c.precio_renta).toLocaleString() : '—'}
                               </td>
-                              {suggestion.usa_postgis && (
+                              {suggestion.usa_geo && (
                                 <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: 'var(--text-muted)' }}>
                                   {c.distancia_m != null ? `${(c.distancia_m / 1000).toFixed(1)} km` : '—'}
                                 </td>

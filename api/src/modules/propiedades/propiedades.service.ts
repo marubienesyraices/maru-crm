@@ -309,7 +309,7 @@ export class PropiedadesService {
         comparable_count: 0,
         radio_km: dto.radioKm ?? 5,
         confianza: 'SIN_DATOS' as const,
-        usa_postgis: dto.lat != null && dto.lng != null,
+        usa_geo: dto.lat != null && dto.lng != null,
         comparables: [],
       };
     }
@@ -335,7 +335,7 @@ export class PropiedadesService {
       comparable_count: n,
       radio_km: dto.radioKm ?? 5,
       confianza: n >= 5 ? 'ALTA' as const : n >= 2 ? 'MEDIA' as const : 'BAJA' as const,
-      usa_postgis: dto.lat != null && dto.lng != null,
+      usa_geo: dto.lat != null && dto.lng != null,
       comparables: filtered.slice(0, 5).map((c) => ({
         id: c.id,
         codigo: c.codigo,
