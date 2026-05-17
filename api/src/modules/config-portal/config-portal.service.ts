@@ -72,18 +72,22 @@ export class ConfigPortalService {
       });
 
     const domainSql = Prisma.sql`
-      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
+      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+             COALESCE(cat.tiene_portal, false) AS tiene_portal
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
+      LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
       WHERE cp.dominio_personalizado = ${host}
         AND cp.portal_activo = true
         AND t.estado = 'ACTIVA'
       LIMIT 1`;
 
     const subdomainSql = Prisma.sql`
-      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
+      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+             COALESCE(cat.tiene_portal, false) AS tiene_portal
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
+      LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
       WHERE cp.subdominio = ${subdomain}
         AND cp.portal_activo = true
         AND t.estado = 'ACTIVA'
@@ -112,9 +116,11 @@ export class ConfigPortalService {
     const rows = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'true'`);
       return tx.$queryRaw<any[]>`
-        SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
+        SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+               COALESCE(cat.tiene_portal, false) AS tiene_portal
         FROM config_portal cp
         JOIN tenants t ON t.id = cp.tenant_id
+        LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
         WHERE cp.portal_activo = true AND t.estado = 'ACTIVA'
         ORDER BY t.created_at ASC
         LIMIT 1

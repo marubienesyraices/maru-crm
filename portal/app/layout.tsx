@@ -36,6 +36,24 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = await getPortalConfig();
 
+  if (config.tenant_id && config.tiene_portal === false) {
+    const company = displayName(config);
+    return (
+      <html lang="es">
+        <body style={{ margin: 0, padding: 0, fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', background: '#f1f5f9', color: '#475569' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', textAlign: 'center', padding: '32px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>Portal no disponible</h1>
+            <p style={{ maxWidth: '400px', lineHeight: 1.7, margin: 0 }}>
+              El portal público de <strong>{company}</strong> no está disponible en el plan actual.
+              Contacta con tu inmobiliaria para más información.
+            </p>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>

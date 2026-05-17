@@ -38,6 +38,7 @@ export interface PortalConfig {
   mapa_zoom_default?: number | null;
   logo_url?: string | null;
   tenant_nombre?: string | null;
+  tiene_portal?: boolean;
 }
 
 const DEFAULTS: PortalConfig = {
