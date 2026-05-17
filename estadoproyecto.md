@@ -1,9 +1,9 @@
 # Estado del Proyecto — CRM GestPro
 
-> **Fecha de revisión:** 9 de mayo de 2026
+> **Fecha de revisión:** 16 de mayo de 2026
 > **Rama:** master
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
-> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ 100% · Fase 3 ✅ 100% · Fase 4 ✅ 100% · Fase 5 ✅ ~95%
+> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ 100% · Fase 3 ✅ 100% · Fase 4 ✅ 100% · Fase 5 ✅ 100% · **Sistema de Planes ✅ 100%**
 
 ---
 
@@ -15,7 +15,7 @@
 | 2 | Propiedades, Clientes y Portal | ✅ Completa | ~55 | 52 | ~100% |
 | 3 | Embudo de Ventas, Interacciones y Agenda | ✅ Completa | ~57 | 57 | 100% |
 | 4 | Marketing, BI y Automatización | ✅ Completa | ~40 | 40 | 100% |
-| 5 | Integraciones, App Móvil y Go-Live | ✅ Completa | ~20 | 21+ | ~95% |
+| 5 | Integraciones, App Móvil y Go-Live | ✅ Completa | ~20 | 21+ | 100% |
 | | **TOTAL** | | **~230** | **227** | **~99%** |
 
 ---
@@ -317,7 +317,7 @@
 - [x] Accesibilidad WCAG 2.1 AA — skip link, aria-label en nav/botones, aria-expanded, role=dialog/list/status, aria-live en notificaciones y búsqueda global
 - [x] Swagger/OpenAPI — UI en `/api/docs`; plugin CLI; todos los controllers anotados
 
-### Fase 5 ✅ Completa (~95%)
+### Fase 5 ✅ Completa (100%)
 - [x] Dockerfiles multi-stage para api, web, portal
 - [x] `docker-compose.prod.yml` con 7 servicios (postgres, redis, api, migrate, web, portal, nginx, backup)
 - [x] Nginx reverse proxy con HTTPS/HTTP2 y cabeceras de seguridad
@@ -342,13 +342,13 @@
 
 | Capa | Artefacto | Cantidad |
 |:-----|:----------|:--------:|
-| API — módulos NestJS | auth, users, tenants, audit, propiedades, propietarios, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas | 27 |
-| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), propietarios, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi, meta, sindicacion, firma-digital, videollamadas | 27 |
-| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, Propietario, PropiedadImagen, PropiedadDocumento, Cliente, ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud | 22 |
-| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
-| Frontend — páginas CRM | Login, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline, Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi, Campanas, Ranking, Meta, AdminTenants, AdminUsers, **Help** | 23 |
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, propietarios, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal**, **config-integraciones** | 30 |
+| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), propietarios, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi, meta, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal** (privado+público), **config-integraciones** | 30 |
+| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, Propietario, PropiedadImagen, PropiedadDocumento, Cliente, ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, **CatalogoPlan** | 23 |
+| BD — enums | Plan (FREE/BASIC/PRO/ENTERPRISE), EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
+| Frontend — páginas CRM | Login, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline, Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi, Campanas, Ranking, Meta, AdminTenants, AdminUsers, **AdminPlanes**, Settings (Portal, Integraciones, Perfil), Help | 26 |
 | Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + `RegistroInteresForm`), `/verificar` (activación de cuenta) | 3 |
-| Tests unitarios | 144 tests en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, + 2 más) | 144 |
+| Tests unitarios | 156 tests en 14 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, OWASP security 1, + 2 más) | 156 |
 | Tests E2E Cypress | 6 suites en `web/cypress/e2e/`: 01-auth, 02-propiedades, 03-pipeline, 04-agenda, 05-clientes, 06-busqueda-global; comandos `loginAs`/`logout`; integrado en CI | 6 |
 | Tests de carga k6 | `infra/k6/`: auth.js (50 VU), pipeline.js (50 VU), portal-publico.js (100 VU); umbrales p95 < 500ms | 3 |
 | Tests de seguridad OWASP | `api/src/__tests__/security/owasp.security.spec.ts` — A01 (acceso/JWT/IDOR), A02, A03 (SQL/proto), A05, A06 (versiones), A07 (alg:none/brute), A09 | 1 suite |
@@ -395,8 +395,43 @@
 ### Pendiente (deuda menor)
 - **Migración de datos one-shot** — `ImportPage` cubre CSV/Excel manual; si hay datos legacy en otro sistema, se necesita un script de migración ad-hoc
 
+> **Estado actual (16-may-2026):** Sistema de planes completamente implementado. 156 tests pasando. Sin deuda técnica relevante.
+
 ### Completado en sesión 9-may-2026 (continuación)
 - ~~**RLS policies para nuevas tablas**~~ ✅ Completado — `migration_v2.sql` creado y aplicado en BD; 22 tablas con RLS activo (13 con `tenant_id` directo + 5 hijas vía subquery + 4 de Fase 1); migraciones Prisma pendientes aplicadas (`whatsapp_envios`, `meta_publicaciones`, `sindicacion_publicaciones`, `firma_solicitudes`, BI indexes); migration file faltante `20260503100000_add_reporte_visita` restaurado
 - ~~**TanStack Query**~~ ✅ Completado — `QueryClientProvider` (staleTime 30s, gcTime 5min) en `main.tsx`; 4 hooks de dominio en `web/src/hooks/` (`usePropiedades`, `useClientes`, `usePipeline`, `useVisitas`); 5 páginas migradas (Dashboard, PropertiesList, ClientsList, PipelinePage, AgendaPage); invalidación automática de caché post-mutación; actualización optimista con rollback en Kanban Pipeline
 - ~~**Buffer entre citas validado en UI**~~ ✅ Completado — `GET /api/visitas/config` nuevo endpoint; `useVisitasConfig()` hook (staleTime 5min); `useConflictCheck()` pura en `VisitaFormModal`; borde ámbar en inputs de fecha conflictivos; aviso con horario de visita existente y buffer requerido; no bloquea submit (warning, no error hard)
 - ~~**UI para Sindicación / Firma Digital / Videollamadas**~~ ✅ Completado — `useSindicacion.ts` + `useFirma.ts` hooks; `SindicacionPanel` en `PropertyDetailPage` (ADMIN/SUPER_ADMIN): filas por portal con estado badge, link al anuncio, botones Publicar/Retirar; `FirmaPanel` en `PropertyDetailPage`: form solicitar firma (ADMIN/SENIOR/SUPER_ADMIN), lista de solicitudes con estado/link DocuSign; Zoom en `VisitaCard` de `AgendaPage`: `useCrearMeeting`/`useEliminarMeeting` hooks, botón 📹 crear / 🎥 unirse + 🗑️ eliminar, loading por visita
+
+### Completado en sesión 16-may-2026 — Sistema de Planes
+
+#### Catálogo de planes configurable
+- ~~**`CatalogoPlan` modelo Prisma + migración**~~ ✅ — Enum `BASIC` agregado; modelo `CatalogoPlan` con flags booleanos (`tiene_correo`, `tiene_campanas`, `tiene_portal`, `tiene_sitio_propio`, `tiene_integraciones`) y límites numéricos; seed inicial con valores FREE/BASIC/PRO/ENTERPRISE
+- ~~**Módulo `catalogo-planes` CRUD SUPER_ADMIN**~~ ✅ — `GET /api/catalogo-planes`, `PUT /api/catalogo-planes/:plan`; solo SUPER_ADMIN; lectura pública implícita vía TenantsService
+- ~~**`AdminPlanesPage`**~~ ✅ — Tabla de los 4 planes con todos sus valores; modal edición con toggles y campos numéricos; ruta `/admin/planes`; entrada "Planes" en sidebar SUPER_ADMIN
+- ~~**`TenantsService`: derivar límites del catálogo**~~ ✅ — Al crear tenant, lee `catalogoPlan.limite_usuarios/propiedades` en lugar de valores hardcodeados; al actualizar plan, adopta automáticamente los del catálogo si no hay overrides manuales; validación que el nuevo límite no viole el conteo actual
+
+#### PlanGuard — restricción por funcionalidad
+- ~~**`@PlanFeature(key)` decorator + `PlanGuard`**~~ ✅ — Decorator `SetMetadata` con claves `tiene_correo/campanas/portal/sitio_propio/integraciones`; guard lee `CatalogoPlan` en tiempo real por `tenantId` del JWT; SUPER_ADMIN bypass; aplicado con `@UseGuards(JwtAuthGuard, RolesGuard, PlanGuard)` por controller
+- ~~**Guard aplicado a controladores**~~ ✅ — `CampanasController` (`tiene_campanas`), `ConfigIntegracionesController` (`tiene_integraciones`), `ConfigPortalController` privado (`tiene_portal`)
+- ~~**`ConfigPortalService.update()`: strip sitio propio**~~ ✅ — Si plan no incluye `tiene_sitio_propio`, elimina `subdominio` y `dominio_personalizado` del DTO antes de persistir
+
+#### Restricciones de plan en frontend (web/)
+- ~~**`authStore`: `plan`, `limiteUsuarios`, `limitePropiedades`**~~ ✅ — Cargados desde `GET /api/tenants/branding` al login, verify2FA y restore de sesión; limpiados en logout/forceLogout
+- ~~**Sidebar filtrado por plan**~~ ✅ — `planIncludes()` helper en `AppLayout`; "Campañas" (PRO/ENTERPRISE), "Mi Portal" y "Portal público" (BASIC+), "Integraciones" (ENTERPRISE); muestra todos mientras plan carga (evita flicker)
+- ~~**`PlanRoute` para rutas sensibles**~~ ✅ — `<PlanRoute allowedPlans={[...]}>` en `/campanas` (PRO/ENTERPRISE) y `/settings/integraciones` (ENTERPRISE); bloquea navegación directa por URL
+- ~~**`PropertiesListPage`: límite de propiedades**~~ ✅ — `LimitPill` (verde/ámbar/rojo según %); botón "Nueva Propiedad" deshabilitado al límite; banner rojo; estado vacío sin CTA al límite
+- ~~**`AdminUsersPage`: límite de usuarios**~~ ✅ — Stat card "Capacidad" `N / límite`; botón "Nuevo Usuario" deshabilitado; banner rojo
+- ~~**`AdminTenantsPage`: validación al cambiar plan**~~ ✅ — Selector de plan auto-completa límites del catálogo; warnings en rojo si conteo actual supera nuevos límites antes de guardar; columna "Propiedades" en tabla; bloqueo en backend con `BadRequestException`
+- ~~**`SettingsPortalPage`: campos locked**~~ ✅ — Subdominio y dominio personalizado deshabilitados con badge "Plan PRO+" para FREE/BASIC
+
+#### Portal Next.js — plan enforcement
+- ~~**`findByDomain()` + `findDefault()` con plan check**~~ ✅ — `LEFT JOIN catalogo_planes` en ambas consultas SQL raw; expone `tiene_portal` en la respuesta (incluido en caché Redis)
+- ~~**`PortalConfig.tiene_portal`**~~ ✅ — Campo opcional en la interfaz; `DEFAULTS` no lo setea (dev/fallback siempre visible)
+- ~~**`layout.tsx` gate**~~ ✅ — Si `config.tenant_id` existe pero `tiene_portal === false`, renderiza página de bloqueo ("Portal no disponible") sin montar hijos; todos los children (listing + detail) quedan bloqueados automáticamente
+
+#### Email plan enforcement completo
+- ~~**`sendHtml()` con plan check**~~ ✅ — Agrega `planAllowsEmail(tenantId)` al inicio; el único método de envío que faltaba
+- ~~**`users.service.ts`: tenantId en activation emails**~~ ✅ — `create()` pasa `tenantId`; `createAdmin()` pasa `dto.tenantId`
+- ~~**`visitas.service.ts`: tenantId en email de confirmación de visita**~~ ✅ — `sendVisitaEmail()` acepta `tenantId` en `info`; pasa a `sendHtml()`
+- ~~**`portal.service.ts`: tenantId en email de verificación**~~ ✅ — `sendVerificationEmail()` acepta `tenantId?` y lo pasa a `sendHtml()`; callers ya tenían `tenantId` en scope
