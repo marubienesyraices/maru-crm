@@ -8,6 +8,7 @@ export type MockPrismaService = {
   session: { [key: string]: jest.Mock };
   auditLog: { [key: string]: jest.Mock };
   configSeguridad: { [key: string]: jest.Mock };
+  catalogoPlan: { [key: string]: jest.Mock };
   propiedad: { [key: string]: jest.Mock };
   propietario: { [key: string]: jest.Mock };
   propiedadImagen: { [key: string]: jest.Mock };
@@ -57,6 +58,11 @@ export function createMockPrismaService(): MockPrismaService {
     configSeguridad: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    catalogoPlan: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
     },
     propiedad: {

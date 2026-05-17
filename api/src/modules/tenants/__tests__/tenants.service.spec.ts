@@ -19,6 +19,7 @@ describe('TenantsService', () => {
   });
 
   it('debe crear tenant con admin', async () => {
+    prisma.catalogoPlan.findUnique.mockResolvedValue({ limite_usuarios: 1, limite_propiedades: 5 });
     prisma.tenant.create.mockResolvedValue(mockTenant);
     prisma.configSeguridad.create.mockResolvedValue({});
     prisma.user.create.mockResolvedValue({ id: 'a1', email: 'a@b.com' });
