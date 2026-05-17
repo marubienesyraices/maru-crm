@@ -79,7 +79,7 @@ export class ConfigPortalService {
       LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
       WHERE cp.dominio_personalizado = ${host}
         AND cp.portal_activo = true
-        AND t.estado = 'ACTIVA'
+        AND t.estado IN ('ACTIVA', 'TRIAL')
       LIMIT 1`;
 
     const subdomainSql = Prisma.sql`
@@ -90,7 +90,7 @@ export class ConfigPortalService {
       LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
       WHERE cp.subdominio = ${subdomain}
         AND cp.portal_activo = true
-        AND t.estado = 'ACTIVA'
+        AND t.estado IN ('ACTIVA', 'TRIAL')
       LIMIT 1`;
 
     const [byDomain, bySubdomain] = await Promise.all([
@@ -121,7 +121,7 @@ export class ConfigPortalService {
         FROM config_portal cp
         JOIN tenants t ON t.id = cp.tenant_id
         LEFT JOIN catalogo_planes cat ON cat.plan = t.plan
-        WHERE cp.portal_activo = true AND t.estado = 'ACTIVA'
+        WHERE cp.portal_activo = true AND t.estado IN ('ACTIVA', 'TRIAL')
         ORDER BY t.created_at ASC
         LIMIT 1
       `;
