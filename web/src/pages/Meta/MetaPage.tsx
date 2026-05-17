@@ -375,7 +375,7 @@ export default function MetaPage() {
           <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔒</div>
           <h2 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>Función no disponible en tu plan</h2>
           <p style={{ color: 'var(--text-muted)', maxWidth: 420, marginInline: 'auto' }}>
-            La publicación automática en Facebook e Instagram está disponible a partir del plan <strong>PRO</strong>.
+            Tu plan actual no incluye la publicación automática en Facebook e Instagram.
             Contacta con el administrador para actualizar tu plan.
           </p>
         </div>

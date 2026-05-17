@@ -50,13 +50,13 @@ function isConfigured(v: string) { return v && v !== '' && !isMasked(v) || v ===
 
 // ─── Sub-components ──────────────────────────────────────────
 
-function PlanLockedCard({ feature, requiredPlan }: { feature: string; requiredPlan: string }) {
+function PlanLockedCard({ feature }: { feature: string }) {
   return (
     <div className="settings-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
       <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔒</div>
       <h2 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>{feature}</h2>
       <p style={{ color: 'var(--text-muted)', margin: '0 0 24px', maxWidth: 420, marginInline: 'auto' }}>
-        Esta funcionalidad está disponible a partir del plan <strong>{requiredPlan}</strong>.
+        Tu plan actual no incluye esta funcionalidad.
         Contacta con el administrador para actualizar tu plan.
       </p>
       <span className="settings-badge settings-badge-off">Plan no incluye esta función</span>
@@ -389,7 +389,7 @@ export default function SettingsIntegracionesPage() {
               key={s.id}
               className={`settings-tab${activeSection === s.id ? ' active' : ''}${locked ? ' settings-tab-locked' : ''}`}
               onClick={() => setActiveSection(s.id)}
-              title={locked ? 'Requiere plan ENTERPRISE' : undefined}
+              title={locked ? 'No disponible en tu plan actual' : undefined}
             >
               {s.icon} {s.label}{locked ? ' 🔒' : ''}
             </button>
@@ -401,7 +401,7 @@ export default function SettingsIntegracionesPage() {
       {activeSection === 'whatsapp'    && <WhatsAppSection    {...sectionProps} />}
       {activeSection === 'meta'        && (
         planFeatures !== null && !planFeatures.tiene_integraciones
-          ? <PlanLockedCard feature="Publicación en Meta (Facebook / Instagram)" requiredPlan="ENTERPRISE" />
+          ? <PlanLockedCard feature="Publicación en Meta (Facebook / Instagram)" />
           : <MetaSection {...sectionProps} />
       )}
       {activeSection === 'zoom'        && <ZoomSection        {...sectionProps} />}
