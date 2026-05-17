@@ -137,7 +137,7 @@ export class PortalService {
           where: { id: existing.id },
           data: { activation_token: token, activation_expires: expires },
         });
-        await this.sendVerificationEmail(dto.email, existing.nombre, token);
+        await this.sendVerificationEmail(dto.email, existing.nombre, token, tenantId);
       }
       // Silent success whether verified or not — no email enumeration
       return { message: 'Revisa tu correo para confirmar el registro' };
@@ -172,7 +172,7 @@ export class PortalService {
       }
     }
 
-    await this.sendVerificationEmail(dto.email, dto.nombre, token);
+    await this.sendVerificationEmail(dto.email, dto.nombre, token, tenantId);
     return { message: 'Revisa tu correo para confirmar el registro' };
   }
 
@@ -320,13 +320,14 @@ export class PortalService {
 
   // ─── Private helpers ─────────────────────────────────────────
 
-  private async sendVerificationEmail(email: string, nombre: string, token: string) {
+  private async sendVerificationEmail(email: string, nombre: string, token: string, tenantId?: string) {
     const url = `${this.portalUrl}?token=${token}`;
     try {
       await this.email.sendHtml({
         to: email,
         subject: 'Confirma tu registro — GestPro',
         html: this.buildVerificationHtml(nombre, url),
+        tenantId,
       });
     } catch (err) {
       this.logger.warn(`Verification email failed to ${email}: ${err}`);

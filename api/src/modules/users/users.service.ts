@@ -70,6 +70,7 @@ export class UsersService {
       heading: `¡Bienvenido/a, ${user.nombre}!`,
       body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en GestPro CRM. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
+      tenantId,
     }).catch(() => {});
 
     return { ...user, activationToken };
@@ -256,6 +257,7 @@ export class UsersService {
       heading: `¡Bienvenido/a, ${user.nombre}!`,
       body: `Tu cuenta como <strong>Administrador</strong> ha sido creada en GestPro CRM para la empresa <strong>${tenant.nombre}</strong>. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
+      tenantId: dto.tenantId,
     }).catch(() => {});
 
     return { ...user, activationToken };

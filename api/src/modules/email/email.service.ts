@@ -128,6 +128,8 @@ export class EmailService {
   }
 
   async sendHtml(params: { to: string; subject: string; html: string; tenantId?: string }): Promise<void> {
+    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
+
     const { resend, from } = await this.resolveClient(params.tenantId);
     if (!resend) return;
     try {

@@ -118,6 +118,7 @@ export class VisitasService {
         ubicacion: dto.ubicacion,
         agente: visita.agente,
         token: rescheduleToken,
+        tenantId,
       }).catch((err) => this.logger.warn(`Visit email failed: ${err}`));
     }
 
@@ -402,6 +403,7 @@ export class VisitasService {
       ubicacion?: string;
       agente: { nombre: string };
       token: string;
+      tenantId: string;
     },
   ) {
     const url = `${this.frontendUrl}/portal/reprogramar/${info.token}`;
@@ -413,6 +415,7 @@ export class VisitasService {
     await this.email.sendHtml({
       to,
       subject: `Tu visita ha sido agendada — ${info.propiedad.codigo}`,
+      tenantId: info.tenantId,
       html: `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
