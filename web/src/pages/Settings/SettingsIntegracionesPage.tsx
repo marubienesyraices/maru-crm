@@ -50,6 +50,20 @@ function isConfigured(v: string) { return v && v !== '' && !isMasked(v) || v ===
 
 // ─── Sub-components ──────────────────────────────────────────
 
+function PlanLockedCard({ feature, requiredPlan }: { feature: string; requiredPlan: string }) {
+  return (
+    <div className="settings-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+      <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔒</div>
+      <h2 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>{feature}</h2>
+      <p style={{ color: 'var(--text-muted)', margin: '0 0 24px', maxWidth: 420, marginInline: 'auto' }}>
+        Esta funcionalidad está disponible a partir del plan <strong>{requiredPlan}</strong>.
+        Contacta con el administrador para actualizar tu plan.
+      </p>
+      <span className="settings-badge settings-badge-off">Plan no incluye esta función</span>
+    </div>
+  );
+}
+
 function StatusBadge({ configured }: { configured: boolean }) {
   return (
     <span className={`settings-badge ${configured ? 'settings-badge-ok' : 'settings-badge-off'}`}>
@@ -307,7 +321,7 @@ const emptyConfig: IntegConfig = {
 };
 
 export default function SettingsIntegracionesPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, planFeatures } = useAuthStore();
   const toast = useToast();
   const [activeSection, setActiveSection] = useState<Section>('email');
   const [loading, setLoading] = useState(true);
@@ -368,20 +382,28 @@ export default function SettingsIntegracionesPage() {
 
       {/* Mobile tabs / Desktop pills */}
       <div className="settings-tabs" style={{ marginBottom: 24 }}>
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            className={`settings-tab${activeSection === s.id ? ' active' : ''}`}
-            onClick={() => setActiveSection(s.id)}
-          >
-            {s.icon} {s.label}
-          </button>
-        ))}
+        {SECTIONS.map((s) => {
+          const locked = s.id === 'meta' && planFeatures !== null && !planFeatures.tiene_meta;
+          return (
+            <button
+              key={s.id}
+              className={`settings-tab${activeSection === s.id ? ' active' : ''}${locked ? ' settings-tab-locked' : ''}`}
+              onClick={() => setActiveSection(s.id)}
+              title={locked ? 'Requiere plan PRO o superior' : undefined}
+            >
+              {s.icon} {s.label}{locked ? ' 🔒' : ''}
+            </button>
+          );
+        })}
       </div>
 
       {activeSection === 'email'       && <EmailSection       {...sectionProps} />}
       {activeSection === 'whatsapp'    && <WhatsAppSection    {...sectionProps} />}
-      {activeSection === 'meta'        && <MetaSection        {...sectionProps} />}
+      {activeSection === 'meta'        && (
+        planFeatures !== null && !planFeatures.tiene_meta
+          ? <PlanLockedCard feature="Publicación en Meta (Facebook / Instagram)" requiredPlan="PRO" />
+          : <MetaSection {...sectionProps} />
+      )}
       {activeSection === 'zoom'        && <ZoomSection        {...sectionProps} />}
       {activeSection === 'docusign'    && <DocuSignSection    {...sectionProps} />}
       {activeSection === 'sindicacion' && <SindicacionSection {...sectionProps} />}

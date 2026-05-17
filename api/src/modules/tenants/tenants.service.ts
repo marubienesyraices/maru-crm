@@ -68,7 +68,16 @@ export class TenantsService {
       select: { nombre: true, logo_url: true, plan: true, limite_usuarios: true, limite_propiedades: true },
     });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
-    return tenant;
+
+    const features = await this.prisma.catalogoPlan.findUnique({
+      where: { plan: tenant.plan },
+      select: {
+        tiene_correo: true, tiene_campanas: true, tiene_portal: true,
+        tiene_sitio_propio: true, tiene_integraciones: true, tiene_meta: true,
+      },
+    });
+
+    return { ...tenant, ...(features ?? {}) };
   }
 
   async findAll() {

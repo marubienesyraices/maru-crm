@@ -354,15 +354,34 @@ function NuevaTab({ token, onCreated }: { token: string; onCreated: () => void }
 type Tab = 'lista' | 'nueva';
 
 export default function MetaPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, planFeatures } = useAuthStore();
   const [tab, setTab] = useState<Tab>('lista');
   const [configured, setConfigured] = useState<boolean | null>(null);
 
+  const planAllowed = planFeatures === null || planFeatures.tiene_meta;
+
   useEffect(() => {
+    if (!planAllowed) return;
     apiRequest<{ configured: boolean; ig_configured: boolean }>('/api/meta/status', { token: accessToken! })
       .then((s) => setConfigured(s.configured))
       .catch(() => setConfigured(false));
-  }, [accessToken]);
+  }, [accessToken, planAllowed]);
+
+  if (!planAllowed) {
+    return (
+      <div className="meta-page">
+        <div className="meta-header"><h1>Publicaciones en Meta</h1></div>
+        <div style={{ textAlign: 'center', padding: '64px 32px' }}>
+          <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔒</div>
+          <h2 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>Función no disponible en tu plan</h2>
+          <p style={{ color: 'var(--text-muted)', maxWidth: 420, marginInline: 'auto' }}>
+            La publicación automática en Facebook e Instagram está disponible a partir del plan <strong>PRO</strong>.
+            Contacta con el administrador para actualizar tu plan.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const goList = () => setTab('lista');
 

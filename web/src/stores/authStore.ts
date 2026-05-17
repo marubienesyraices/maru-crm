@@ -10,6 +10,15 @@ interface User {
   rol: string;
 }
 
+interface PlanFeatures {
+  tiene_correo: boolean;
+  tiene_campanas: boolean;
+  tiene_portal: boolean;
+  tiene_sitio_propio: boolean;
+  tiene_integraciones: boolean;
+  tiene_meta: boolean;
+}
+
 interface AuthState {
   user: User | null;
   accessToken: string | null;
@@ -17,6 +26,7 @@ interface AuthState {
   plan: string | null;
   limiteUsuarios: number | null;
   limitePropiedades: number | null;
+  planFeatures: PlanFeatures | null;
   tema: 'oscuro' | 'claro';
   isLoading: boolean;
   error: string | null;
@@ -44,6 +54,34 @@ function applyTema(tema: 'oscuro' | 'claro') {
   localStorage.setItem('userTheme', tema);
 }
 
+interface BrandingResponse {
+  plan: string;
+  limite_usuarios: number;
+  limite_propiedades: number;
+  tiene_correo?: boolean;
+  tiene_campanas?: boolean;
+  tiene_portal?: boolean;
+  tiene_sitio_propio?: boolean;
+  tiene_integraciones?: boolean;
+  tiene_meta?: boolean;
+}
+
+function applyBranding(info: BrandingResponse) {
+  useAuthStore.setState({
+    plan: info.plan ?? null,
+    limiteUsuarios: info.limite_usuarios ?? null,
+    limitePropiedades: info.limite_propiedades ?? null,
+    planFeatures: {
+      tiene_correo:        info.tiene_correo        ?? false,
+      tiene_campanas:      info.tiene_campanas      ?? false,
+      tiene_portal:        info.tiene_portal        ?? false,
+      tiene_sitio_propio:  info.tiene_sitio_propio  ?? false,
+      tiene_integraciones: info.tiene_integraciones ?? false,
+      tiene_meta:          info.tiene_meta          ?? false,
+    },
+  });
+}
+
 const _rawRefresh = localStorage.getItem('refreshToken');
 const _initRefresh = (_rawRefresh && _rawRefresh !== 'undefined' && _rawRefresh !== 'null') ? _rawRefresh : null;
 
@@ -54,6 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   plan:              null,
   limiteUsuarios:    null,
   limitePropiedades: null,
+  planFeatures:      null,
   tema:              (localStorage.getItem('userTheme') as 'oscuro' | 'claro') || 'oscuro',
   isLoading:    false,
   error:        null,
@@ -80,8 +119,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
         .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
         .catch(() => {});
-      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: data.accessToken })
-        .then((info) => set({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+      apiRequest<BrandingResponse>('/api/tenants/branding', { token: data.accessToken })
+        .then(applyBranding)
         .catch(() => {});
       return { requires2FA: false };
     } catch (err: any) {
@@ -105,8 +144,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
         .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
         .catch(() => {});
-      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: data.accessToken })
-        .then((info) => set({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+      apiRequest<BrandingResponse>('/api/tenants/branding', { token: data.accessToken })
+        .then(applyBranding)
         .catch(() => {});
     } catch (err: any) {
       set({ isLoading: false, error: err.message });
@@ -128,7 +167,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch { /* best-effort */ }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, tema: 'oscuro' });
+    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, planFeatures: null, tema: 'oscuro' });
   },
 
   // ── Silent refresh ───────────────────────────────────────────────
@@ -175,7 +214,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   forceLogout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null });
+    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, planFeatures: null });
     window.location.href = '/login';
   },
 
@@ -222,8 +261,8 @@ if (storedToken) {
     if (tokenAlive) {
       useAuthStore.setState({ user: payload });
       // Restore plan from branding endpoint (non-blocking)
-      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: storedToken })
-        .then((info) => useAuthStore.setState({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+      apiRequest<BrandingResponse>('/api/tenants/branding', { token: storedToken })
+        .then(applyBranding)
         .catch(() => {});
     } else if (storedRefresh) {
       // Access token expired but refresh token still exists — try silent refresh immediately
