@@ -41,7 +41,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (user.tenant.estado !== 'ACTIVA') {
+    if (user.tenant.estado === 'SUSPENDIDA' || user.tenant.estado === 'CANCELADA') {
       throw new ForbiddenException('La empresa se encuentra suspendida o cancelada');
     }
 
