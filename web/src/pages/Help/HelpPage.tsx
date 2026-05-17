@@ -208,7 +208,7 @@ export default function HelpPage() {
             <p className="help-contact-title">¿No encontraste lo que buscabas?</p>
             <p className="help-contact-text">
               Reporta un problema o solicita soporte en{' '}
-              <a href="https://github.com/anthropics/claude-code/issues" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/marubienesyraices/maru-crm/issues" target="_blank" rel="noopener noreferrer">
                 GitHub Issues
               </a>{' '}
               o contacta al administrador de tu empresa.

@@ -35,16 +35,18 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
 import './index.css';
 
-function PlanRoute({ allowedPlans, children }: { allowedPlans: string[]; children: ReactNode }) {
-  const { plan } = useAuthStore();
-  if (plan && !allowedPlans.includes(plan)) {
+type PlanFeatureKey = 'tiene_campanas' | 'tiene_portal' | 'tiene_integraciones' | 'tiene_meta' | 'tiene_correo' | 'tiene_sitio_propio';
+
+function PlanRoute({ feature, children }: { feature: PlanFeatureKey; children: ReactNode }) {
+  const { plan, planFeatures } = useAuthStore();
+  if (planFeatures && !planFeatures[feature]) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12, color: 'var(--text-muted)' }}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Funcionalidad no disponible</h2>
         <p style={{ margin: 0, textAlign: 'center' }}>
           Tu plan actual ({plan}) no incluye esta funcionalidad.<br/>
-          Contacta con soporte para actualizar tu plan.
+          Contacta con el administrador para actualizar tu plan.
         </p>
       </div>
     );
@@ -94,14 +96,14 @@ export default function App() {
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/bi" element={<BiPage />} />
-          <Route path="/campanas" element={<PlanRoute allowedPlans={['PRO', 'ENTERPRISE']}><CampanasPage /></PlanRoute>} />
+          <Route path="/campanas" element={<PlanRoute feature="tiene_campanas"><CampanasPage /></PlanRoute>} />
           <Route path="/meta" element={<MetaPage />} />
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/planes" element={<AdminPlanesPage />} />
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
-          <Route path="/settings/integraciones" element={<PlanRoute allowedPlans={['ENTERPRISE']}><SettingsIntegracionesPage /></PlanRoute>} />
+          <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />
           <Route path="/settings/perfil" element={<SettingsPerfilPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Route>

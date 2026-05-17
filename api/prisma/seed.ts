@@ -15,7 +15,7 @@ async function main() {
   // ─── 0. Catálogo de planes ───────────────────────────────
   const catalogoPlanes = [
     { plan: 'FREE'       as const, limite_usuarios: 1,  limite_propiedades: 5,   tiene_correo: false, tiene_campanas: false, tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false },
-    { plan: 'BASIC'      as const, limite_usuarios: 3,  limite_propiedades: 25,  tiene_correo: true,  tiene_campanas: false, tiene_portal: true,  tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false },
+    { plan: 'BASIC'      as const, limite_usuarios: 3,  limite_propiedades: 25,  tiene_correo: true,  tiene_campanas: true,  tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false },
     { plan: 'PRO'        as const, limite_usuarios: 5,  limite_propiedades: 100, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: false, tiene_meta: true  },
     { plan: 'ENTERPRISE' as const, limite_usuarios: 25, limite_propiedades: 500, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: true,  tiene_meta: true  },
   ];
