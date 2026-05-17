@@ -39,7 +39,9 @@ export class PortalService {
     const skip  = (page - 1) * limit;
 
     const where: any = { estado: 'DISPONIBLE' };
-    if (TENANT_ID) where.tenant_id = TENANT_ID;
+    // Env var takes priority; otherwise use tenantId passed by the portal SSR
+    const resolvedTenantId = TENANT_ID ?? filtros.tenantId;
+    if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
     if (filtros.tipo)    where.tipo    = filtros.tipo;
     if (filtros.gestion) where.gestion = filtros.gestion;

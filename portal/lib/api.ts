@@ -36,6 +36,7 @@ export interface Filtros {
   precioMax?: string;
   habitacionesMin?: string;
   page?: string;
+  tenantId?: string;
 }
 
 export async function getPropiedades(filtros: Filtros = {}): Promise<PropiedadesResponse> {

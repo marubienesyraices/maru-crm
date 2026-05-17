@@ -27,6 +27,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     precioMax:       searchParams.precioMax,
     habitacionesMin: searchParams.habitacionesMin,
     page:            searchParams.page,
+    tenantId:        cfg.tenant_id,
   };
 
   let result: PropiedadesResponse = { data: [], meta: { total: 0, totalPages: 1, page: 1, limit: 12 } };

@@ -13,6 +13,7 @@ export class FiltrosPublicasDto {
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(0) @Max(20) habitacionesMin?: number;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page?: number;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(50) limit?: number;
+  @IsOptional() @IsString() @MaxLength(36) tenantId?: string;
 }
 
 export class RegistroPortalDto {
