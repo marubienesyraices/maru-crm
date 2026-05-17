@@ -299,7 +299,7 @@ function FirmaPanel({ propiedadId, userRol }: { propiedadId: string; userRol: st
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accessToken, user } = useAuthStore();
+  const { accessToken, user, planFeatures } = useAuthStore();
   const toast = useToast();
   const confirm = useConfirm();
   const [propiedad, setPropiedad] = useState<any>(null);
@@ -645,13 +645,15 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      {/* Sindicación — solo ADMIN/SUPER_ADMIN */}
-      {user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && (
+      {/* Sindicación — solo ADMIN/SUPER_ADMIN con plan integraciones */}
+      {planFeatures?.tiene_integraciones && user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && (
         <SindicacionPanel propiedadId={propiedad.id} />
       )}
 
-      {/* Firma Digital */}
-      <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
+      {/* Firma Digital — solo con plan integraciones */}
+      {planFeatures?.tiene_integraciones && (
+        <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
+      )}
 
       {/* Expediente Legal */}
       <div className="prop-detail-section" style={{ marginTop: 8 }}>

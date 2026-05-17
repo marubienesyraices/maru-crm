@@ -411,7 +411,7 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
 
 // ─── Visita Card ──────────────────────────────────────────────
 
-function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, onEliminarZoom, isZoomLoading }: {
+function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, onEliminarZoom, isZoomLoading, tieneIntegraciones }: {
   visita: any;
   onEdit: () => void;
   onDelete: () => void;
@@ -420,6 +420,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
   onCrearZoom: () => void;
   onEliminarZoom: () => void;
   isZoomLoading: boolean;
+  tieneIntegraciones: boolean;
 }) {
   const color = ESTADO_COLORS[visita.estado] ?? '#94a3b8';
   const isPast = new Date(visita.fecha_fin) < new Date();
@@ -438,7 +439,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
           <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>· {visita.ubicacion}</span>
         )}
       </div>
-      {hasZoom && (
+      {tieneIntegraciones && hasZoom && (
         <a
           href={visita.zoom_join_url}
           target="_blank"
@@ -463,7 +464,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
           </button>
         )}
         <button onClick={onIcs} title="Descargar .ics">📅</button>
-        {hasZoom ? (
+        {tieneIntegraciones && (hasZoom ? (
           <>
             <a
               href={visita.zoom_join_url}
@@ -492,7 +493,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
               {isZoomLoading ? '⏳' : '📹'}
             </button>
           )
-        )}
+        ))}
         <button onClick={onDelete} title="Eliminar" className="agenda-delete">✕</button>
       </div>
     </div>
@@ -502,7 +503,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function AgendaPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, planFeatures } = useAuthStore();
   const toast = useToast();
   const confirm = useConfirm();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
@@ -652,6 +653,7 @@ export default function AgendaPage() {
                         onReporte={() => setModalState({ mode: 'reporte', visita: v })}
                         onCrearZoom={() => handleCrearZoom(v.id)}
                         onEliminarZoom={() => handleEliminarZoom(v.id)}
+                        tieneIntegraciones={!!planFeatures?.tiene_integraciones}
                         isZoomLoading={
                           (crearMeetingMutation.isPending && crearMeetingMutation.variables === v.id) ||
                           (eliminarMeetingMutation.isPending && eliminarMeetingMutation.variables === v.id)
