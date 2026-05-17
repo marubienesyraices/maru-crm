@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PortalService } from './portal.service';
-import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto, VerificarEmailDto } from './portal.dto';
+import { ClienteJwtGuard } from './cliente-jwt.guard';
+import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto, SolicitarAccesoDto, VerificarEmailDto } from './portal.dto';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
 /** All routes under /api/public are unauthenticated — no JwtAuthGuard */
@@ -48,5 +49,29 @@ export class PortalController {
   @ApiOperation({ summary: 'Registrar lead capturado por el chatbot del portal' })
   chatbotLead(@Body() dto: ChatbotLeadDto) {
     return this.service.crearLeadChatbot(dto);
+  }
+
+  // ─── Panel del cliente ────────────────────────────────────────
+
+  @Post('cliente/solicitar-acceso')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Solicitar enlace mágico de acceso al panel del cliente' })
+  solicitarAcceso(@Body() dto: SolicitarAccesoDto) {
+    return this.service.solicitarAcceso(dto.email, dto.tenantId);
+  }
+
+  @Post('cliente/acceder')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Canjear token de magic link por JWT de cliente' })
+  accederConToken(@Body() dto: VerificarEmailDto) {
+    return this.service.accederConToken(dto.token);
+  }
+
+  @Get('cliente/mi-cuenta')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Dashboard del cliente: perfil + propiedades de interés + visitas próximas' })
+  getMiCuenta(@Request() req: any) {
+    return this.service.getMiCuenta(req.clienteId);
   }
 }

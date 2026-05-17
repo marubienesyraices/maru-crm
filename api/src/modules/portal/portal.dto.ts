@@ -28,6 +28,11 @@ export class VerificarEmailDto {
   @IsString() @MinLength(36) @MaxLength(36) token!: string;
 }
 
+export class SolicitarAccesoDto {
+  @IsEmail() @MaxLength(200) email!: string;
+  @IsOptional() @IsString() @MaxLength(36) tenantId?: string;
+}
+
 export class ChatbotLeadDto {
   @IsString() @MinLength(2) @MaxLength(120) nombre!: string;
   @IsOptional() @IsEmail() @MaxLength(200) email?: string;

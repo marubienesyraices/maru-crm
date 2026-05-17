@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
@@ -16,21 +17,21 @@ const PUBLIC_PROPERTY_INCLUDE = {
 export class PortalService {
   private readonly logger = new Logger(PortalService.name);
   private readonly frontendUrl: string;
-
   private readonly portalUrl: string;
+  private readonly portalBase: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly jwt: JwtService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
-    // If PORTAL_URL is set, verification links go to the Next.js portal (/verificar)
-    // Otherwise fall back to the React CRM path (/portal/verificar)
-    const portalBase = config.get<string>('PORTAL_URL');
-    this.portalUrl = portalBase
-      ? `${portalBase.replace(/\/$/, '')}/verificar`
-      : `${this.frontendUrl}/portal/verificar`;
+    const configuredPortal = config.get<string>('PORTAL_URL');
+    this.portalBase = configuredPortal
+      ? configuredPortal.replace(/\/$/, '')
+      : 'http://localhost:3001';
+    this.portalUrl = `${this.portalBase}/verificar`;
   }
 
   async findPublicProperties(filtros: FiltrosPublicasDto) {
@@ -308,6 +309,103 @@ export class PortalService {
     return { success: true, clienteId };
   }
 
+  // ─── Panel del cliente (magic link + dashboard) ───────────────
+
+  async solicitarAcceso(email: string, tenantId?: string) {
+    const resolvedTenantId = TENANT_ID ?? tenantId;
+    const where: any = { email };
+    if (resolvedTenantId) where.tenant_id = resolvedTenantId;
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where,
+      select: { id: true, nombre: true, email: true, tenant_id: true, portal_verificado: true },
+    });
+
+    if (!cliente || !cliente.email) {
+      return { message: 'Si tu correo está registrado, recibirás un enlace de acceso.' };
+    }
+
+    const token   = randomUUID();
+    const expires = new Date(Date.now() + (cliente.portal_verificado ? 15 : 24) * 60 * 60 * 1000);
+
+    await this.prisma.cliente.update({
+      where: { id: cliente.id },
+      data: { activation_token: token, activation_expires: expires },
+    });
+
+    if (cliente.portal_verificado) {
+      await this.sendMagicLoginEmail(cliente.email, cliente.nombre, token);
+    } else {
+      await this.sendVerificationEmail(cliente.email, cliente.nombre, token, cliente.tenant_id);
+    }
+
+    return { message: 'Si tu correo está registrado, recibirás un enlace de acceso.' };
+  }
+
+  async accederConToken(token: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { activation_token: token },
+      select: { id: true, nombre: true, email: true, tenant_id: true, activation_expires: true },
+    });
+
+    if (!cliente || !cliente.activation_expires || cliente.activation_expires < new Date()) {
+      throw new BadRequestException('El enlace no es válido o ha expirado. Solicita uno nuevo.');
+    }
+
+    await this.prisma.cliente.update({
+      where: { id: cliente.id },
+      data: { activation_token: null, activation_expires: null, portal_verificado: true },
+    });
+
+    const accessToken = this.jwt.sign(
+      { sub: cliente.id, tenantId: cliente.tenant_id, email: cliente.email, type: 'cliente' },
+      { expiresIn: '30d' },
+    );
+
+    return { token: accessToken, nombre: cliente.nombre };
+  }
+
+  async getMiCuenta(clienteId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: clienteId },
+      select: {
+        id: true, nombre: true, email: true, telefono: true,
+        gestion_interes: true, zona_interes: true, presupuesto_max: true,
+        tipo_interes: true, habitaciones_min: true, created_at: true,
+        intereses: {
+          orderBy: { created_at: 'desc' as const },
+          select: {
+            id: true, estado: true, nivel_interes: true, notas: true,
+            fecha_contacto: true, fecha_cierre: true, precio_cierre: true, created_at: true,
+            propiedad: {
+              select: {
+                id: true, codigo: true, titulo: true, tipo: true, gestion: true,
+                precio_venta: true, precio_renta: true, moneda: true,
+                estado: true, zona: true, municipio: true, departamento: true,
+                imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+              },
+            },
+            visitas: {
+              where: {
+                fecha_inicio: { gte: new Date() },
+                estado: { in: ['PENDIENTE', 'CONFIRMADA'] as any[] },
+              },
+              orderBy: { fecha_inicio: 'asc' as const },
+              take: 1,
+              select: {
+                id: true, fecha_inicio: true, fecha_fin: true,
+                estado: true, zoom_join_url: true, ubicacion: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+    return cliente;
+  }
+
   // ─── Branding ─────────────────────────────────────────────────
 
   async getDefaultBranding() {
@@ -321,6 +419,61 @@ export class PortalService {
   }
 
   // ─── Private helpers ─────────────────────────────────────────
+
+  private async sendMagicLoginEmail(email: string, nombre: string, token: string) {
+    const url = `${this.portalBase}/mi-cuenta/verify?token=${token}`;
+    try {
+      await this.email.sendHtml({
+        to: email,
+        subject: 'Tu enlace de acceso al portal — GestPro',
+        html: this.buildMagicLoginHtml(nombre, url),
+      });
+    } catch (err) {
+      this.logger.warn(`Magic login email failed to ${email}: ${err}`);
+    }
+  }
+
+  private buildMagicLoginHtml(nombre: string, url: string): string {
+    return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <tr>
+          <td style="background:#0f172a;padding:20px 32px;">
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;color:#475569;line-height:1.7;font-size:.9375rem;">
+            <p style="font-size:2rem;margin:0 0 16px;">🏠</p>
+            <h2 style="margin:0 0 12px;font-size:1.125rem;color:#0f172a;">¡Hola, ${nombre}!</h2>
+            <p style="margin:0 0 24px;">
+              Aquí tienes tu enlace de acceso al portal. Haz clic para ingresar a tu cuenta:
+            </p>
+            <a href="${url}"
+               style="display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:.9375rem;font-weight:600;">
+              Ingresar a mi cuenta →
+            </a>
+            <p style="margin:24px 0 0;font-size:.8125rem;color:#94a3b8;">
+              Este enlace expira en 15 minutos. Si no solicitaste el acceso puedes ignorar este mensaje.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;background:#f8fafc;">
+            <p style="margin:0;font-size:.75rem;color:#94a3b8;">GestPro · Portal público</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+  }
 
   private async sendVerificationEmail(email: string, nombre: string, token: string, tenantId?: string) {
     const url = `${this.portalUrl}?token=${token}`;

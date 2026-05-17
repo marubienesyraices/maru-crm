@@ -25,6 +25,7 @@ export default async function Header() {
         <nav className="portal-nav" aria-label="Navegación principal">
           <Link href="/">Propiedades</Link>
           <Link href="/#nosotros">Nosotros</Link>
+          <Link href="/mi-cuenta" className="portal-nav-micuenta">Mi cuenta</Link>
           <ThemeToggle />
           {wa && (
             <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="cta">
