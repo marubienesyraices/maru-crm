@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PipelineService } from '../pipeline.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { RedisService } from '../../../redis/redis.service';
+import { EmailService } from '../../email/email.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
@@ -35,7 +38,13 @@ describe('PipelineService', () => {
     // Pass prisma itself as the transaction client so inner mocks resolve correctly
     prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PipelineService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        PipelineService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RedisService, useValue: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined), deleteByPattern: jest.fn().mockResolvedValue(undefined) } },
+        { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('') } },
+      ],
     }).compile();
     service = module.get<PipelineService>(PipelineService);
   });

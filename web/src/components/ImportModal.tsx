@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export type ImportEntity = 'clientes' | 'propiedades';
 
 interface ImportError { row: number; campo: string; mensaje: string; }
-interface ImportResult { created: number; skipped: number; errors: ImportError[]; }
+interface ImportResult { created: number; skipped: number; errors: ImportError[]; warnings: string[]; }
 
 interface Props {
   entity: ImportEntity;
@@ -134,6 +134,16 @@ export default function ImportModal({ entity, onClose, onSuccess }: Props) {
                 <span className="import-stat-label">errores</span>
               </div>
             </div>
+
+            {result.warnings?.length > 0 && (
+              <div className="import-warnings-wrap">
+                {result.warnings.map((w, i) => (
+                  <div key={i} className="import-warning-row">
+                    ⚠ {w}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {result.errors.length > 0 && (
               <div className="import-error-table-wrap">

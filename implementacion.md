@@ -1,4 +1,4 @@
-# Plan de Implementación — CRM Inmobiliario "Maru Bienes y Raíces"
+# Plan de Implementación — GestPro CRM
 
 > **Versión:** 1.0
 > **Fecha:** 21 de abril de 2026

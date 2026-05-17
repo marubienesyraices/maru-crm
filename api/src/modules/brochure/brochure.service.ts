@@ -68,7 +68,7 @@ export class BrochureService {
         propietario: { select: { nombre: true, telefono: true } },
         agente: { select: { nombre: true, email: true } },
         imagenes: { orderBy: { orden: 'asc' }, take: 20 },
-        tenant: { select: { nombre: true, color_primario: true, moneda: true } },
+        tenant: { select: { nombre: true, moneda: true } },
       },
     });
 
@@ -79,7 +79,7 @@ export class BrochureService {
     const MARGIN = 40;
     const CONTENT_W = W - MARGIN * 2;
 
-    const primary = propiedad.tenant.color_primario || '#2563eb';
+    const primary = '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';

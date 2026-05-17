@@ -45,7 +45,7 @@ export class ImportController {
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   importClientes(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
-    return this.service.importClientes(req.user.tenantId, file.buffer);
+    return this.service.importClientes(req.user.tenantId, file.buffer, file.originalname);
   }
 
   @Get('clientes/template')
@@ -64,7 +64,7 @@ export class ImportController {
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   importPropiedades(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
-    return this.service.importPropiedades(req.user.tenantId, file.buffer, req.user.sub);
+    return this.service.importPropiedades(req.user.tenantId, file.buffer, req.user.sub, file.originalname);
   }
 
   @Get('propiedades/template')

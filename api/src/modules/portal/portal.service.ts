@@ -9,7 +9,7 @@ const TENANT_ID = process.env.PORTAL_TENANT_ID;
 
 const PUBLIC_PROPERTY_INCLUDE = {
   imagenes: { orderBy: { orden: 'asc' as const }, take: 6, select: { url: true, nombre: true, tipo: true, orden: true } },
-  tenant:   { select: { nombre: true, logo_url: true, color_primario: true } },
+  tenant:   { select: { nombre: true, logo_url: true } },
 };
 
 @Injectable()
@@ -78,7 +78,7 @@ export class PortalService {
           latitud: true, longitud: true,
           habitaciones: true, banos: true, area_construccion_m2: true,
           imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
-          tenant: { select: { nombre: true, color_primario: true } },
+          tenant: { select: { nombre: true } },
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -313,18 +313,9 @@ export class PortalService {
     const tenant = await this.prisma.tenant.findFirst({
       where,
       orderBy: { created_at: 'asc' },
-      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, color_fondo_alterno: true, color_fondo_principal: true, color_texto: true },
+      select: { nombre: true, logo_url: true },
     });
-    return tenant ?? {
-      nombre: 'GestPro',
-      logo_url: null,
-      color_primario: '#3b82f6',
-      color_secundario: '#1e293b',
-      color_acento: '#8b5cf6',
-      color_fondo_alterno: '#111827',
-      color_fondo_principal: '#0a0e1a',
-      color_texto: '#f1f5f9',
-    };
+    return tenant ?? { nombre: 'GestPro', logo_url: null };
   }
 
   // ─── Private helpers ─────────────────────────────────────────

@@ -13,7 +13,17 @@ interface UserItem {
   supervisor?: { id: string; nombre: string } | null;
   created_at: string;
   last_login_at: string | null;
+  ultimo_login?: string | null;
   _count?: { subordinados: number };
+  // Solo para vista SUPER_ADMIN
+  tenant?: { id: string; nombre: string; plan: string; estado: string };
+}
+
+interface TenantOption {
+  id: string;
+  nombre: string;
+  plan: string;
+  estado: string;
 }
 
 const ROLES = ['ADMIN', 'SENIOR', 'JUNIOR'];
@@ -32,11 +42,16 @@ const emptyForm = {
   rol: 'JUNIOR',
   estado: 'ACTIVO',
   idSupervisor: '',
+  // Solo SUPER_ADMIN
+  tenantId: '',
 };
 
 export default function AdminUsersPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, user, limiteUsuarios } = useAuthStore();
+  const isSuperAdmin = user?.rol === 'SUPER_ADMIN';
+
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -48,20 +63,32 @@ export default function AdminUsersPage() {
   const fetchUsers = useCallback(async () => {
     setIsError(false);
     try {
-      const data = await apiRequest<UserItem[]>('/api/users', { token: accessToken! });
+      const endpoint = isSuperAdmin ? '/api/users/admins' : '/api/users';
+      const data = await apiRequest<UserItem[]>(endpoint, { token: accessToken! });
       setUsers(data);
     } catch {
       setIsError(true);
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, isSuperAdmin]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  const fetchTenants = useCallback(async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const data = await apiRequest<TenantOption[]>('/api/tenants', { token: accessToken! });
+      setTenants(data);
+    } catch { /* noop */ }
+  }, [accessToken, isSuperAdmin]);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchTenants();
+  }, [fetchUsers, fetchTenants]);
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, rol: isSuperAdmin ? 'ADMIN' : 'JUNIOR' });
     setError('');
     setShowModal(true);
   };
@@ -74,30 +101,37 @@ export default function AdminUsersPage() {
       rol: u.rol,
       estado: u.estado,
       idSupervisor: u.id_supervisor || '',
+      tenantId: u.tenant?.id || '',
     });
     setError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
+    if (isSuperAdmin && !form.tenantId) {
+      setError('Debes seleccionar una empresa');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const body: any = { ...form };
-      if (!body.idSupervisor) delete body.idSupervisor;
-
-      if (editing) {
-        await apiRequest(`/api/users/${editing.id}`, {
-          method: 'PUT',
-          body,
-          token: accessToken!,
-        });
+      if (isSuperAdmin) {
+        const body: any = { email: form.email, nombre: form.nombre, tenantId: form.tenantId };
+        if (form.estado) body.estado = form.estado;
+        if (editing) {
+          await apiRequest(`/api/users/admins/${editing.id}`, { method: 'PUT', body, token: accessToken! });
+        } else {
+          await apiRequest('/api/users/admins', { method: 'POST', body, token: accessToken! });
+        }
       } else {
-        await apiRequest('/api/users', {
-          method: 'POST',
-          body,
-          token: accessToken!,
-        });
+        const body: any = { ...form };
+        if (!body.idSupervisor) delete body.idSupervisor;
+        if (!editing) delete body.estado;
+        if (editing) {
+          await apiRequest(`/api/users/${editing.id}`, { method: 'PUT', body, token: accessToken! });
+        } else {
+          await apiRequest('/api/users', { method: 'POST', body, token: accessToken! });
+        }
       }
       setShowModal(false);
       fetchUsers();
@@ -119,22 +153,34 @@ export default function AdminUsersPage() {
     return 'admin-badge-inactive';
   };
 
-  // Potential supervisors (ADMIN or SENIOR only)
   const supervisors = users.filter(u => u.rol === 'ADMIN' || u.rol === 'SENIOR');
-
   const activos = users.filter(u => u.estado === 'ACTIVO').length;
-  const admins = users.filter(u => u.rol === 'ADMIN').length;
-  const agentes = users.filter(u => u.rol === 'SENIOR' || u.rol === 'JUNIOR').length;
+  const pendientes = users.filter(u => u.estado === 'PENDIENTE').length;
+  const atUserLimit = !isSuperAdmin && limiteUsuarios !== null && users.length >= limiteUsuarios;
+
+  // Set de tenantIds que ya tienen admin asignado (excluye el admin que se está editando)
+  const tenantsConAdmin = new Set(
+    users
+      .filter(u => !editing || u.id !== editing.id)
+      .map(u => u.tenant?.id)
+      .filter(Boolean) as string[]
+  );
 
   return (
     <div className="admin-page">
       <div className="admin-header">
         <div>
-          <h1>Gestión de Usuarios</h1>
-          <p>Administra los usuarios y agentes de la empresa</p>
+          <h1>{isSuperAdmin ? 'Administradores de Empresas' : 'Gestión de Usuarios'}</h1>
+          <p>{isSuperAdmin ? 'Gestiona los administradores de cada empresa registrada' : 'Administra los usuarios y agentes de la empresa'}</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          + Nuevo Usuario
+        <button
+          className="btn btn-primary"
+          onClick={atUserLimit ? undefined : openCreate}
+          disabled={atUserLimit}
+          title={atUserLimit ? `Límite de ${limiteUsuarios} usuarios alcanzado. Actualiza tu plan para agregar más.` : undefined}
+          style={atUserLimit ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+        >
+          + {isSuperAdmin ? 'Nuevo Administrador' : 'Nuevo Usuario'}
         </button>
       </div>
 
@@ -143,7 +189,7 @@ export default function AdminUsersPage() {
         <div className="admin-stat-card">
           <div className="admin-stat-icon" style={{ background: 'rgba(59,130,246,0.15)' }}>👥</div>
           <div>
-            <h4>Total Usuarios</h4>
+            <h4>{isSuperAdmin ? 'Total Admins' : 'Total Usuarios'}</h4>
             <span className="stat-val">{users.length}</span>
           </div>
         </div>
@@ -155,20 +201,42 @@ export default function AdminUsersPage() {
           </div>
         </div>
         <div className="admin-stat-card">
-          <div className="admin-stat-icon" style={{ background: 'rgba(139,92,246,0.15)' }}>🛡️</div>
+          <div className="admin-stat-icon" style={{ background: 'rgba(245,158,11,0.15)' }}>⏳</div>
           <div>
-            <h4>Administradores</h4>
-            <span className="stat-val">{admins}</span>
+            <h4>Pendientes</h4>
+            <span className="stat-val">{pendientes}</span>
           </div>
         </div>
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon" style={{ background: 'rgba(245,158,11,0.15)' }}>🏷️</div>
-          <div>
-            <h4>Agentes</h4>
-            <span className="stat-val">{agentes}</span>
+        {!isSuperAdmin && (
+          <div className="admin-stat-card">
+            <div className="admin-stat-icon" style={{ background: 'rgba(139,92,246,0.15)' }}>🏷️</div>
+            <div>
+              <h4>Agentes</h4>
+              <span className="stat-val">{users.filter(u => u.rol === 'SENIOR' || u.rol === 'JUNIOR').length}</span>
+            </div>
           </div>
-        </div>
+        )}
+        {!isSuperAdmin && limiteUsuarios !== null && (
+          <div className="admin-stat-card" style={atUserLimit ? { border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.05)' } : {}}>
+            <div className="admin-stat-icon" style={{ background: atUserLimit ? 'rgba(239,68,68,0.15)' : 'rgba(99,102,241,0.15)' }}>
+              {atUserLimit ? '🔒' : '📊'}
+            </div>
+            <div>
+              <h4>Capacidad</h4>
+              <span className="stat-val" style={{ color: atUserLimit ? 'var(--accent-red,#ef4444)' : undefined }}>
+                {users.length} / {limiteUsuarios}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {atUserLimit && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red,#ef4444)" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Has alcanzado el límite de <strong>{limiteUsuarios} usuarios</strong> de tu plan. Contacta con soporte para actualizar tu plan.</span>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -188,8 +256,7 @@ export default function AdminUsersPage() {
             <thead>
               <tr>
                 <th>Usuario</th>
-                <th>Rol</th>
-                <th>Supervisor</th>
+                {isSuperAdmin ? <th>Empresa</th> : <><th>Rol</th><th>Supervisor</th></>}
                 <th>Estado</th>
                 <th>Último Login</th>
                 <th>Acciones</th>
@@ -197,7 +264,7 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {users.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay usuarios registrados aún</td></tr>
+                <tr><td colSpan={isSuperAdmin ? 5 : 6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay usuarios registrados aún</td></tr>
               )}
               {users.map((u) => (
                 <tr key={u.id}>
@@ -207,10 +274,21 @@ export default function AdminUsersPage() {
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</div>
                     </div>
                   </td>
-                  <td><span className={`admin-role admin-role-${u.rol}`}>{rolLabels[u.rol] || u.rol}</span></td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    {u.supervisor?.nombre || '—'}
-                  </td>
+                  {isSuperAdmin ? (
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{u.tenant?.nombre || '—'}</div>
+                      {u.tenant && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          <span className={`admin-plan admin-plan-${u.tenant.plan}`}>{u.tenant.plan}</span>
+                        </div>
+                      )}
+                    </td>
+                  ) : (
+                    <>
+                      <td><span className={`admin-role admin-role-${u.rol}`}>{rolLabels[u.rol] || u.rol}</span></td>
+                      <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{u.supervisor?.nombre || '—'}</td>
+                    </>
+                  )}
                   <td>
                     <span className={`admin-badge ${statusClass(u.estado)}`}>
                       <span className="admin-badge-dot" />
@@ -218,7 +296,7 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Nunca'}
+                    {(u.ultimo_login || u.last_login_at) ? new Date((u.ultimo_login || u.last_login_at)!).toLocaleString() : 'Nunca'}
                   </td>
                   <td>
                     <div className="admin-table-actions">
@@ -234,9 +312,9 @@ export default function AdminUsersPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editing ? `Editar: ${editing.nombre}` : 'Nuevo Usuario'}</h2>
+        <div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className="admin-modal">
+            <h2>{editing ? `Editar: ${editing.nombre}` : isSuperAdmin ? 'Nuevo Administrador' : 'Nuevo Usuario'}</h2>
 
             {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
@@ -251,21 +329,38 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            <div className="admin-form-row" style={{ marginTop: 12 }}>
-              <div className="input-group">
-                <label>Rol</label>
-                <select className="input-field" value={form.rol} onChange={(e) => updateField('rol', e.target.value)}>
-                  {ROLES.map(r => <option key={r} value={r}>{rolLabels[r] || r}</option>)}
+            {isSuperAdmin ? (
+              <div className="input-group" style={{ marginTop: 12 }}>
+                <label>Empresa *</label>
+                <select className="input-field" value={form.tenantId} onChange={(e) => updateField('tenantId', e.target.value)}>
+                  <option value="">— Seleccionar empresa —</option>
+                  {tenants.map(t => {
+                    const ocupada = tenantsConAdmin.has(t.id);
+                    return (
+                      <option key={t.id} value={t.id} disabled={ocupada}>
+                        {t.nombre} ({t.plan}){ocupada ? ' — ya tiene administrador' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
-              <div className="input-group">
-                <label>Supervisor</label>
-                <select className="input-field" value={form.idSupervisor} onChange={(e) => updateField('idSupervisor', e.target.value)}>
-                  <option value="">Sin supervisor</option>
-                  {supervisors.map(s => <option key={s.id} value={s.id}>{s.nombre} ({rolLabels[s.rol]})</option>)}
-                </select>
+            ) : (
+              <div className="admin-form-row" style={{ marginTop: 12 }}>
+                <div className="input-group">
+                  <label>Rol</label>
+                  <select className="input-field" value={form.rol} onChange={(e) => updateField('rol', e.target.value)}>
+                    {ROLES.map(r => <option key={r} value={r}>{rolLabels[r] || r}</option>)}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Supervisor</label>
+                  <select className="input-field" value={form.idSupervisor} onChange={(e) => updateField('idSupervisor', e.target.value)}>
+                    <option value="">Sin supervisor</option>
+                    {supervisors.map(s => <option key={s.id} value={s.id}>{s.nombre} ({rolLabels[s.rol]})</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
 
             {editing && (
               <div className="input-group" style={{ marginTop: 12 }}>
@@ -279,7 +374,7 @@ export default function AdminUsersPage() {
             <div className="admin-modal-actions">
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn btn-primary" disabled={saving || !form.nombre || !form.email} onClick={handleSave}>
-                {saving ? 'Guardando...' : editing ? 'Guardar Cambios' : 'Crear Usuario'}
+                {saving ? 'Guardando...' : editing ? 'Guardar Cambios' : isSuperAdmin ? 'Crear Administrador' : 'Crear Usuario'}
               </button>
             </div>
           </div>

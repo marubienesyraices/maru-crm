@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SkipAudit } from './common/decorators/skip-audit.decorator';
 
 @ApiTags('Health')
-@Controller('health')
+@Controller('api/health')
 export class HealthController {
   @Get()
   @SkipAudit()

@@ -57,6 +57,8 @@ export class EmailService {
     cta?: { label: string; url: string };
     tenantId?: string;
   }): Promise<void> {
+    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
+
     const { resend, from } = await this.resolveClient(params.tenantId);
     if (!resend) return;
 
@@ -136,6 +138,8 @@ export class EmailService {
   }
 
   async send(params: SendEmailParams): Promise<void> {
+    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
+
     const { resend, from } = await this.resolveClient(params.tenantId);
     if (!resend) return;
 
@@ -171,6 +175,24 @@ export class EmailService {
   }
 
   // ─── Private helpers ────────────────────────────────────────
+
+  private async planAllowsEmail(tenantId: string): Promise<boolean> {
+    if (!this.prisma) return true;
+    try {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { plan: true },
+      });
+      if (!tenant) return true;
+      const catalog = await this.prisma.catalogoPlan.findUnique({
+        where: { plan: tenant.plan },
+        select: { tiene_correo: true },
+      });
+      return catalog?.tiene_correo ?? true;
+    } catch {
+      return true;
+    }
+  }
 
   private async resolveClient(tenantId?: string): Promise<{ resend: Resend | null; from: string }> {
     if (!tenantId || !this.integraciones) {

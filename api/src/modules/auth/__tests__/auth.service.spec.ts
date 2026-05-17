@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { RedisService } from '../../../redis/redis.service';
 import { createMockPrismaService } from '../../../../test/mocks/prisma.mock';
 import * as bcrypt from 'bcrypt';
 
@@ -44,6 +45,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
+        { provide: RedisService, useValue: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined), deleteByPattern: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { Prisma } from '@prisma/client';
@@ -19,11 +19,17 @@ const BADGES_DEF = [
 ];
 
 @Injectable()
-export class BiService {
+export class BiService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {}
+
+  async onModuleInit() {
+    // Purge stale cache entries generated before the tenant isolation fix
+    // (old keys used 'undefined' as tenantId when user.tenant_id was used instead of user.tenantId)
+    await this.redis.deleteByPattern('bi:undefined:*');
+  }
 
   // ─── Cache helpers ───────────────────────────────────────────
 
@@ -113,7 +119,7 @@ export class BiService {
     const dateFilter = this.dateFilter(desde, hasta);
 
     const usuarios = await this.prisma.user.findMany({
-      where: { tenant_id: tenantId, estado: 'ACTIVO' },
+      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { not: 'SUPER_ADMIN' } },
       select: { id: true, nombre: true, rol: true },
       orderBy: { nombre: 'asc' },
     });
@@ -136,10 +142,10 @@ export class BiService {
               _sum: { comision_calculada: true },
             }),
             this.prisma.visita.count({
-              where: { agente_id: u.id, estado: 'REALIZADA', ...(dateFilter && { fecha_inicio: dateFilter }) },
+              where: { agente_id: u.id, estado: 'REALIZADA', interes: { cliente: { tenant_id: tenantId } }, ...(dateFilter && { fecha_inicio: dateFilter }) },
             }),
             this.prisma.interaccion.count({
-              where: { usuario_id: u.id, ...(dateFilter && { fecha: dateFilter }) },
+              where: { usuario_id: u.id, interes: { cliente: { tenant_id: tenantId } }, ...(dateFilter && { fecha: dateFilter }) },
             }),
           ]);
 
@@ -194,12 +200,17 @@ export class BiService {
       },
     });
 
+    let brochureDateWhere: Prisma.Sql = Prisma.empty;
+    if (desde && hasta) brochureDateWhere = Prisma.sql`AND bd.downloaded_at >= ${desde} AND bd.downloaded_at <= ${hasta}`;
+    else if (desde)     brochureDateWhere = Prisma.sql`AND bd.downloaded_at >= ${desde}`;
+    else if (hasta)     brochureDateWhere = Prisma.sql`AND bd.downloaded_at <= ${hasta}`;
+
     const brochureRows = await this.prisma.$queryRaw<{ propiedad_id: string; total: bigint }[]>`
       SELECT bj.propiedad_id, COUNT(bd.id) AS total
       FROM brochure_descargas bd
       JOIN brochure_jobs bj ON bd.job_id = bj.id
       WHERE bj.tenant_id = ${tenantId}
-      ${desde ? this.prisma.$queryRaw`AND bd.downloaded_at >= ${desde}` : this.prisma.$queryRaw``}
+      ${brochureDateWhere}
       GROUP BY bj.propiedad_id
     `;
     const brochureMap: Record<string, number> = {};
@@ -289,7 +300,7 @@ export class BiService {
     const TIPOS = ['LLAMADA', 'EMAIL', 'WHATSAPP', 'MENSAJE', 'NOTA', 'VISITA'] as const;
 
     const usuarios = await this.prisma.user.findMany({
-      where: { tenant_id: tenantId, estado: 'ACTIVO' },
+      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { not: 'SUPER_ADMIN' } },
       select: { id: true, nombre: true, rol: true },
       orderBy: { nombre: 'asc' },
     });

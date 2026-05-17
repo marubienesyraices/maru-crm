@@ -1,21 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: #1a1f35;
-  --bg-card-hover: #222845;
-  --bg-input: #151b2e;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-focus: #3b82f6;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-blue: #3b82f6;
+  /* ── Dark palette ─────────────────────────────── */
+  --bg-primary:    #121214;           /* background */
+  --bg-secondary:  #161618;           /* sidebar / secondary surfaces */
+  --bg-card:       #1a1a1e;           /* surface */
+  --bg-card-hover: #202024;           /* surface hovered */
+  --bg-input:      #1a1a1e;           /* input fill */
+  --border-subtle: #2c2c35;           /* border */
+  --border-focus:  #3b82f6;
+  --text-primary:  #f0f2f5;           /* text-primary */
+  --text-secondary:#a0a5b1;           /* text-secondary */
+  --text-muted:    #6b7280;           /* derived muted */
+  --accent-blue:       #3b82f6;       /* accent */
   --accent-blue-hover: #2563eb;
   --accent-violet: #8b5cf6;
   --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  --danger: #ef4444;
+  --danger:  #ef4444;
   --success: #22c55e;
   --warning: #f59e0b;
   --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
@@ -24,6 +25,247 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
   --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Light Theme ──────────────────────────────────────────── */
+
+[data-theme="claro"] {
+  /* ── Light palette ────────────────────────────── */
+  --bg-primary:    #f8fafc;           /* background */
+  --bg-secondary:  #f0f4f8;           /* sidebar / secondary surfaces */
+  --bg-card:       #ffffff;           /* surface */
+  --bg-card-hover: #f8fafc;           /* surface hovered */
+  --bg-input:      #ffffff;           /* input fill */
+  --border-subtle: #e2e8f0;           /* border */
+  --border-focus:  #2563eb;
+  --text-primary:  #0f172a;           /* text-primary */
+  --text-secondary:#475569;           /* text-secondary */
+  --text-muted:    #94a3b8;           /* derived muted */
+  --accent-blue:       #2563eb;       /* accent */
+  --accent-blue-hover: #1d4ed8;
+  --shadow-glow: 0 0 40px rgba(37, 99, 235, 0.08);
+}
+
+[data-theme="claro"] .toast-success {
+  background: #f0fdf4;
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #166534;
+}
+[data-theme="claro"] .toast-error {
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #991b1b;
+}
+[data-theme="claro"] .toast-warning {
+  background: #fffbeb;
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #92400e;
+}
+[data-theme="claro"] .toast-info {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #1e40af;
+}
+[data-theme="claro"] .alert-error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #991b1b;
+}
+[data-theme="claro"] .alert-success {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+  color: #166534;
+}
+[data-theme="claro"] .field-error {
+  color: #dc2626;
+}
+[data-theme="claro"] .page-empty-icon {
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme="claro"] .spinner {
+  border-color: rgba(0, 0, 0, 0.15);
+  border-top-color: var(--accent-blue);
+}
+
+/* ─── Light theme: layout & sidebar ───────────────────────── */
+
+[data-theme="claro"] .global-topbar {
+  background: rgba(248, 250, 252, 0.95);
+}
+[data-theme="claro"] .dashboard-topbar {
+  background: rgba(248, 250, 252, 0.85);
+}
+[data-theme="claro"] .nav-item:hover          { background: rgba(0, 0, 0, 0.05); }
+[data-theme="claro"] .nav-badge               { background: rgba(0, 0, 0, 0.07); }
+[data-theme="claro"] .sidebar-collapse-btn:hover { background: rgba(0, 0, 0, 0.05); }
+[data-theme="claro"] .hamburger-btn:hover     { background: rgba(0, 0, 0, 0.06); }
+
+/* ─── Light theme: dashboard widgets ──────────────────────── */
+
+[data-theme="claro"] .stat-card:hover         { border-color: rgba(0, 0, 0, 0.12); }
+[data-theme="claro"] .phase-item:hover        { background: rgba(0, 0, 0, 0.03); }
+[data-theme="claro"] .phase-check,
+[data-theme="claro"] .phase-number            { background: rgba(0, 0, 0, 0.07); }
+[data-theme="claro"] .phase-status-badge      { background: rgba(0, 0, 0, 0.05); }
+[data-theme="claro"] .bar-track               { background: rgba(0, 0, 0, 0.10); }
+[data-theme="claro"] .tipo-chip               { background: rgba(0, 0, 0, 0.05); border-color: rgba(0,0,0,0.08); }
+[data-theme="claro"] .tipo-chip:hover         { background: rgba(0, 0, 0, 0.08); }
+[data-theme="claro"] .skel                    { background: rgba(0, 0, 0, 0.09); }
+
+/* ─── Light theme: notification bell ──────────────────────── */
+
+[data-theme="claro"] .notif-bell-btn:hover,
+[data-theme="claro"] .notif-bell-open         { background: rgba(0, 0, 0, 0.06); }
+[data-theme="claro"] .notif-list              { scrollbar-color: rgba(0, 0, 0, 0.2) transparent; }
+[data-theme="claro"] .notif-item:hover        { background: rgba(0, 0, 0, 0.04); }
+
+/* ─── Light theme: global search ──────────────────────────── */
+
+[data-theme="claro"] .gs-kbd {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* ─── Light theme: admin table & badges ───────────────────── */
+
+[data-theme="claro"] .admin-table th          { background: rgba(0, 0, 0, 0.03); }
+[data-theme="claro"] .admin-table tr:hover td { background: rgba(0, 0, 0, 0.025); }
+
+[data-theme="claro"] .admin-badge-active      { color: #16a34a; }
+[data-theme="claro"] .admin-badge-suspended   { color: #dc2626; }
+[data-theme="claro"] .admin-badge-pending     { color: #d97706; }
+[data-theme="claro"] .admin-badge-inactive    { color: #475569; }
+[data-theme="claro"] .admin-plan-FREE         { color: #475569; }
+[data-theme="claro"] .admin-plan-BASIC        { color: #1d4ed8; }
+[data-theme="claro"] .admin-plan-PRO          { color: #5b21b6; }
+[data-theme="claro"] .admin-plan-ENTERPRISE   { color: #b45309; }
+[data-theme="claro"] .admin-role-SUPER_ADMIN  { color: #991b1b; }
+[data-theme="claro"] .admin-role-ADMIN        { color: #5b21b6; }
+[data-theme="claro"] .admin-role-SENIOR       { color: #1d4ed8; }
+[data-theme="claro"] .admin-role-JUNIOR       { color: #166534; }
+
+/* ─── Light theme: pipeline & client cards ────────────────── */
+
+[data-theme="claro"] .pipeline-col-empty      { border-color: #e2e8f0; }
+[data-theme="claro"] .pipeline-nivel-BAJO     { color: #475569; }
+[data-theme="claro"] .pipeline-nivel-MEDIO    { color: #1d4ed8; }
+[data-theme="claro"] .pipeline-nivel-ALTO     { color: #b45309; }
+[data-theme="claro"] .pipeline-nivel-MUY_ALTO { color: #991b1b; }
+[data-theme="claro"] .client-intereses-count  { background: rgba(0, 0, 0, 0.05); }
+[data-theme="claro"] .form-error              { color: #991b1b; }
+
+/* ─── Light theme: BI report scores ───────────────────────── */
+
+[data-theme="claro"] .bi-score-high { color: #166534; }
+[data-theme="claro"] .bi-score-mid  { color: #b45309; }
+[data-theme="claro"] .bi-score-low  { color: #991b1b; }
+
+/* ─── Light theme: property detail rows ───────────────────── */
+
+[data-theme="claro"] .prop-detail-row {
+  border-bottom-color: #e2e8f0;
+}
+
+/* ─── Light theme: property form step indicator ────────────── */
+
+[data-theme="claro"] .pf-step-num { background: rgba(0, 0, 0, 0.07); }
+
+/* ─── Light theme: Meta publication badges ─────────────────── */
+
+[data-theme="claro"] .meta-config-warn      { color: #92400e; }
+[data-theme="claro"] .meta-badge-borrador   { color: #475569; }
+[data-theme="claro"] .meta-badge-programada { color: #1d4ed8; }
+[data-theme="claro"] .meta-badge-publicada  { color: #166534; }
+[data-theme="claro"] .meta-badge-fallida    { color: #991b1b; }
+[data-theme="claro"] .meta-error-msg        { color: #991b1b; background: rgba(239, 68, 68, 0.08); }
+
+/* ─── Light theme: Agenda error state ──────────────────────── */
+
+[data-theme="claro"] .agenda-error { color: #991b1b; }
+
+/* ─── Light theme: card elevation ──────────────────────────── */
+
+[data-theme="claro"] .stat-card,
+[data-theme="claro"] .phase-card,
+[data-theme="claro"] .dash-panel,
+[data-theme="claro"] .modal-card,
+[data-theme="claro"] .confirm-dialog {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border-color: transparent;
+}
+
+[data-theme="claro"] .notif-dropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+}
+
+/* ─── Light theme: sidebar border ──────────────────────────── */
+
+[data-theme="claro"] .sidebar {
+  border-right-color: #e2e8f0;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Light theme: topbar ───────────────────────────────────── */
+
+[data-theme="claro"] .global-topbar {
+  border-bottom-color: #e2e8f0;
+}
+
+/* ─── Light theme: modal close button ──────────────────────── */
+
+[data-theme="claro"] .modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Light theme: global search trigger kbd chip ───────────── */
+
+[data-theme="claro"] .gs-trigger-kbd {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* ─── Light theme: input field ──────────────────────────────── */
+
+[data-theme="claro"] .input-field {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="claro"] .input-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ─── Light theme: select and textarea ──────────────────────── */
+
+[data-theme="claro"] select.input-field,
+[data-theme="claro"] textarea.input-field {
+  border-color: #cbd5e1;
+}
+
+/* ─── Light theme: stat-card hover border ───────────────────── */
+
+[data-theme="claro"] .stat-card:hover {
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+/* ─── Light theme: alert colors ─────────────────────────────── */
+
+[data-theme="claro"] .alert-error {
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+
+/* ─── Light theme: import modal ─────────────────────────────── */
+
+[data-theme="claro"] .import-hint-col,
+[data-theme="claro"] .import-card-cols span {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="claro"] .import-error-row:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 *, *::before, *::after {

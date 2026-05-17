@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { CreateUserDto, UpdateUserDto, UpdateTemaDto, CreateAdminDto, UpdateAdminDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -13,6 +13,25 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Perfil del usuario autenticado (incluye preferencia de tema)' })
+  findMe(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.usersService.findMe(tenantId, userId);
+  }
+
+  @Patch('me/tema')
+  @ApiOperation({ summary: 'Actualizar preferencia de tema del usuario autenticado' })
+  updateTema(
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: UpdateTemaDto,
+  ) {
+    return this.usersService.updateTema(tenantId, userId, dto.tema);
+  }
 
   @Post()
   @Roles('ADMIN', 'SUPER_ADMIN')
@@ -33,6 +52,27 @@ export class UsersController {
   @ApiOperation({ summary: 'Árbol jerárquico de usuarios (supervisores → subordinados)' })
   getHierarchy(@CurrentUser('tenantId') tenantId: string) {
     return this.usersService.getHierarchyTree(tenantId);
+  }
+
+  @Get('admins')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Listar todos los administradores de empresas (Solo Super Admin)' })
+  findAllAdmins() {
+    return this.usersService.findAllAdmins();
+  }
+
+  @Post('admins')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Crear administrador para una empresa (Solo Super Admin)' })
+  createAdmin(@Body() dto: CreateAdminDto) {
+    return this.usersService.createAdmin(dto);
+  }
+
+  @Put('admins/:id')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Actualizar administrador de empresa (Solo Super Admin)' })
+  updateAdmin(@Param('id') id: string, @Body() dto: UpdateAdminDto) {
+    return this.usersService.updateAdmin(id, dto);
   }
 
   @Get(':id')

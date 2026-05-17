@@ -48,7 +48,7 @@ export class CartaComisionController {
       include: {
         propietario: true,
         agente: { select: { nombre: true, email: true } },
-        tenant: { select: { nombre: true, color_primario: true, moneda: true } },
+        tenant: { select: { nombre: true, moneda: true } },
       },
     });
 
@@ -65,7 +65,7 @@ export class CartaComisionController {
     const MARGIN_R = 48;
     const CONTENT_W = W - MARGIN_L - MARGIN_R;
 
-    const primary = propiedad.tenant.color_primario || '#2563eb';
+    const primary = '#2563eb';
     const primaryDark = darken(primary, 0.2);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';

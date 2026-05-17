@@ -1,4 +1,4 @@
-# Requerimientos — CRM Inmobiliario "Maru Bienes y Raíces"
+# Requerimientos — GestPro CRM
 
 > **Versión:** 2.0 Consolidada
 > **Fecha de creación:** 17 de abril de 2026

@@ -276,6 +276,24 @@
 .import-stat-err  { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); }
 .import-stat-err  .import-stat-num { color: #f87171; }
 
+/* ─── Warnings ──────────────────────────────────────────────── */
+
+.import-warnings-wrap {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-warning-row {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.775rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+}
+
 /* ─── Error table ───────────────────────────────────────────── */
 
 .import-error-table-wrap {

@@ -14,21 +14,21 @@ if (-Not (Test-Path "$baseDir\node_modules")) {
 
 # 1. Iniciar la API de NestJS en una nueva ventana
 Write-Host "Iniciando Backend (API) en el puerto 3000..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$baseDir'; title API - Maru CRM; npm run dev -w api"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle = 'API - GestPro CRM'; cd '$baseDir'; npm run dev -w api"
 
 # Esperar unos segundos para que la API empiece a levantar
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 
 # 2. Iniciar el Frontend de Vite (React) en otra ventana
 Write-Host "Iniciando Frontend (Web) en el puerto 5173..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$baseDir'; title Web - Maru CRM; npm run dev -w web"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle = 'Web - GestPro CRM'; cd '$baseDir'; npm run dev -w web"
 
-# Esperar unos segundos
-Start-Sleep -Seconds 3
+# Esperar unos segundo
+Start-Sleep -Seconds 5
 
 # 3. Iniciar el Portal Público (Next.js) en otra ventana
 Write-Host "Iniciando Portal (Next.js) en el puerto 3001..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$baseDir'; title Portal - Maru CRM; npm run dev -w portal"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$host.UI.RawUI.WindowTitle = 'Portal - GestPro CRM'; cd '$baseDir'; npm run dev -w portal"
 
 Write-Host ""
 Write-Host "¡Servicios iniciados en ventanas separadas!" -ForegroundColor Cyan

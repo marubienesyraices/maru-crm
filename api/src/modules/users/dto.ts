@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum, IsIn } from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
@@ -29,4 +29,34 @@ export class UpdateUserDto {
 
   @IsOptional() @IsString()
   idSupervisor?: string;
+}
+
+export class UpdateTemaDto {
+  @IsString() @IsIn(['oscuro', 'claro'])
+  tema: 'oscuro' | 'claro';
+}
+
+export class CreateAdminDto {
+  @IsEmail()
+  email: string;
+
+  @IsString() @IsNotEmpty()
+  nombre: string;
+
+  @IsString() @IsNotEmpty()
+  tenantId: string;
+}
+
+export class UpdateAdminDto {
+  @IsOptional() @IsEmail()
+  email?: string;
+
+  @IsOptional() @IsString()
+  nombre?: string;
+
+  @IsOptional() @IsString()
+  estado?: string;
+
+  @IsOptional() @IsString()
+  tenantId?: string;
 }

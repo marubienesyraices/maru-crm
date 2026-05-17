@@ -1,4 +1,4 @@
-# Estado del Proyecto — CRM Maru Bienes y Raíces
+# Estado del Proyecto — CRM GestPro
 
 > **Fecha de revisión:** 9 de mayo de 2026
 > **Rama:** master
@@ -28,7 +28,7 @@
 
 | Tarea del plan | Estado | Notas |
 |:--------------|:-------|:------|
-| Scaffolding monorepo (`/api`, `/web`, `/shared`) | ✅ Completo | npm workspaces; TypeScript en los 3 paquetes; `@maru/shared` exporta enums/DTOs |
+| Scaffolding monorepo (`/api`, `/web`, `/shared`) | ✅ Completo | npm workspaces; TypeScript en los 3 paquetes; `@gestpro/shared` exporta enums/DTOs |
 | PostgreSQL + Prisma, migraciones, seed | ✅ Completo | 10+ migraciones aplicadas; seed crea SUPER_ADMIN + tenant demo |
 | Modelo de Empresas — CRUD (HU-01.01) | ✅ Completo | Plan FREE/PRO/ENTERPRISE; colores, moneda, zona horaria, límites de usuarios/propiedades |
 | Row-Level Security en todas las tablas | ✅ Completo | `TenantMiddleware` inyecta `app.tenant_id`; SUPER_ADMIN usa `bypass_rls`; **22 tablas cubiertas** en `migration.sql` (Fase 1) + `migration_v2.sql` (Fase 2-12); tablas hijas sin `tenant_id` protegidas por subquery al padre |
@@ -217,7 +217,7 @@
 | MetaPage | ✅ Funcional | Publicar en Meta; 2 tabs: Listado (badge estado, publicar/eliminar) y Nueva publicación (plataforma, propiedad, ✨ auto-texto, preview live, borrador/programar/publicar inmediato); aviso si Meta no configurado; solo ADMIN/SUPER_ADMIN |
 | AppLayout / ProtectedRoute | ✅ Funcional | Sidebar; rutas protegidas por JWT; "Campañas" ✉️ y "Publicar en Meta" 📢 en sección admin; "Reportes" + "Ranking" ⭐ |
 
-### Portal Público (`portal/` — Next.js 14, paquete workspace `@maru/portal`)
+### Portal Público (`portal/` — Next.js 14, paquete workspace `@gestpro/portal`)
 
 > Puerto 3001 · `npm run dev:portal` · App Router (RSC + SSR)
 

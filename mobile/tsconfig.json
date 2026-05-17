@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@maru/shared": ["../shared/src/index.ts"]
+      "@gestpro/shared": ["../shared/src/index.ts"]
     }
   }
 }

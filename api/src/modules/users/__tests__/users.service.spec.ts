@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { EmailService } from '../../email/email.service';
 import { createMockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 describe('UsersService', () => {
@@ -31,6 +33,8 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
+        { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') } },
       ],
     }).compile();
 

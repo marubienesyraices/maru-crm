@@ -36,26 +36,14 @@ export interface PortalConfig {
   mapa_lat_default?: number | null;
   mapa_lng_default?: number | null;
   mapa_zoom_default?: number | null;
-  // Colores del tenant (JOIN)
-  color_primario?: string | null;
-  color_secundario?: string | null;
-  color_acento?: string | null;
-  color_fondo_alterno?: string | null;
-  color_fondo_principal?: string | null;
-  color_texto?: string | null;
   logo_url?: string | null;
   tenant_nombre?: string | null;
 }
 
 const DEFAULTS: PortalConfig = {
-  nombre_empresa:        'GestPro',
-  chatbot_activo:        true,
-  portal_activo:         true,
-  color_primario:        '#3b82f6',
-  color_acento:          '#8b5cf6',
-  color_fondo_alterno:   '#0d1226',
-  color_fondo_principal: '#0a0e1a',
-  color_texto:           '#f1f5f9',
+  nombre_empresa: 'GestPro',
+  chatbot_activo:  true,
+  portal_activo:   true,
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';

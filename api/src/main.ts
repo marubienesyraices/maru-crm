@@ -10,6 +10,7 @@ import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
 
   // Sentry: captura excepciones no manejadas como eventos
   const { httpAdapter } = app.get(HttpAdapterHost);

@@ -1,37 +1,65 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ─── Dark theme (default) ──────────────────────── */
 :root {
-  --bg:          #0a0e1a;
-  --bg-card:     #111827;
-  --bg-card-hover: #161d30;
-  --border:      rgba(255,255,255,0.08);
-  --accent:      #3b82f6;
-  --accent-dark: #2563eb;
-  --text:        #f1f5f9;
-  --text-muted:  #94a3b8;
-  --text-faint:  #475569;
-  --radius:      12px;
-  --shadow:      0 4px 24px rgba(0,0,0,0.35);
-  --transition:  0.18s ease;
+  --bg:            #121214;
+  --bg-card:       #1a1a1e;
+  --bg-card-hover: #202024;
+  --border:        #2c2c35;
+  --accent:        #3b82f6;
+  --accent-dark:   #2563eb;
+  --text:          #f0f2f5;
+  --text-muted:    #a0a5b1;
+  --text-faint:    #6b7280;
+  --radius:        12px;
+  --shadow:        0 4px 24px rgba(0,0,0,0.35);
+  --transition:    0.18s ease;
+  --header-bg:     rgba(18,18,20,0.85);
+  --surface-hover: rgba(255,255,255,0.06);
+  --input-bg:      rgba(255,255,255,0.06);
+  --input-border:  rgba(255,255,255,0.12);
+  --img-placeholder: #121214;
+  --hero-from:     #121214;
+  --hero-via:      #161620;
+  --hero-to:       #0f1420;
+  --hero-glow:     rgba(59,130,246,0.12);
+  --detail-overlay: rgba(18,18,20,0.9);
+  --chatbot-bg:    #1a1a1e;
+  --chatbot-border: #2c2c35;
+  --chatbot-surface: rgba(255,255,255,0.06);
+  --chatbot-divider: #2c2c35;
+  --chip-bg:       rgba(59,130,246,0.1);
+  --chip-border:   rgba(59,130,246,0.25);
+  --chip-color:    #60a5fa;
+}
 
-  /* Theme-derived — overridden per-tenant via layout */
-  --header-bg:       rgba(10,14,26,0.85);
-  --surface-hover:   rgba(255,255,255,0.06);
-  --input-bg:        rgba(255,255,255,0.06);
-  --input-border:    rgba(255,255,255,0.12);
-  --img-placeholder: #0f1728;
-  --hero-from:       #0a0e1a;
-  --hero-via:        #0f172a;
-  --hero-to:         #0a1628;
-  --hero-glow:       rgba(59,130,246,0.12);
-  --detail-overlay:  rgba(10,14,26,0.9);
-  --chatbot-bg:      #0d1526;
-  --chatbot-border:  rgba(255,255,255,0.1);
-  --chatbot-surface: rgba(255,255,255,0.08);
-  --chatbot-divider: rgba(255,255,255,0.07);
-  --chip-bg:         rgba(59,130,246,0.1);
-  --chip-border:     rgba(59,130,246,0.25);
-  --chip-color:      #93c5fd;
+/* ─── Light theme ───────────────────────────────── */
+[data-theme="claro"] {
+  --bg:            #f8fafc;
+  --bg-card:       #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border:        #e2e8f0;
+  --accent:        #2563eb;
+  --accent-dark:   #1d4ed8;
+  --text:          #0f172a;
+  --text-muted:    #475569;
+  --text-faint:    #94a3b8;
+  --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --header-bg:     rgba(248,250,252,0.92);
+  --surface-hover: rgba(0,0,0,0.04);
+  --input-bg:      #ffffff;
+  --input-border:  #e2e8f0;
+  --img-placeholder: #e2e8f0;
+  /* Hero stays dark in light mode — override text inside it below */
+  --hero-glow:     rgba(37,99,235,0.15);
+  --detail-overlay: rgba(0,0,0,0.65);
+  --chatbot-bg:    #ffffff;
+  --chatbot-border: #e2e8f0;
+  --chatbot-surface: rgba(0,0,0,0.04);
+  --chatbot-divider: #e2e8f0;
+  --chip-bg:       rgba(37,99,235,0.08);
+  --chip-border:   rgba(37,99,235,0.2);
+  --chip-color:    #1d4ed8;
 }
 
 html { scroll-behavior: smooth; }
@@ -869,3 +897,62 @@ input, select, textarea { font-family: inherit; }
   background: transparent; border: 1px solid var(--border); color: var(--text-muted);
 }
 .verify-btn-ghost:hover { border-color: var(--text-muted); color: var(--text); background: transparent; }
+
+/* ─── Theme toggle button ───────────────────────── */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  padding: 7px 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  line-height: 0;
+}
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+/* ─── Light mode overrides ──────────────────────── */
+
+/* Hero keeps dark gradient — force white text inside */
+[data-theme="claro"] .portal-hero { color: #f1f5f9; }
+[data-theme="claro"] .portal-hero p { color: #94a3b8; }
+[data-theme="claro"] .portal-hero .portal-stat-lbl { color: #94a3b8; }
+[data-theme="claro"] .portal-hero .portal-stat-num { color: #60a5fa; }
+
+/* Card shadows for depth (light mode relies on shadows, not dark borders) */
+[data-theme="claro"] .prop-card { box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05); }
+[data-theme="claro"] .prop-card:hover { border-color: rgba(37,99,235,0.25); box-shadow: 0 8px 28px rgba(0,0,0,0.1); }
+[data-theme="claro"] .contact-card { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+[data-theme="claro"] .verify-card  { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+[data-theme="claro"] .portal-sidebar { box-shadow: 0 -4px 32px rgba(0,0,0,0.12); }
+[data-theme="claro"] .chatbot-panel  { box-shadow: 0 8px 40px rgba(0,0,0,0.14); }
+
+/* Chatbot option chips */
+[data-theme="claro"] .chatbot-opt {
+  border-color: rgba(37,99,235,0.3);
+  background: rgba(37,99,235,0.06);
+  color: #1d4ed8;
+}
+[data-theme="claro"] .chatbot-opt:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Register-interest toggle */
+[data-theme="claro"] .registro-toggle {
+  background: rgba(37,99,235,0.06);
+  border-color: rgba(37,99,235,0.25);
+  color: #1d4ed8;
+}
+[data-theme="claro"] .registro-toggle:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Error message */
+[data-theme="claro"] .registro-error {
+  background: rgba(239,68,68,0.07);
+  border-color: rgba(239,68,68,0.18);
+  color: #dc2626;
+}

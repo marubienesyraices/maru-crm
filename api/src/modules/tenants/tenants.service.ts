@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Plan, EstadoTenant } from '@prisma/client';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
@@ -10,21 +10,20 @@ export class TenantsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateTenantDto) {
+    const plan = (dto.plan as Plan) || 'FREE';
+    const catalogoConfig = await this.prisma.catalogoPlan.findUnique({ where: { plan } });
+
     const tenant = await this.prisma.tenant.create({
       data: {
         nombre: dto.nombre,
         logo_url: dto.logoUrl,
-        color_primario: dto.colorPrimario || '#3b82f6',
-        color_secundario: dto.colorSecundario || '#1e293b',
-        color_acento: dto.colorAcento || '#8b5cf6',
-        color_fondo_alterno: dto.colorFondoAlterno || '#111827',
-        color_fondo_principal: dto.colorFondoPrincipal || '#0a0e1a',
-        color_texto: dto.colorTexto || '#f1f5f9',
-        plan: (dto.plan as Plan) || 'FREE',
+        plan,
         moneda: dto.moneda || 'GTQ',
         zona_horaria: dto.zonaHoraria || 'America/Guatemala',
-        limite_usuarios: dto.limiteUsuarios || 10,
-        limite_propiedades: dto.limitePropiedades || 100,
+        limite_usuarios: dto.limiteUsuarios ?? catalogoConfig?.limite_usuarios ?? 1,
+        limite_propiedades: dto.limitePropiedades ?? catalogoConfig?.limite_propiedades ?? 5,
+        estado: (dto.estado as EstadoTenant) || 'ACTIVA',
+        trial_hasta: dto.trialHasta ? new Date(dto.trialHasta) : null,
       },
     });
 
@@ -60,7 +59,7 @@ export class TenantsService {
   async getBranding(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, color_fondo_alterno: true, color_fondo_principal: true, color_texto: true },
+      select: { nombre: true, logo_url: true, plan: true, limite_usuarios: true, limite_propiedades: true },
     });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
     return tenant;
@@ -68,7 +67,7 @@ export class TenantsService {
 
   async findAll() {
     return this.prisma.tenant.findMany({
-      include: { _count: { select: { usuarios: true } } },
+      include: { _count: { select: { usuarios: true, propiedades: true } } },
       orderBy: { created_at: 'desc' },
     });
   }
@@ -84,23 +83,53 @@ export class TenantsService {
 
   async update(id: string, dto: UpdateTenantDto) {
     await this.findOne(id);
+
+    let limiteUsuarios = dto.limiteUsuarios;
+    let limitePropiedades = dto.limitePropiedades;
+
+    // Si se cambia el plan pero no se especifican límites, adoptar los del catálogo
+    if (dto.plan && dto.limiteUsuarios === undefined && dto.limitePropiedades === undefined) {
+      const catalogoConfig = await this.prisma.catalogoPlan.findUnique({
+        where: { plan: dto.plan as Plan },
+      });
+      if (catalogoConfig) {
+        limiteUsuarios = catalogoConfig.limite_usuarios;
+        limitePropiedades = catalogoConfig.limite_propiedades;
+      }
+    }
+
+    if (limiteUsuarios !== undefined) {
+      const userCount = await this.prisma.user.count({ where: { tenant_id: id } });
+      if (userCount > limiteUsuarios) {
+        throw new BadRequestException(
+          `No se puede aplicar el límite de ${limiteUsuarios} usuarios: la empresa ya tiene ${userCount} usuarios registrados`,
+        );
+      }
+    }
+
+    if (limitePropiedades !== undefined) {
+      const propCount = await this.prisma.propiedad.count({ where: { tenant_id: id } });
+      if (propCount > limitePropiedades) {
+        throw new BadRequestException(
+          `No se puede aplicar el límite de ${limitePropiedades} propiedades: la empresa ya tiene ${propCount} propiedades registradas`,
+        );
+      }
+    }
+
     return this.prisma.tenant.update({
       where: { id },
       data: {
         nombre: dto.nombre,
         logo_url: dto.logoUrl,
-        color_primario: dto.colorPrimario,
-        color_secundario: dto.colorSecundario,
-        color_acento: dto.colorAcento,
-        color_fondo_alterno: dto.colorFondoAlterno,
-        color_fondo_principal: dto.colorFondoPrincipal,
-        color_texto: dto.colorTexto,
         plan: dto.plan as Plan | undefined,
         moneda: dto.moneda,
         zona_horaria: dto.zonaHoraria,
-        limite_usuarios: dto.limiteUsuarios,
-        limite_propiedades: dto.limitePropiedades,
+        limite_usuarios: limiteUsuarios,
+        limite_propiedades: limitePropiedades,
         estado: dto.estado as EstadoTenant | undefined,
+        trial_hasta: dto.trialHasta !== undefined
+          ? (dto.trialHasta ? new Date(dto.trialHasta) : null)
+          : undefined,
       },
     });
   }

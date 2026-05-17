@@ -37,6 +37,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { EncryptionModule } from './common/encryption/encryption.module';
 import { ConfigIntegracionesModule } from './modules/config-integraciones/config-integraciones.module';
 import { ConfigPortalModule } from './modules/config-portal/config-portal.module';
+import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { ConfigPortalModule } from './modules/config-portal/config-portal.module
     VideollamadasModule,
     ConfigIntegracionesModule,
     ConfigPortalModule,
+    CatalogoPlanesModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',

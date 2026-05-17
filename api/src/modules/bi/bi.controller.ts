@@ -30,7 +30,7 @@ export class BiController {
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getResumen(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getResumen(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
   }
 
   @UseGuards(RolesGuard)
@@ -43,7 +43,7 @@ export class BiController {
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getAgentes(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getAgentes(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
   }
 
   @UseGuards(RolesGuard)
@@ -58,7 +58,7 @@ export class BiController {
     @Query('limit') limitStr?: string,
   ) {
     const limit = limitStr ? parseInt(limitStr, 10) : 10;
-    return this.bi.getTopPropiedades(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr), limit);
+    return this.bi.getTopPropiedades(user.tenantId, parseDate(desdeStr), parseDate(hastaStr), limit);
   }
 
   @SkipAudit()
@@ -70,7 +70,7 @@ export class BiController {
     @Query('hasta') hastaStr?: string,
   ) {
     const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user.rol);
-    return this.bi.getRanking(user.tenant_id, user.id, isAdmin, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getRanking(user.tenantId, user.sub, isAdmin, parseDate(desdeStr), parseDate(hastaStr));
   }
 
   @UseGuards(RolesGuard)
@@ -83,7 +83,7 @@ export class BiController {
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getProductividad(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getProductividad(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
   }
 
   @UseGuards(RolesGuard)
@@ -92,7 +92,7 @@ export class BiController {
   @Post('cache/flush')
   @ApiOperation({ summary: 'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)' })
   async flushCache(@CurrentUser() user: any) {
-    await this.bi.flushTenantCache(user.tenant_id);
+    await this.bi.flushTenantCache(user.tenantId);
     return { ok: true };
   }
 
@@ -106,7 +106,7 @@ export class BiController {
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    const buffer = await this.bi.exportAgentesXlsx(user.tenant_id, parseDate(desdeStr), parseDate(hastaStr));
+    const buffer = await this.bi.exportAgentesXlsx(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
     const filename = `agentes_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

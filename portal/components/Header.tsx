@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getPortalConfig, displayName } from '@/lib/portal-config';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default async function Header() {
   const cfg = await getPortalConfig();
@@ -24,6 +25,7 @@ export default async function Header() {
         <nav className="portal-nav" aria-label="Navegación principal">
           <Link href="/">Propiedades</Link>
           <Link href="/#nosotros">Nosotros</Link>
+          <ThemeToggle />
           {wa && (
             <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="cta">
               WhatsApp

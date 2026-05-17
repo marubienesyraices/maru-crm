@@ -14,6 +14,10 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  plan: string | null;
+  limiteUsuarios: number | null;
+  limitePropiedades: number | null;
+  tema: 'oscuro' | 'claro';
   isLoading: boolean;
   error: string | null;
 
@@ -23,6 +27,7 @@ interface AuthState {
   refresh:      () => Promise<string | null>;
   forceLogout:  () => void;
   clearError:   () => void;
+  updateTema:   (tema: 'oscuro' | 'claro') => Promise<void>;
 }
 
 function parseJwt(token: string): User {
@@ -34,10 +39,22 @@ function parseJwt(token: string): User {
   return JSON.parse(jsonPayload);
 }
 
+function applyTema(tema: 'oscuro' | 'claro') {
+  document.documentElement.setAttribute('data-theme', tema);
+  localStorage.setItem('userTheme', tema);
+}
+
+const _rawRefresh = localStorage.getItem('refreshToken');
+const _initRefresh = (_rawRefresh && _rawRefresh !== 'undefined' && _rawRefresh !== 'null') ? _rawRefresh : null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user:         null,
-  accessToken:  localStorage.getItem('accessToken'),
-  refreshToken: localStorage.getItem('refreshToken'),
+  user:              null,
+  accessToken:       localStorage.getItem('accessToken'),
+  refreshToken:      _initRefresh,
+  plan:              null,
+  limiteUsuarios:    null,
+  limitePropiedades: null,
+  tema:              (localStorage.getItem('userTheme') as 'oscuro' | 'claro') || 'oscuro',
   isLoading:    false,
   error:        null,
 
@@ -59,6 +76,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false });
+      // Fetch user preferences (tema) and tenant plan after login
+      apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
+        .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
+        .catch(() => {});
+      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: data.accessToken })
+        .then((info) => set({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+        .catch(() => {});
       return { requires2FA: false };
     } catch (err: any) {
       set({ isLoading: false, error: err.message });
@@ -78,6 +102,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false });
+      apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
+        .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
+        .catch(() => {});
+      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: data.accessToken })
+        .then((info) => set({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+        .catch(() => {});
     } catch (err: any) {
       set({ isLoading: false, error: err.message });
       throw err;
@@ -98,13 +128,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch { /* best-effort */ }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    set({ user: null, accessToken: null, refreshToken: null });
+    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, tema: 'oscuro' });
   },
 
   // ── Silent refresh ───────────────────────────────────────────────
   refresh: async (): Promise<string | null> => {
     const { refreshToken } = get();
-    if (!refreshToken) {
+    // Guard against missing or corrupted "undefined" string from a previous bug
+    if (!refreshToken || refreshToken === 'undefined' || refreshToken === 'null') {
+      localStorage.removeItem('refreshToken');
       get().forceLogout();
       return null;
     }
@@ -124,8 +156,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = await res.json();
       const user = parseJwt(data.accessToken);
       localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken });
+      // API uses sliding-window: only issues a new refreshToken when close to expiry.
+      // Never overwrite the stored refreshToken with undefined.
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+        set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken });
+      } else {
+        set({ user, accessToken: data.accessToken });
+      }
       return data.accessToken;
     } catch {
       get().forceLogout();
@@ -137,11 +175,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   forceLogout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    set({ user: null, accessToken: null, refreshToken: null });
+    set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null });
     window.location.href = '/login';
   },
 
   clearError: () => set({ error: null }),
+
+  // ── Update theme preference ──────────────────────────────────────
+  updateTema: async (tema) => {
+    const { accessToken } = get();
+    applyTema(tema);
+    set({ tema });
+    if (accessToken) {
+      apiRequest('/api/users/me/tema', { method: 'PATCH', token: accessToken, body: { tema } })
+        .catch(() => {});
+    }
+  },
 }));
 
 // Register interceptors so apiRequest can refresh silently on 401
@@ -150,9 +199,20 @@ setupApiInterceptors(
   () => useAuthStore.getState().forceLogout(),
 );
 
+// ── Apply saved theme on page load ───────────────────────────────
+const savedTheme = localStorage.getItem('userTheme') as 'oscuro' | 'claro' | null;
+if (savedTheme === 'claro' || savedTheme === 'oscuro') {
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
 // ── Restore session on page load ──────────────────────────────────
 const storedToken   = localStorage.getItem('accessToken');
-const storedRefresh = localStorage.getItem('refreshToken');
+const storedRefreshRaw = localStorage.getItem('refreshToken');
+// Sanitize corrupted values written by earlier bug (stored literal "undefined")
+const storedRefresh = (storedRefreshRaw && storedRefreshRaw !== 'undefined' && storedRefreshRaw !== 'null')
+  ? storedRefreshRaw
+  : null;
+if (!storedRefresh && storedRefreshRaw) localStorage.removeItem('refreshToken');
 
 if (storedToken) {
   try {
@@ -161,6 +221,10 @@ if (storedToken) {
 
     if (tokenAlive) {
       useAuthStore.setState({ user: payload });
+      // Restore plan from branding endpoint (non-blocking)
+      apiRequest<{ plan: string; limite_usuarios: number; limite_propiedades: number }>('/api/tenants/branding', { token: storedToken })
+        .then((info) => useAuthStore.setState({ plan: info.plan ?? null, limiteUsuarios: info.limite_usuarios ?? null, limitePropiedades: info.limite_propiedades ?? null }))
+        .catch(() => {});
     } else if (storedRefresh) {
       // Access token expired but refresh token still exists — try silent refresh immediately
       useAuthStore.getState().refresh();

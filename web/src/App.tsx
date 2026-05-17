@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/Login/LoginPage';
 import Verify2FAPage from './pages/Verify2FA/Verify2FAPage';
@@ -9,6 +10,8 @@ import PropertyDetailPage from './pages/Properties/PropertyDetailPage';
 import ClientsListPage from './pages/Clients/ClientsListPage';
 import ClientFormPage from './pages/Clients/ClientFormPage';
 import ClientDetailPage from './pages/Clients/ClientDetailPage';
+import PropietariosListPage from './pages/Propietarios/PropietariosListPage';
+import PropietarioFormPage from './pages/Propietarios/PropietarioFormPage';
 import PipelinePage from './pages/Pipeline/PipelinePage';
 import AgendaPage from './pages/Agenda/AgendaPage';
 import PortalPage from './pages/Portal/PortalPage';
@@ -17,6 +20,7 @@ import PortalVerifyPage from './pages/Portal/PortalVerifyPage';
 import PortalReprogramarPage from './pages/Portal/PortalReprogramarPage';
 import AdminTenantsPage from './pages/Admin/AdminTenantsPage';
 import AdminUsersPage from './pages/Admin/AdminUsersPage';
+import AdminPlanesPage from './pages/Admin/AdminPlanesPage';
 import ImportPage from './pages/Import/ImportPage';
 import BiPage from './pages/BI/BiPage';
 import RankingPage from './pages/Ranking/RankingPage';
@@ -25,9 +29,34 @@ import MetaPage from './pages/Meta/MetaPage';
 import HelpPage from './pages/Help/HelpPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
+import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { useAuthStore } from './stores/authStore';
 import './index.css';
+
+function PlanRoute({ allowedPlans, children }: { allowedPlans: string[]; children: ReactNode }) {
+  const { plan } = useAuthStore();
+  if (plan && !allowedPlans.includes(plan)) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 12, color: 'var(--text-muted)' }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Funcionalidad no disponible</h2>
+        <p style={{ margin: 0, textAlign: 'center' }}>
+          Tu plan actual ({plan}) no incluye esta funcionalidad.<br/>
+          Contacta con soporte para actualizar tu plan.
+        </p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+function DashboardOrRedirect() {
+  const { user } = useAuthStore();
+  if (user?.rol === 'SUPER_ADMIN') return <Navigate to="/admin/empresas" replace />;
+  return <DashboardPage />;
+}
 
 export default function App() {
   return (
@@ -49,7 +78,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardOrRedirect />} />
           <Route path="/propiedades" element={<PropertiesListPage />} />
           <Route path="/propiedades/nueva" element={<PropertyFormPage />} />
           <Route path="/propiedades/:id" element={<PropertyDetailPage />} />
@@ -58,17 +87,22 @@ export default function App() {
           <Route path="/clientes/nuevo" element={<ClientFormPage />} />
           <Route path="/clientes/:id" element={<ClientDetailPage />} />
           <Route path="/clientes/:id/editar" element={<ClientFormPage />} />
+          <Route path="/propietarios" element={<PropietariosListPage />} />
+          <Route path="/propietarios/nuevo" element={<PropietarioFormPage />} />
+          <Route path="/propietarios/:id/editar" element={<PropietarioFormPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/bi" element={<BiPage />} />
-          <Route path="/campanas" element={<CampanasPage />} />
+          <Route path="/campanas" element={<PlanRoute allowedPlans={['PRO', 'ENTERPRISE']}><CampanasPage /></PlanRoute>} />
           <Route path="/meta" element={<MetaPage />} />
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+          <Route path="/admin/planes" element={<AdminPlanesPage />} />
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
-          <Route path="/settings/integraciones" element={<SettingsIntegracionesPage />} />
+          <Route path="/settings/integraciones" element={<PlanRoute allowedPlans={['ENTERPRISE']}><SettingsIntegracionesPage /></PlanRoute>} />
+          <Route path="/settings/perfil" element={<SettingsPerfilPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Route>
 

@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsEnum } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsEnum, IsDateString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateTenantDto {
   @IsString() @IsNotEmpty()
@@ -14,24 +15,6 @@ export class CreateTenantDto {
   logoUrl?: string;
 
   @IsOptional() @IsString()
-  colorPrimario?: string;
-
-  @IsOptional() @IsString()
-  colorSecundario?: string;
-
-  @IsOptional() @IsString()
-  colorAcento?: string;
-
-  @IsOptional() @IsString()
-  colorFondoAlterno?: string;
-
-  @IsOptional() @IsString()
-  colorFondoPrincipal?: string;
-
-  @IsOptional() @IsString()
-  colorTexto?: string;
-
-  @IsOptional() @IsString()
   plan?: string;
 
   @IsOptional() @IsString()
@@ -45,6 +28,12 @@ export class CreateTenantDto {
 
   @IsOptional() @IsInt()
   limitePropiedades?: number;
+
+  @IsOptional() @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
+  estado?: string;
+
+  @IsOptional() @Transform(({ value }) => value || undefined) @IsDateString()
+  trialHasta?: string;
 }
 
 export class UpdateTenantDto {
@@ -55,24 +44,6 @@ export class UpdateTenantDto {
   logoUrl?: string;
 
   @IsOptional() @IsString()
-  colorPrimario?: string;
-
-  @IsOptional() @IsString()
-  colorSecundario?: string;
-
-  @IsOptional() @IsString()
-  colorAcento?: string;
-
-  @IsOptional() @IsString()
-  colorFondoAlterno?: string;
-
-  @IsOptional() @IsString()
-  colorFondoPrincipal?: string;
-
-  @IsOptional() @IsString()
-  colorTexto?: string;
-
-  @IsOptional() @IsString()
   plan?: string;
 
   @IsOptional() @IsString()
@@ -87,6 +58,9 @@ export class UpdateTenantDto {
   @IsOptional() @IsInt()
   limitePropiedades?: number;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
   estado?: string;
+
+  @IsOptional() @Transform(({ value }) => value || undefined) @IsDateString()
+  trialHasta?: string;
 }

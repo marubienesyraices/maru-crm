@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
+import { usePropietarios } from '../../hooks/usePropietarios';
 import './PropertyForm.css';
 
 const TIPOS = [
@@ -109,9 +110,15 @@ export default function PropertyFormPage() {
     areaTerrenoM2: '',
     areaConstruccionM2: '',
     anoConstruccion: '',
+    propietarioId: '',
   });
   const [geocoding, setGeocoding] = useState(false);
   const [geoError, setGeoError] = useState('');
+
+  const [propietarioBusqueda, setPropietarioBusqueda] = useState('');
+  const [propietarioNombre, setPropietarioNombre] = useState('');
+  const [propietarioDropdownOpen, setPropietarioDropdownOpen] = useState(false);
+  const { data: propietariosData = [] } = usePropietarios(propietarioBusqueda);
 
   // Motor de precios sugerido
   const [loadingSugg, setLoadingSugg] = useState(false);
@@ -163,7 +170,9 @@ export default function PropertyFormPage() {
             areaTerrenoM2: data.area_terreno_m2 ? String(data.area_terreno_m2) : '',
             areaConstruccionM2: data.area_construccion_m2 ? String(data.area_construccion_m2) : '',
             anoConstruccion: data.ano_construccion ? String(data.ano_construccion) : '',
+            propietarioId: data.propietario?.id || '',
           });
+          if (data.propietario?.nombre) setPropietarioNombre(data.propietario.nombre);
         })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
@@ -261,6 +270,7 @@ export default function PropertyFormPage() {
       if (form.anoConstruccion) body.anoConstruccion = Number(form.anoConstruccion);
       if (form.latitud) body.latitud = Number(form.latitud);
       if (form.longitud) body.longitud = Number(form.longitud);
+      if (form.propietarioId) body.propietarioId = form.propietarioId;
 
       if (id) {
         await apiRequest(`/api/propiedades/${id}`, {
@@ -363,6 +373,59 @@ export default function PropertyFormPage() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            {/* Propietario */}
+            <div className="input-group">
+              <label>Propietario</label>
+              {form.propietarioId ? (
+                <div className="pf-propietario-selected">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <span>{propietarioNombre}</span>
+                  <button
+                    type="button"
+                    className="pf-propietario-clear"
+                    onClick={() => { updateField('propietarioId', ''); setPropietarioNombre(''); }}
+                    title="Quitar propietario"
+                  >✕</button>
+                </div>
+              ) : (
+                <div className="pf-propietario-wrap">
+                  <input
+                    className="input-field"
+                    placeholder="Buscar por nombre, teléfono o DPI..."
+                    value={propietarioBusqueda}
+                    onChange={(e) => { setPropietarioBusqueda(e.target.value); setPropietarioDropdownOpen(true); }}
+                    onFocus={() => setPropietarioDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setPropietarioDropdownOpen(false), 150)}
+                  />
+                  {propietarioDropdownOpen && propietariosData.length > 0 && (
+                    <div className="pf-propietario-dropdown">
+                      {(propietariosData as any[]).slice(0, 8).map((p: any) => (
+                        <div
+                          key={p.id}
+                          className="pf-propietario-option"
+                          onMouseDown={() => {
+                            setForm((prev) => ({ ...prev, propietarioId: p.id }));
+                            setPropietarioNombre(p.nombre);
+                            setPropietarioBusqueda('');
+                            setPropietarioDropdownOpen(false);
+                          }}
+                        >
+                          <span className="pf-propietario-option-nombre">{p.nombre}</span>
+                          {p.telefono && <span className="pf-propietario-option-tel">{p.telefono}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <span className="pf-field-hint">
+                Opcional.{' '}
+                <button type="button" className="pf-link-btn" onClick={() => navigate('/propietarios/nuevo')}>
+                  + Crear nuevo propietario
+                </button>
+              </span>
             </div>
           </div>
         )}

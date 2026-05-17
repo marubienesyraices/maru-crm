@@ -4,13 +4,30 @@ import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://maru_admin:maru_secret_2026@localhost:5432/maru_crm?schema=public';
+const connectionString = process.env.DATABASE_URL || 'postgresql://gestpro_admin:gestpro_secret_2026@localhost:5432/gestpro_crm?schema=public';
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Seeding database...');
+
+  // ─── 0. Catálogo de planes ───────────────────────────────
+  const catalogoPlanes = [
+    { plan: 'FREE'       as const, limite_usuarios: 1,  limite_propiedades: 5,   tiene_correo: false, tiene_campanas: false, tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false },
+    { plan: 'BASIC'      as const, limite_usuarios: 3,  limite_propiedades: 25,  tiene_correo: true,  tiene_campanas: false, tiene_portal: true,  tiene_sitio_propio: false, tiene_integraciones: false },
+    { plan: 'PRO'        as const, limite_usuarios: 5,  limite_propiedades: 100, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: false },
+    { plan: 'ENTERPRISE' as const, limite_usuarios: 25, limite_propiedades: 500, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: true  },
+  ];
+
+  for (const config of catalogoPlanes) {
+    await prisma.catalogoPlan.upsert({
+      where: { plan: config.plan },
+      update: config,
+      create: config,
+    });
+  }
+  console.log('  ✅ Catálogo de planes inicializado (FREE, BASIC, PRO, ENTERPRISE)');
 
   // ─── 1. Create Super Admin (platform-level) ──────────────
   const superAdminPassword = await bcrypt.hash('SuperAdmin@2026', 12);
@@ -21,7 +38,7 @@ async function main() {
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      nombre: 'Maru Platform',
+      nombre: 'GestPro Platform',
       plan: 'ENTERPRISE',
       estado: 'ACTIVA',
     },
@@ -33,7 +50,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000010',
       tenant_id: platformTenant.id,
-      email: 'superadmin@marucrm.com',
+      email: 'superadmin@gestpro.com',
       password_hash: superAdminPassword,
       nombre: 'Super Administrador',
       rol: 'SUPER_ADMIN',
@@ -44,7 +61,7 @@ async function main() {
     },
   });
 
-  console.log('  ✅ Super Admin: superadmin@marucrm.com / SuperAdmin@2026');
+  console.log('  ✅ Super Admin: superadmin@gestpro.com / SuperAdmin@2026');
 
   // ─── 2. Create demo tenant ───────────────────────────────
   const demoTenant = await prisma.tenant.upsert({
@@ -53,9 +70,6 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000002',
       nombre: 'GestPro Demo',
-      color_primario: '#2563eb',
-      color_secundario: '#1e293b',
-      color_acento: '#8b5cf6',
       plan: 'PRO',
       moneda: 'GTQ',
       zona_horaria: 'America/Guatemala',
@@ -87,7 +101,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000020',
       tenant_id: demoTenant.id,
-      email: 'admin@marubr.com',
+      email: 'admin@gestpro.com',
       password_hash: adminPassword,
       nombre: 'María García (Admin)',
       rol: 'ADMIN',
@@ -103,7 +117,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000030',
       tenant_id: demoTenant.id,
-      email: 'carlos.senior@marubr.com',
+      email: 'carlos.senior@gestpro.com',
       password_hash: agentPassword,
       nombre: 'Carlos Mendoza (Senior)',
       rol: 'SENIOR',
@@ -119,7 +133,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000040',
       tenant_id: demoTenant.id,
-      email: 'ana.junior@marubr.com',
+      email: 'ana.junior@gestpro.com',
       password_hash: agentPassword,
       nombre: 'Ana López (Junior)',
       rol: 'JUNIOR',
@@ -136,7 +150,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000050',
       tenant_id: demoTenant.id,
-      email: 'pedro.junior@marubr.com',
+      email: 'pedro.junior@gestpro.com',
       password_hash: agentPassword,
       nombre: 'Pedro Ramírez (Junior)',
       rol: 'JUNIOR',
@@ -148,10 +162,10 @@ async function main() {
   });
 
   console.log('  ✅ Tenant: GestPro Demo');
-  console.log('  ✅ Admin: admin@marubr.com / Admin@2026');
-  console.log('  ✅ Senior: carlos.senior@marubr.com / Agent@2026');
-  console.log('  ✅ Junior: ana.junior@marubr.com / Agent@2026');
-  console.log('  ✅ Junior: pedro.junior@marubr.com / Agent@2026');
+  console.log('  ✅ Admin: admin@gestpro.com / Admin@2026');
+  console.log('  ✅ Senior: carlos.senior@gestpro.com / Agent@2026');
+  console.log('  ✅ Junior: ana.junior@gestpro.com / Agent@2026');
+  console.log('  ✅ Junior: pedro.junior@gestpro.com / Agent@2026');
   console.log('  📊 Jerarquía: Carlos (Senior) → Ana, Pedro (Juniors)');
   console.log('🎉 Seed completed!');
 }

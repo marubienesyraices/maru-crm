@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { VisitasService } from '../visitas.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
+import { EmailService } from '../../email/email.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
@@ -49,6 +51,8 @@ describe('VisitasService', () => {
         VisitasService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificacionesService, useValue: notificaciones },
+        { provide: EmailService, useValue: { sendClientEmail: jest.fn().mockResolvedValue(undefined), send: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') } },
       ],
     }).compile();
 

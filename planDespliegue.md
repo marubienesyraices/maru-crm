@@ -2,7 +2,7 @@
 
 Guía completa para llevar el proyecto de desarrollo local a producción: dominio, DNS, correos corporativos, hosting y despliegue de los tres servicios.
 
-> **Sistema:** GestPro CRM (anteriormente "Maru CRM") — renombrado en la 5ta entrega.
+> **Sistema:** GestPro CRM
 
 ---
 
@@ -12,8 +12,9 @@ Guía completa para llevar el proyecto de desarrollo local a producción: domini
 
 | Área | Cambio |
 |------|--------|
-| **Marca** | Sistema renombrado a **GestPro**; logo integrado en CRM y portal |
-| **Portal** | Página 404 personalizada (`not-found.tsx`); colores de tema configurables por tenant; `sitemap.xml` y `robots.txt` automáticos |
+| **Marca** | Sistema renombrado a **GestPro**; logo y branding unificado en CRM, portal y emails |
+| **Temas claro/oscuro** | Paleta de color fija a nivel de app (no por tenant); toggle persistente en CRM y portal público (localStorage) |
+| **Portal** | Página 404 personalizada; toggle de tema en el header; `sitemap.xml` y `robots.txt` automáticos |
 | **Módulo Meta** | Publicación automática de propiedades en Facebook e Instagram vía Meta Graph API; cola BullMQ propia |
 | **Módulo Sindicación** | Publicación en portales externos (Encuentra24, MercadoLibre) |
 | **Módulo Firma Digital** | Integración DocuSign para firma de contratos desde el CRM |
@@ -21,10 +22,10 @@ Guía completa para llevar el proyecto de desarrollo local a producción: domini
 | **WhatsApp Business** | Envío de mensajes vía Cloud API (fallback a enlace wa.me si no se configura) |
 | **Brochure PDF** | Galería ampliada a 8+ fotos; nuevo diseño de carta de comisión |
 | **BI / Dashboard** | Índices de rendimiento en base de datos; nuevas métricas |
-| **Migraciones nuevas** | `reporte_visita`, `meta_publicaciones`, `bi_indexes`, `sindicacion_firma_zoom`, `color_fondo_alterno`, `portal_theme_colors` |
+| **Migraciones nuevas** | `reporte_visita`, `meta_publicaciones`, `bi_indexes`, `sindicacion_firma_zoom`, `remove_tenant_colors` |
 | **RLS** | `migration_v2.sql` cubre tablas Fase 2–12; obligatoria en producción |
 | **Tests de seguridad** | Suite OWASP Top 10 (`api/src/__tests__/security/owasp.security.spec.ts`) |
-| **Variables de entorno** | Nuevas vars para Meta, WhatsApp, DocuSign, Zoom, Sentry, Sindicación, Mapbox server-side |
+| **Variables de entorno** | Nuevas vars para Meta, WhatsApp, DocuSign, Zoom, Sentry, Sindicación, Mapbox server-side, `PORTAL_URL` |
 
 ---
 
@@ -36,9 +37,9 @@ Internet
    ▼
 Cloudflare (DNS + CDN + SSL gratuito)
    │
-   ├── www.maruinmobiliaria.com  →  Portal público Next.js   (Vercel)
-   ├── crm.maruinmobiliaria.com  →  CRM React               (Cloudflare Pages)
-   └── api.maruinmobiliaria.com  →  API NestJS              (Railway)
+   ├── www.tudominio.com  →  Portal público Next.js   (Vercel)
+   ├── crm.tudominio.com  →  CRM React               (Cloudflare Pages)
+   └── api.tudominio.com  →  API NestJS              (Railway)
            │
            ├── PostgreSQL  →  Neon.tech
            └── Redis       →  Upstash
@@ -50,7 +51,7 @@ Cloudflare (DNS + CDN + SSL gratuito)
 
 **Dónde comprar:** [Namecheap](https://namecheap.com) (recomendado) o [GoDaddy](https://godaddy.com).
 
-1. Buscar `maruinmobiliaria.com` (o el nombre definitivo).
+1. Buscar `tudominio.com` (o el nombre definitivo).
 2. Comprar el dominio — costo aproximado **$10–15 USD/año** para `.com`.
 3. En la configuración del dominio en Namecheap: buscar la opción **Nameservers** y seleccionar **Custom DNS**. Dejar esto pendiente — se configurará en el Paso 2.
 
@@ -63,7 +64,7 @@ Cloudflare (DNS + CDN + SSL gratuito)
 Cloudflare actúa como capa intermedia entre el dominio y los servidores. Aporta SSL gratuito, protección DDoS y CDN sin costo adicional.
 
 1. Crear cuenta gratuita en [cloudflare.com](https://cloudflare.com).
-2. Ir a **Add a Site** → escribir el dominio (`maruinmobiliaria.com`) → elegir plan **Free**.
+2. Ir a **Add a Site** → escribir el dominio (`tudominio.com`) → elegir plan **Free**.
 3. Cloudflare escaneará los DNS actuales y mostrará los registros existentes. Hacer clic en **Continue**.
 4. Cloudflare mostrará **dos nameservers** propios (ejemplo: `ada.ns.cloudflare.com` y `bob.ns.cloudflare.com`).
 5. Volver a Namecheap → **Domain** → **Nameservers** → pegar los dos nameservers de Cloudflare → guardar.
@@ -82,11 +83,11 @@ Una vez activado el dominio:
 
 ### Opción A — Google Workspace (recomendado)
 
-Permite tener `nombre@maruinmobiliaria.com` usando Gmail. Costo: **$6 USD/usuario/mes**.
+Permite tener `nombre@tudominio.com` usando Gmail. Costo: **$6 USD/usuario/mes**.
 
 1. Ir a [workspace.google.com](https://workspace.google.com) → **Comenzar**.
-2. Ingresar el dominio (`maruinmobiliaria.com`) → seguir el asistente.
-3. Crear el primer usuario administrador (ej: `admin@maruinmobiliaria.com`).
+2. Ingresar el dominio (`tudominio.com`) → seguir el asistente.
+3. Crear el primer usuario administrador (ej: `admin@tudominio.com`).
 4. Google pedirá verificar la propiedad del dominio con un registro TXT. Ir a Cloudflare → **DNS** → **Add Record**:
 
    | Tipo | Nombre | Contenido |
@@ -104,9 +105,9 @@ Permite tener `nombre@maruinmobiliaria.com` usando Gmail. Costo: **$6 USD/usuari
    | MX | @ | `ALT4.ASPMX.L.GOOGLE.COM` | 10 |
 
 6. Ir a [admin.google.com](https://admin.google.com) → **Usuarios** → crear los buzones:
-   - `info@maruinmobiliaria.com` — contacto público
-   - `ventas@maruinmobiliaria.com` — equipo comercial
-   - `noreply@maruinmobiliaria.com` — para envíos automáticos (alias, sin buzón real)
+   - `info@tudominio.com` — contacto público
+   - `ventas@tudominio.com` — equipo comercial
+   - `noreply@tudominio.com` — para envíos automáticos (alias, sin buzón real)
 
 ### Opción B — Zoho Mail (gratuito hasta 5 usuarios)
 
@@ -138,7 +139,7 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 |------|--------|-----------|
 | CNAME | `resend._domainkey` | `p.resend.com` |
 | CNAME | `em1._domainkey` | `p.resend.com` |
-| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@maruinmobiliaria.com` |
+| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@tudominio.com` |
 
 > Resend muestra los valores exactos al verificar el dominio — copiarlos tal cual.
 
@@ -146,13 +147,13 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 
 | Tipo | Nombre | Contenido |
 |------|--------|-----------|
-| TXT | `_dmarc` | `v=DMARC1; p=quarantine; pct=100; rua=mailto:info@maruinmobiliaria.com` |
+| TXT | `_dmarc` | `v=DMARC1; p=quarantine; pct=100; rua=mailto:info@tudominio.com` |
 
 ---
 
 ## PASO 5 — Base de datos PostgreSQL en Neon
 
-1. Crear cuenta en [neon.tech](https://neon.tech) → **New Project** → nombre `maru-crm` → región más cercana (ej: `us-east-1` o `us-east-2`).
+1. Crear cuenta en [neon.tech](https://neon.tech) → **New Project** → nombre `gestpro-crm` → región más cercana (ej: `us-east-1` o `us-east-2`).
 2. En el proyecto creado → **Connection Details** → copiar la **Connection String** (tiene la forma `postgresql://usuario:password@host/db?sslmode=require`).
 3. Guardar esta URL — se usará como `DATABASE_URL` en producción.
 4. En el **SQL Editor** de Neon, ejecutar en orden:
@@ -166,9 +167,9 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 
    > `migration_v2.sql` cubre las tablas añadidas en la 4ta y 5ta entrega: `reporte_visita`, `meta_publicaciones`, `sindicacion`, `firma_digital`, `videollamadas`, `brochure_descargas`, entre otras. Siempre usar la versión más reciente del archivo.
 
-5. Cambiar la contraseña del rol `maru_app` inmediatamente:
+5. Cambiar la contraseña del rol de base de datos inmediatamente (el rol `gestpro_app` es creado por los scripts RLS con permisos limitados de lectura/escritura, diferente al usuario administrador de la BD):
    ```sql
-   ALTER ROLE maru_app PASSWORD 'contraseña-segura-aqui';
+   ALTER ROLE gestpro_app PASSWORD 'contraseña-segura-aqui';
    ```
 
 ---
@@ -176,7 +177,7 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 ## PASO 6 — Redis en Upstash
 
 1. Crear cuenta en [upstash.com](https://upstash.com) → **Create Database**.
-2. Nombre: `maru-crm-redis` → región: `us-east-1` → tipo: **Regional** → plan **Free**.
+2. Nombre: `gestpro-redis` → región: `us-east-1` → tipo: **Regional** → plan **Free**.
 3. En la base de datos creada → pestaña **Details** → copiar:
    - **Endpoint** → será el `REDIS_HOST`
    - **Port** → `6379`
@@ -205,19 +206,19 @@ Railway ejecuta el Dockerfile existente sin configuración extra.
    JWT_ACCESS_EXPIRES_IN=15m
    JWT_REFRESH_EXPIRES_IN=7d
    PORT=3000
-   FRONTEND_URL=https://crm.maruinmobiliaria.com
-   PORTAL_URL=https://www.maruinmobiliaria.com
-   APP_URL=https://api.maruinmobiliaria.com
+   FRONTEND_URL=https://crm.tudominio.com
+   PORTAL_URL=https://www.tudominio.com
+   APP_URL=https://api.tudominio.com
 
    # ── Email (Resend) ────────────────────────────────────
    RESEND_API_KEY=re_...
-   EMAIL_FROM=GestPro CRM <noreply@maruinmobiliaria.com>
+   EMAIL_FROM=GestPro CRM <noreply@tudominio.com>
 
    # ── Almacenamiento (Cloudflare R2) ───────────────────
    R2_ACCOUNT_ID=...
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
-   R2_BUCKET=maru-crm-files
+   R2_BUCKET=gestpro-files
    R2_PUBLIC_URL=https://...r2.cloudflarestorage.com
 
    # ── Mapbox ────────────────────────────────────────────
@@ -260,7 +261,7 @@ Railway ejecuta el Dockerfile existente sin configuración extra.
 
    > **Integraciones opcionales:** las variables de Meta, WhatsApp, DocuSign, Zoom y Sindicación pueden dejarse vacías para deshabilitar esas funcionalidades. El sistema opera normalmente sin ellas.
 
-6. En **Settings** → **Networking** → **Add Custom Domain** → escribir `api.maruinmobiliaria.com`.
+6. En **Settings** → **Networking** → **Add Custom Domain** → escribir `api.tudominio.com`.
 7. Railway mostrará un registro CNAME. En Cloudflare → **DNS** → agregar:
 
    | Tipo | Nombre | Contenido | Proxy |
@@ -287,17 +288,17 @@ Vercel es el hosting oficial de Next.js y ofrece plan gratuito generoso.
 4. En **Environment Variables** agregar:
 
    ```env
-   NEXT_PUBLIC_API_URL=https://api.maruinmobiliaria.com
+   NEXT_PUBLIC_API_URL=https://api.tudominio.com
    NEXT_PUBLIC_COMPANY_NAME=GestPro
-   NEXT_PUBLIC_COMPANY_EMAIL=info@maruinmobiliaria.com
+   NEXT_PUBLIC_COMPANY_EMAIL=info@tudominio.com
    NEXT_PUBLIC_WHATSAPP=50212345678
    NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
-   NEXT_PUBLIC_SITE_URL=https://www.maruinmobiliaria.com   # usado en sitemap.xml y robots.txt
+   NEXT_PUBLIC_SITE_URL=https://www.tudominio.com   # usado en sitemap.xml y robots.txt
    PORTAL_TENANT_ID=                                        # UUID del tenant a mostrar; vacío = primer tenant
    ```
 
 5. Hacer clic en **Deploy**.
-6. Cuando termine → **Settings** → **Domains** → agregar `www.maruinmobiliaria.com`.
+6. Cuando termine → **Settings** → **Domains** → agregar `www.tudominio.com`.
 7. Vercel mostrará el registro DNS a agregar. En Cloudflare → **DNS**:
 
    | Tipo | Nombre | Contenido | Proxy |
@@ -323,14 +324,14 @@ El CRM React es un sitio estático (Vite + Nginx en Docker). Cloudflare Pages lo
 3. En **Environment variables** (production) agregar:
 
    ```env
-   VITE_API_URL=https://api.maruinmobiliaria.com
+   VITE_API_URL=https://api.tudominio.com
    VITE_MAPBOX_TOKEN=pk.eyJ1...
    VITE_GOOGLE_MAPS_API_KEY=AIzaSy...
    VITE_SENTRY_DSN=https://xxxxxxxx@oXXXXXX.ingest.sentry.io/XXXXX
    ```
 
 4. Hacer clic en **Save and Deploy**.
-5. Cuando termine → **Custom domains** → agregar `crm.maruinmobiliaria.com`.
+5. Cuando termine → **Custom domains** → agregar `crm.tudominio.com`.
 6. Cloudflare Pages configura el DNS automáticamente al estar en la misma cuenta.
 
 ---
@@ -360,12 +361,20 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
    ```bash
    npx ts-node prisma/seed.ts
    ```
-   Esto crea el tenant SUPER_ADMIN y un usuario demo con credenciales iniciales.
+   Esto crea dos tenants de demo y los siguientes usuarios iniciales:
 
-2. Acceder al CRM en `https://crm.maruinmobiliaria.com`.
-3. Iniciar sesión con las credenciales del seed.
-4. Ir a **Configuración** → cambiar email y contraseña del super admin.
-5. Crear el primer tenant (empresa inmobiliaria) y el primer usuario ADMIN.
+   | Rol | Email | Contraseña |
+   |-----|-------|------------|
+   | Super Admin | `superadmin@gestpro.com` | `SuperAdmin@2026` |
+   | Admin | `admin@gestpro.com` | `Admin@2026` |
+   | Senior | `carlos.senior@gestpro.com` | `Agent@2026` |
+   | Junior | `ana.junior@gestpro.com` | `Agent@2026` |
+
+2. Acceder al CRM en `https://crm.tudominio.com`.
+3. Iniciar sesión con `superadmin@gestpro.com` / `SuperAdmin@2026`.
+4. Ir a **Configuración** → **Mi Perfil** → cambiar email y contraseña del super admin.
+5. Ir a **Admin** → **Empresas** → crear el primer tenant real (empresa inmobiliaria).
+6. Dentro del tenant, ir a **Admin** → **Usuarios** → crear el primer usuario ADMIN.
 
 ---
 
@@ -413,19 +422,20 @@ Antes de considerar el despliegue completo:
 - [ ] SPF, DKIM y DMARC configurados (verificar en [mail-tester.com](https://mail-tester.com))
 
 ### Servicios desplegados
-- [ ] API desplegada y respondiendo en `https://api.maruinmobiliaria.com/health`
-- [ ] Portal desplegado y cargando propiedades en `https://www.maruinmobiliaria.com`
-- [ ] CRM desplegado y login funciona en `https://crm.maruinmobiliaria.com`
-- [ ] `sitemap.xml` accesible en `https://www.maruinmobiliaria.com/sitemap.xml`
-- [ ] `robots.txt` accesible en `https://www.maruinmobiliaria.com/robots.txt`
+- [ ] API desplegada y respondiendo en `https://api.tudominio.com/health`
+- [ ] Portal desplegado y cargando propiedades en `https://www.tudominio.com`
+- [ ] CRM desplegado y login funciona en `https://crm.tudominio.com`
+- [ ] `sitemap.xml` accesible en `https://www.tudominio.com/sitemap.xml`
+- [ ] `robots.txt` accesible en `https://www.tudominio.com/robots.txt`
 - [ ] Página 404 personalizada funcionando en el portal
 
 ### Base de datos
 - [ ] Variables de entorno de producción completas (sin valores de desarrollo)
 - [ ] Migraciones de Prisma aplicadas (`npx prisma migrate deploy` en Railway)
 - [ ] RLS policies aplicadas en Neon (`migration.sql` y `migration_v2.sql` en ese orden)
-- [ ] Contraseña del rol `maru_app` cambiada en producción
-- [ ] Seed ejecutado y credenciales del super admin cambiadas
+- [ ] Contraseña del rol `gestpro_app` (RLS) cambiada en producción
+- [ ] Seed ejecutado (`npx ts-node prisma/seed.ts`)
+- [ ] Contraseña de `superadmin@gestpro.com` cambiada tras el primer login
 
 ### Almacenamiento y email
 - [ ] Dominio verificado en Resend y emails de prueba recibidos sin ir a spam
@@ -440,3 +450,4 @@ Antes de considerar el despliegue completo:
 - [ ] **DocuSign** — sobre de prueba enviado y firmado correctamente
 - [ ] **Zoom** — link de videollamada generado al crear visita con tipo Zoom
 - [ ] **Sentry** — error de prueba aparece en el dashboard de Sentry
+- [ ] **Tema** — toggle claro/oscuro funciona en CRM y en el portal público

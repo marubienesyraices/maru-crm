@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePropiedades, usePropiedadesStats } from '../../hooks/usePropiedades';
 import ImportModal from '../../components/ImportModal';
+import { useAuthStore } from '../../stores/authStore';
 import './Properties.css';
 
 interface Propiedad {
@@ -54,6 +55,20 @@ const GESTION_LABELS: Record<string, string> = {
   AMBAS: 'Venta/Renta',
 };
 
+function LimitPill({ current, limit, label }: { current: number; limit: number; label: string }) {
+  const pct = limit > 0 ? current / limit : 0;
+  const color = pct >= 1 ? '#ef4444' : pct >= 0.8 ? '#f59e0b' : '#22c55e';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '2px 8px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600,
+      background: `${color}18`, border: `1px solid ${color}40`, color,
+    }}>
+      {current} / {limit} {label}
+    </span>
+  );
+}
+
 function formatPrice(value: string | null, currency: string) {
   if (!value) return '—';
   const num = parseFloat(value);
@@ -74,6 +89,7 @@ export default function PropertiesListPage() {
   const [filtros, setFiltros] = useState({ tipo: '', gestion: '', estado: '', busqueda: '' });
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const { limitePropiedades } = useAuthStore();
 
   const { data: result, isLoading: loading, isError } = usePropiedades({ ...filtros, page });
   const { data: stats } = usePropiedadesStats();
@@ -81,24 +97,47 @@ export default function PropertiesListPage() {
   const propiedades: Propiedad[] = result?.data ?? [];
   const meta = result?.meta ?? { total: 0, page: 1, totalPages: 1 };
 
+  const totalPropiedades: number = (stats as any)?.total ?? 0;
+  const atPropLimit = limitePropiedades !== null && totalPropiedades >= limitePropiedades;
+
   return (
     <div className="properties-page">
       {/* Header */}
       <div className="props-header">
         <div>
           <h1>Propiedades</h1>
-          <p>{stats?.total ?? 0} propiedades en inventario</p>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {totalPropiedades} propiedades en inventario
+            {limitePropiedades !== null && (
+              <LimitPill current={totalPropiedades} limit={limitePropiedades} label="prop." />
+            )}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button className="btn btn-ghost" onClick={() => setShowImport(true)}>⬆ Importar CSV</button>
-          <button className="btn btn-primary" onClick={() => navigate('/propiedades/nueva')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Nueva Propiedad
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => !atPropLimit && navigate('/propiedades/nueva')}
+              disabled={atPropLimit}
+              title={atPropLimit ? `Límite de ${limitePropiedades} propiedades alcanzado. Actualiza tu plan para agregar más.` : undefined}
+              style={atPropLimit ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nueva Propiedad
+            </button>
+          </div>
         </div>
       </div>
+
+      {atPropLimit && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-red,#ef4444)" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Has alcanzado el límite de <strong>{limitePropiedades} propiedades</strong> de tu plan. Contacta con soporte para actualizar tu plan.</span>
+        </div>
+      )}
 
       {/* Stats Row */}
       {stats && (
@@ -173,7 +212,7 @@ export default function PropertiesListPage() {
               ? 'Ninguna propiedad coincide con los filtros aplicados.'
               : 'Agrega tu primera propiedad para comenzar.'}
           </p>
-          {!filtros.busqueda && !filtros.tipo && !filtros.estado && !filtros.gestion && (
+          {!filtros.busqueda && !filtros.tipo && !filtros.estado && !filtros.gestion && !atPropLimit && (
             <button className="btn btn-primary" onClick={() => navigate('/propiedades/nueva')}>Nueva Propiedad</button>
           )}
         </div>

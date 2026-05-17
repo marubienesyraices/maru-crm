@@ -19,7 +19,7 @@ export interface PropiedadPublica {
   descripcion: string | null;
   amenidades: string[];
   imagenes: { url: string; alt: string | null }[];
-  tenant: { nombre: string; color_primario: string | null; whatsapp?: string | null };
+  tenant: { nombre: string; whatsapp?: string | null };
 }
 
 export interface PropiedadesResponse {

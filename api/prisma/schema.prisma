@@ -10,6 +10,7 @@ datasource db {
 
 enum Plan {
   FREE
+  BASIC
   PRO
   ENTERPRISE
 }
@@ -18,6 +19,7 @@ enum EstadoTenant {
   ACTIVA
   SUSPENDIDA
   CANCELADA
+  TRIAL
 }
 
 enum EstadoUsuario {
@@ -45,22 +47,31 @@ enum AccionAudit {
 
 // ─── Models ──────────────────────────────────────────────────
 
+model CatalogoPlan {
+  plan                Plan     @id
+  limite_usuarios     Int
+  limite_propiedades  Int
+  tiene_correo        Boolean  @default(false)
+  tiene_campanas      Boolean  @default(false)
+  tiene_portal        Boolean  @default(false)
+  tiene_sitio_propio  Boolean  @default(false)
+  tiene_integraciones Boolean  @default(false)
+  updated_at          DateTime @updatedAt
+
+  @@map("catalogo_planes")
+}
+
 model Tenant {
   id               String        @id @default(uuid())
   nombre           String
   logo_url         String?
-  color_primario      String        @default("#3b82f6")
-  color_secundario    String        @default("#1e293b")
-  color_acento        String        @default("#8b5cf6")
-  color_fondo_alterno   String        @default("#111827")
-  color_fondo_principal String        @default("#0a0e1a")
-  color_texto           String        @default("#f1f5f9")
   plan             Plan          @default(FREE)
   moneda           String        @default("GTQ")
   zona_horaria     String        @default("America/Guatemala")
   limite_usuarios  Int           @default(10)
   limite_propiedades Int         @default(100)
   estado           EstadoTenant  @default(ACTIVA)
+  trial_hasta      DateTime?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
@@ -187,6 +198,7 @@ model User {
   activation_expires  DateTime?
   reset_token         String?       @unique
   reset_token_expires DateTime?
+  tema                String        @default("oscuro")
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
 

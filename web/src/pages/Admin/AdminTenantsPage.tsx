@@ -7,25 +7,26 @@ interface Tenant {
   id: string;
   nombre: string;
   logo_url: string | null;
-  color_primario: string;
-  color_secundario: string;
-  color_acento: string;
-  color_fondo_alterno: string;
-  color_fondo_principal: string;
-  color_texto: string;
   plan: string;
   moneda: string;
   zona_horaria: string;
   limite_usuarios: number;
   limite_propiedades: number;
   estado: string;
+  trial_hasta: string | null;
   created_at: string;
-  _count: { usuarios: number };
+  _count: { usuarios: number; propiedades: number };
+}
+
+interface CatalogoPlan {
+  plan: string;
+  limite_usuarios: number;
+  limite_propiedades: number;
 }
 
 const PLANS = ['FREE', 'BASIC', 'PRO', 'ENTERPRISE'];
 const MONEDAS = ['GTQ', 'USD', 'MXN'];
-const ESTADOS = ['ACTIVA', 'SUSPENDIDA', 'TRIAL'];
+const ESTADOS = ['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'];
 
 const emptyForm = {
   nombre: '',
@@ -34,15 +35,10 @@ const emptyForm = {
   plan: 'PRO',
   moneda: 'GTQ',
   zonaHoraria: 'America/Guatemala',
-  colorPrimario: '#3b82f6',
-  colorSecundario: '#1e293b',
-  colorAcento: '#8b5cf6',
-  colorFondoAlterno: '#111827',
-  colorFondoPrincipal: '#0a0e1a',
-  colorTexto: '#f1f5f9',
   limiteUsuarios: 25,
   limitePropiedades: 500,
   estado: 'ACTIVA',
+  trialHasta: '',
 };
 
 export default function AdminTenantsPage() {
@@ -55,6 +51,7 @@ export default function AdminTenantsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [catalogoPlanes, setCatalogoPlanes] = useState<CatalogoPlan[]>([]);
 
   const fetchTenants = useCallback(async () => {
     setIsError(false);
@@ -69,6 +66,12 @@ export default function AdminTenantsPage() {
   }, [accessToken]);
 
   useEffect(() => { fetchTenants(); }, [fetchTenants]);
+
+  useEffect(() => {
+    apiRequest<CatalogoPlan[]>('/api/catalogo-planes', { token: accessToken! })
+      .then(setCatalogoPlanes)
+      .catch(() => {});
+  }, [accessToken]);
 
   const openCreate = () => {
     setEditing(null);
@@ -86,30 +89,35 @@ export default function AdminTenantsPage() {
       plan: t.plan,
       moneda: t.moneda,
       zonaHoraria: t.zona_horaria,
-      colorPrimario: t.color_primario,
-      colorSecundario: t.color_secundario,
-      colorAcento: t.color_acento,
-      colorFondoAlterno: t.color_fondo_alterno,
-      colorFondoPrincipal: t.color_fondo_principal,
-      colorTexto: t.color_texto,
       limiteUsuarios: t.limite_usuarios,
       limitePropiedades: t.limite_propiedades,
       estado: t.estado,
+      trialHasta: t.trial_hasta ? t.trial_hasta.slice(0, 10) : '',
     });
     setError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
+    if (form.estado === 'TRIAL' && !form.trialHasta) {
+      setError('La fecha de fin de Trial es obligatoria cuando el estado es TRIAL');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
+      const cleanBody = (obj: Record<string, any>) => {
+        const copy = { ...obj };
+        if (!copy.trialHasta) delete copy.trialHasta;
+        return copy;
+      };
+
       if (editing) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { adminEmail, adminNombre, ...updateBody } = form;
         await apiRequest(`/api/tenants/${editing.id}`, {
           method: 'PUT',
-          body: updateBody,
+          body: cleanBody(updateBody),
           token: accessToken!,
         });
       } else {
@@ -120,7 +128,7 @@ export default function AdminTenantsPage() {
         }
         await apiRequest('/api/tenants', {
           method: 'POST',
-          body: form,
+          body: cleanBody(form),
           token: accessToken!,
         });
       }
@@ -137,10 +145,29 @@ export default function AdminTenantsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handlePlanChange = (newPlan: string) => {
+    const cat = catalogoPlanes.find(p => p.plan === newPlan);
+    setForm((prev) => ({
+      ...prev,
+      plan: newPlan,
+      ...(cat ? { limiteUsuarios: cat.limite_usuarios, limitePropiedades: cat.limite_propiedades } : {}),
+    }));
+  };
+
+  const planWarnings: string[] = editing ? [
+    ...(editing._count.usuarios > form.limiteUsuarios
+      ? [`La empresa tiene ${editing._count.usuarios} usuarios pero el nuevo límite es ${form.limiteUsuarios}`]
+      : []),
+    ...(editing._count.propiedades > form.limitePropiedades
+      ? [`La empresa tiene ${editing._count.propiedades} propiedades pero el nuevo límite es ${form.limitePropiedades}`]
+      : []),
+  ] : [];
+
   const statusClass = (estado: string) => {
     if (estado === 'ACTIVA') return 'admin-badge-active';
-    if (estado === 'SUSPENDIDA') return 'admin-badge-suspended';
-    return 'admin-badge-pending';
+    if (estado === 'SUSPENDIDA' || estado === 'CANCELADA') return 'admin-badge-suspended';
+    if (estado === 'TRIAL') return 'admin-badge-pending';
+    return 'admin-badge-inactive';
   };
 
   const activas = tenants.filter(t => t.estado === 'ACTIVA').length;
@@ -203,6 +230,7 @@ export default function AdminTenantsPage() {
                 <th>Empresa</th>
                 <th>Plan</th>
                 <th>Usuarios</th>
+                <th>Propiedades</th>
                 <th>Moneda</th>
                 <th>Estado</th>
                 <th>Creada</th>
@@ -211,21 +239,27 @@ export default function AdminTenantsPage() {
             </thead>
             <tbody>
               {tenants.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay empresas registradas aún</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No hay empresas registradas aún</td></tr>
               )}
               {tenants.map((t) => (
                 <tr key={t.id}>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 8, height: 32, borderRadius: 4, background: t.color_primario }} />
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{t.nombre}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.id.slice(0, 8)}…</div>
-                      </div>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{t.nombre}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.id.slice(0, 8)}…</div>
                     </div>
                   </td>
                   <td><span className={`admin-plan admin-plan-${t.plan}`}>{t.plan}</span></td>
-                  <td>{t._count?.usuarios || 0} / {t.limite_usuarios}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span style={t._count?.usuarios > t.limite_usuarios ? { color: 'var(--accent-red, #ef4444)', fontWeight: 600 } : {}}>
+                      {t._count?.usuarios || 0} / {t.limite_usuarios}
+                    </span>
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span style={t._count?.propiedades > t.limite_propiedades ? { color: 'var(--accent-red, #ef4444)', fontWeight: 600 } : {}}>
+                      {t._count?.propiedades || 0} / {t.limite_propiedades}
+                    </span>
+                  </td>
                   <td>{t.moneda}</td>
                   <td>
                     <span className={`admin-badge ${statusClass(t.estado)}`}>
@@ -235,6 +269,11 @@ export default function AdminTenantsPage() {
                   </td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                     {new Date(t.created_at).toLocaleDateString()}
+                    {t.estado === 'TRIAL' && t.trial_hasta && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber, #f59e0b)', marginTop: 2 }}>
+                        Trial hasta: {new Date(t.trial_hasta).toLocaleDateString()}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <div className="admin-table-actions">
@@ -250,8 +289,8 @@ export default function AdminTenantsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className="admin-modal">
             <h2>{editing ? `Editar: ${editing.nombre}` : 'Nueva Empresa'}</h2>
 
             {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -277,7 +316,7 @@ export default function AdminTenantsPage() {
             <div className="admin-form-row" style={{ marginTop: 12 }}>
               <div className="input-group">
                 <label>Plan</label>
-                <select className="input-field" value={form.plan} onChange={(e) => updateField('plan', e.target.value)}>
+                <select className="input-field" value={form.plan} onChange={(e) => handlePlanChange(e.target.value)}>
                   {PLANS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
@@ -289,14 +328,29 @@ export default function AdminTenantsPage() {
               </div>
             </div>
 
-            {editing && (
-              <div className="input-group" style={{ marginTop: 12 }}>
+            <div className="admin-form-row" style={{ marginTop: 12 }}>
+              <div className="input-group">
                 <label>Estado</label>
-                <select className="input-field" value={form.estado} onChange={(e) => updateField('estado', e.target.value)}>
+                <select className="input-field" value={form.estado} onChange={(ev) => {
+                  updateField('estado', ev.target.value);
+                  if (ev.target.value !== 'TRIAL') updateField('trialHasta', '');
+                }}>
                   {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
-            )}
+              {form.estado === 'TRIAL' && (
+                <div className="input-group">
+                  <label>Fin de Trial *</label>
+                  <input
+                    className="input-field"
+                    type="date"
+                    value={form.trialHasta}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => updateField('trialHasta', e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="admin-form-row" style={{ marginTop: 12 }}>
               <div className="input-group">
@@ -309,52 +363,17 @@ export default function AdminTenantsPage() {
               </div>
             </div>
 
-            <div className="admin-form-row-3" style={{ marginTop: 12 }}>
-              <div className="input-group">
-                <label>Color Primario</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorPrimario} onChange={(e) => updateField('colorPrimario', e.target.value)} />
-                  <input className="input-field" value={form.colorPrimario} onChange={(e) => updateField('colorPrimario', e.target.value)} />
+            {planWarnings.length > 0 && (
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: '0.8125rem' }}>
+                <strong style={{ color: 'var(--accent-red, #ef4444)' }}>Advertencia:</strong>
+                <ul style={{ margin: '4px 0 0 16px', padding: 0, color: 'var(--text-secondary)' }}>
+                  {planWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+                <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>
+                  El sistema no permitirá guardar con límites inferiores a los registros actuales.
                 </div>
               </div>
-              <div className="input-group">
-                <label>Color Acento</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
-                  <input className="input-field" value={form.colorAcento} onChange={(e) => updateField('colorAcento', e.target.value)} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label>Color Secundario</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorSecundario} onChange={(e) => updateField('colorSecundario', e.target.value)} />
-                  <input className="input-field" value={form.colorSecundario} onChange={(e) => updateField('colorSecundario', e.target.value)} />
-                </div>
-              </div>
-            </div>
-            <div className="admin-form-row-3" style={{ marginTop: 12 }}>
-              <div className="input-group">
-                <label>Fondo Alterno (tarjetas)</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorFondoAlterno} onChange={(e) => updateField('colorFondoAlterno', e.target.value)} />
-                  <input className="input-field" value={form.colorFondoAlterno} onChange={(e) => updateField('colorFondoAlterno', e.target.value)} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label>Fondo Principal (portal)</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorFondoPrincipal} onChange={(e) => updateField('colorFondoPrincipal', e.target.value)} />
-                  <input className="input-field" value={form.colorFondoPrincipal} onChange={(e) => updateField('colorFondoPrincipal', e.target.value)} />
-                </div>
-              </div>
-              <div className="input-group">
-                <label>Color de Texto (portal)</label>
-                <div className="admin-color-group">
-                  <input type="color" value={form.colorTexto} onChange={(e) => updateField('colorTexto', e.target.value)} />
-                  <input className="input-field" value={form.colorTexto} onChange={(e) => updateField('colorTexto', e.target.value)} />
-                </div>
-              </div>
-            </div>
+            )}
 
             <div className="admin-modal-actions">
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>

@@ -1,19 +1,46 @@
-# Proyecto: Análisis y Diseño — CRM Inmobiliario "Maru Bienes y Raíces"
+# Proyecto: Análisis y Diseño — GestPro CRM
 
 > **Documento de Análisis y Diseño del Sistema**
-> Versión: 1.1
+> Versión: 1.2
 > Fecha de creación: 18 de abril de 2026
-> Última actualización: 21 de abril de 2026
+> Última actualización: 14 de mayo de 2026
 
 ---
 
 ## ÍNDICE
 
 1. [Alcance](#1-alcance)
+   - 1.1 Registro de Cambios
+   - 1.2 Hoja de Revisión
+   - 1.3 Introducción
+   - 1.4 Propósito
+   - 1.5 Alcance
+   - 1.6 Definiciones, Acrónimos y Abreviaturas
 2. [Diagramas UML — Arquitectura](#2-diagramas-uml--arquitectura)
+   - 2.1 Diagrama de Arquitectura del Sistema
+   - 2.2 Meta de la Arquitectura
+   - 2.3 Restricciones de la Arquitectura
 3. [Estudios de Factibilidad](#3-estudios-de-factibilidad)
+   - 3.1 Factibilidad Técnica
+   - 3.2 Factibilidad Económica (Análisis Costo-Beneficio)
+   - 3.3 Factibilidad Operativa
+   - 3.4 Plan de Seguimiento y Mantenimiento
 4. [UML — Casos de Uso y Diagramas de Interacción](#4-uml--casos-de-uso-y-diagramas-de-interacción)
+   - 4.1 Casos de Uso — Análisis y Diagnóstico
+   - 4.2 Casos de Uso — Propuesta (Detallados)
+   - 4.3 Diagramas de Interacción
+   - 4.4 Definición de Preferencias del Cliente
+   - 4.5 Acceso al Sistema — Matriz de Permisos por Rol
+   - 4.6 Consulta de Información — Portal Público
 5. [Diagramas de Secuencia](#5-diagramas-de-secuencia)
+   - 5.1 Secuencia de Creación de Cuenta
+   - 5.2 Secuencia de Ingreso de Usuario Exitoso
+   - 5.3 Secuencia de Ingreso de Usuario Fallido
+   - 5.4 Secuencia de Consulta de Información
+   - 5.5 Secuencia de Generación de Brochure PDF
+   - 5.6 Secuencia de Agendamiento de Visita
+   - 5.7 Secuencia de Publicación en Meta API
+   - 5.8 Justificación de Decisiones de Análisis
 
 ---
 
@@ -25,6 +52,7 @@
 |:--------|:------|:------|:-----------------------|
 | 1.0 | 18/04/2026 | Equipo de Análisis | Creación inicial del documento de análisis y diseño |
 | 1.1 | 21/04/2026 | Equipo de Análisis | Agregados CU-06 a CU-11 (Brochure, Propietarios, Redes Sociales, Importación Masiva, Notificaciones, Búsqueda Global). Agregados diagramas de secuencia: Generación de Brochure, Agendamiento de Visita, Publicación en Meta API. |
+| 1.2 | 14/05/2026 | Equipo de Análisis | Alineación con plantilla de proyecto: índice expandido, sección 3.4 Plan de Seguimiento y Mantenimiento añadida, actualización general de contenido. |
 
 ## 1.2 Hoja de Revisión
 
@@ -36,7 +64,7 @@
 
 ## 1.3 Introducción
 
-El presente documento constituye el análisis y diseño completo del sistema **CRM Inmobiliario** para la empresa **Maru Bienes y Raíces**. Este CRM tiene como finalidad automatizar y centralizar todos los procesos de gestión inmobiliaria, incluyendo:
+El presente documento constituye el análisis y diseño completo del sistema **GestPro CRM** para la gestión inmobiliaria. Este CRM tiene como finalidad automatizar y centralizar todos los procesos de gestión inmobiliaria, incluyendo:
 
 - **Gestión de inventario de propiedades** (registro, multimedia, geolocalización, documentos legales).
 - **Gestión de clientes y prospectos** (captación, perfilamiento, embudo de ventas).
@@ -345,9 +373,92 @@ La arquitectura del CRM Inmobiliario se diseña con las siguientes metas fundame
 | **Migración de datos** | ⚠️ Riesgo medio — Datos actuales en Excel/hojas sueltas | Scripts de migración, validación de datos, periodo de transición con ambos sistemas. |
 | **Soporte post-lanzamiento** | ✅ Riesgo bajo | Equipo de soporte técnico, canal de tickets, documentación completa. |
 
-### 3.3.2 Conclusión de Factibilidad Operativa
+### 3.3.2 Validación en Puesta en Producción
+
+| Actividad | Descripción | Responsable | Duración Estimada |
+|:----------|:------------|:------------|:------------------|
+| **QA — Pruebas de aceptación (UAT)** | Agentes y administrador validan los flujos críticos: login 2FA, registro de propiedad, embudo de ventas, generación de brochure. | QA Lead + Product Owner | 2 semanas |
+| **Pruebas de carga** | Simulación de 100 usuarios concurrentes (k6 o Artillery) en endpoints críticos. Objetivo: p95 < 500ms. | Equipo técnico | 3 días |
+| **Pruebas de seguridad** | Revisión de OWASP Top 10: inyección SQL, XSS, CSRF, autenticación rota. Auditoría de permisos RBAC. | Técnico senior | 3 días |
+| **Migración de datos piloto** | Importar datos reales del cliente desde Excel/Google Sheets usando el módulo de importación masiva. Validación de integridad. | Administrador + Dev | 1 semana |
+| **Capacitación de usuarios** | Sesiones de entrenamiento por rol: Administrador, Agentes Senior, Agentes Junior. Manual de usuario en PDF. | Product Owner | 1 semana |
+| **Despliegue a producción (Go-Live)** | Configuración final en AWS/Railway, DNS, SSL, variables de entorno. Monitoreo 24/48h post-lanzamiento. | DevOps | 2 días |
+
+### 3.3.3 Conclusión de Factibilidad Operativa
 
 > **El proyecto es OPERATIVAMENTE VIABLE.** Si bien se identifican riesgos de adopción, estos pueden mitigarse con una estrategia de implementación por fases, capacitación adecuada y una interfaz de usuario diseñada con enfoque en simplicidad y eficiencia.
+
+---
+
+## 3.4 Plan de Seguimiento y Mantenimiento
+
+### 3.4.1 Programación de Mantenimiento
+
+| Tipo de Mantenimiento | Frecuencia | Ventana Sugerida | Responsable |
+|:----------------------|:-----------|:-----------------|:------------|
+| **Mantenimiento Correctivo** | Según incidencias (SLA: crítico < 4h, alto < 24h, medio < 72h) | Cualquier momento — bajo coordinación con el cliente | Equipo de Soporte |
+| **Mantenimiento Preventivo** | Mensual | 1er domingo de cada mes, 22:00 – 02:00 GMT-6 | DevOps |
+| **Actualización de dependencias** | Trimestral | Mes 1 de cada trimestre (Enero, Abril, Julio, Octubre) | Equipo Técnico |
+| **Revisión de seguridad (parches)** | Mensual o ante CVE crítico | Aplicación inmediata ante vulnerabilidad crítica | Técnico Senior |
+| **Backup y verificación de restauración** | Semanal (backup automático diario, verificación manual semanal) | Cada domingo a las 03:00 GMT-6 | DevOps |
+| **Revisión de rendimiento y costos cloud** | Trimestral | Junto con la actualización de dependencias | DevOps + PM |
+| **Revisión de logs de auditoría y archivado** | Mensual (archivado a cold storage al cumplir 12 meses) | Último día de cada mes | DevOps |
+
+### 3.4.2 Tipos de Mantenimiento
+
+#### Mantenimiento Correctivo
+Atención y resolución de errores o fallas detectadas post-lanzamiento. Se clasifica por severidad:
+
+| Severidad | Descripción | Tiempo de Respuesta | Tiempo de Resolución |
+|:----------|:------------|:--------------------|:---------------------|
+| 🔴 **Crítica** | Sistema caído, pérdida de datos, falla de autenticación, fuga de datos. | < 15 minutos | < 4 horas |
+| 🟠 **Alta** | Módulo principal inaccesible (propiedades, trámites), error en generación de brochure o integración Meta. | < 1 hora | < 24 horas |
+| 🟡 **Media** | Funcionalidad secundaria con errores, reportes incorrectos, errores de UI no bloqueantes. | < 4 horas | < 72 horas |
+| 🟢 **Baja** | Ajustes visuales, mejoras menores, errores ortográficos en la interfaz. | < 24 horas | < 1 semana |
+
+#### Mantenimiento Preventivo
+Actividades planificadas para evitar fallas futuras:
+- Actualización del sistema operativo de los contenedores Docker.
+- Rotación de secretos y tokens de API (Meta, SendGrid, DocuSign).
+- Revisión y limpieza de jobs fallidos en BullMQ.
+- Análisis de índices de PostgreSQL y VACUUM/ANALYZE.
+- Revisión de alertas de Sentry/Datadog del mes anterior.
+
+#### Mantenimiento Evolutivo
+Mejoras y nuevas funcionalidades planificadas según retroalimentación del cliente:
+- Incorporación de nuevas historias de usuario priorizadas en el backlog.
+- Optimizaciones de rendimiento basadas en métricas reales de uso.
+- Integraciones adicionales con portales o servicios externos.
+
+#### Mantenimiento Adaptativo
+Ajustes requeridos por cambios en el entorno externo:
+- Cambios en la API de Meta/Facebook que requieran actualización.
+- Actualizaciones mayores de Node.js, React, Prisma u otras dependencias core.
+- Cambios en regulaciones de privacidad de datos aplicables.
+
+### 3.4.3 Costo Asociado al Mantenimiento
+
+| Concepto | Frecuencia | Costo Estimado Mensual |
+|:---------|:-----------|:-----------------------|
+| **Infraestructura cloud** (hosting, BD, S3, CDN, Redis) | Continuo | $150–$400 USD |
+| **Servicios de terceros** (SendGrid, Mapbox/Google Maps API, Meta API) | Continuo | $50–$200 USD |
+| **Soporte técnico y mantenimiento correctivo** (SLA básico) | Mensual | $500–$800 USD |
+| **Mantenimiento preventivo y evolutivo** (horas de desarrollo) | Mensual | $300–$600 USD |
+| **Monitoreo y seguridad** (Sentry, alertas, backups verificados) | Continuo | $30–$100 USD |
+| **Total estimado mensual** | | **$1,030–$2,100 USD** |
+
+> **Nota:** Los costos de mantenimiento evolutivo (nuevas funcionalidades) se cotizan por separado según el alcance de cada requerimiento. Se recomienda establecer un contrato de mantenimiento con un banco de horas mensual (8–16 horas) para cubrir mejoras menores y soporte proactivo.
+
+### 3.4.4 Indicadores de Calidad del Servicio (SLA)
+
+| Indicador | Objetivo | Medición |
+|:----------|:---------|:---------|
+| **Disponibilidad (Uptime)** | ≥ 99.5% mensual | Monitoreo con Datadog/UptimeRobot |
+| **Tiempo de respuesta API (p95)** | < 500ms | Sentry Performance |
+| **Tiempo de carga del portal público** | < 2 segundos (LCP) | Google Lighthouse / Core Web Vitals |
+| **Tasa de errores 5xx** | < 0.1% de requests | Datadog Logs |
+| **Tiempo de resolución crítica** | < 4 horas | Registro de incidencias |
+| **Frecuencia de backups verificados** | 100% semanal | Script automatizado con alerta de fallo |
 
 ---
 
@@ -1267,3 +1378,8 @@ La arquitectura del CRM Inmobiliario se diseña con las siguientes metas fundame
 > 1. Revisión y aprobación por parte del Product Owner y el equipo técnico.
 > 2. Actualización del documento con observaciones de la revisión.
 > 3. Inicio de la Fase 1 de implementación según el plan aprobado en `implementacion.md`.
+> 4. Establecimiento del contrato de mantenimiento y SLAs operativos según sección 3.4.
+
+---
+
+*Documento generado y mantenido por el equipo de desarrollo de GestPro. Versión 1.2 — Mayo 2026.*

@@ -45,7 +45,7 @@ export class BrochureController {
         propietario: { select: { nombre: true, telefono: true } },
         agente: { select: { nombre: true, email: true, tenant_id: true } },
         imagenes: { orderBy: [{ tipo: 'asc' }, { orden: 'asc' }], take: 1, where: { tipo: 'portada' } },
-        tenant: { select: { nombre: true, color_primario: true, moneda: true } },
+        tenant: { select: { nombre: true, moneda: true } },
       },
     });
 
@@ -57,7 +57,7 @@ export class BrochureController {
     res.setHeader('Content-Disposition', `inline; filename="brochure-${propiedad.codigo}.pdf"`);
     doc.pipe(res);
 
-    const primary = propiedad.tenant.color_primario || '#3b82f6';
+    const primary = '#3b82f6';
     const currency = propiedad.tenant.moneda || 'GTQ';
 
     // ─── Header band ─────────────────────────────────────────

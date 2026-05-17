@@ -9,12 +9,6 @@ import './Settings.css';
 interface TenantBranding {
   nombre: string;
   logo_url: string | null;
-  color_primario: string;
-  color_secundario: string;
-  color_acento: string;
-  color_fondo_alterno: string;
-  color_fondo_principal: string;
-  color_texto: string;
 }
 
 interface ConfigPortal {
@@ -87,18 +81,15 @@ function Field({
 // ─── Page ────────────────────────────────────────────────────
 
 export default function SettingsPortalPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, plan } = useAuthStore();
+  const hasSitioPropio = plan ? ['PRO', 'ENTERPRISE'].includes(plan) : true;
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('identidad');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
 
-  const [branding, setBranding] = useState<TenantBranding>({
-    nombre: '', logo_url: null,
-    color_primario: '#3b82f6', color_secundario: '#1e293b', color_acento: '#8b5cf6',
-    color_fondo_alterno: '#111827', color_fondo_principal: '#0a0e1a', color_texto: '#f1f5f9',
-  });
+  const [branding, setBranding] = useState<TenantBranding>({ nombre: '', logo_url: null });
 
   const [portal, setPortal] = useState<ConfigPortal>({
     nombre_empresa: null, slogan: null, email_contacto: null, telefono: null,
@@ -131,16 +122,7 @@ export default function SettingsPortalPage() {
     try {
       await apiRequest('/api/tenants/mi-tenant', {
         method: 'PATCH', token: accessToken!,
-        body: {
-          nombre:             branding.nombre,
-          logoUrl:            branding.logo_url,
-          colorPrimario:      branding.color_primario,
-          colorSecundario:    branding.color_secundario,
-          colorAcento:        branding.color_acento,
-          colorFondoAlterno:  branding.color_fondo_alterno,
-          colorFondoPrincipal:branding.color_fondo_principal,
-          colorTexto:         branding.color_texto,
-        },
+        body: { nombre: branding.nombre, logoUrl: branding.logo_url },
       });
       showSaved();
     } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
@@ -202,7 +184,7 @@ export default function SettingsPortalPage() {
         <div className="settings-card">
           <div className="settings-grid">
             <Field label="Nombre de la empresa" hint="Se muestra en el header del portal">
-              <input value={portal.nombre_empresa ?? ''} onChange={sp('nombre_empresa')} placeholder="Maru Bienes y Raíces" />
+              <input value={portal.nombre_empresa ?? ''} onChange={sp('nombre_empresa')} placeholder="Mi Inmobiliaria" />
             </Field>
             <Field label="Slogan">
               <input value={portal.slogan ?? ''} onChange={sp('slogan')} placeholder="Tu próxima propiedad te espera" />
@@ -233,19 +215,45 @@ export default function SettingsPortalPage() {
           <div className="settings-grid single">
             <Field
               label="Subdominio en GestPro"
-              hint={`Tu portal estará disponible en: ${portal.subdominio ? portal.subdominio + '.gestpro.app' : '(sin configurar)'}`}
+              hint={hasSitioPropio
+                ? `Tu portal estará disponible en: ${portal.subdominio ? portal.subdominio + '.gestpro.com' : '(sin configurar)'}`
+                : 'Disponible desde el plan PRO'}
             >
-              <input
-                value={portal.subdominio ?? ''}
-                onChange={sp('subdominio')}
-                placeholder="miempresa  →  miempresa.gestpro.app"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={portal.subdominio ?? ''}
+                  onChange={hasSitioPropio ? sp('subdominio') : undefined}
+                  placeholder={hasSitioPropio ? 'miempresa  →  miempresa.gestpro.com' : 'Requiere plan PRO o superior'}
+                  disabled={!hasSitioPropio}
+                  style={!hasSitioPropio ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                />
+                {!hasSitioPropio && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--accent-amber, #f59e0b)', fontWeight: 600 }}>
+                    Plan PRO+
+                  </span>
+                )}
+              </div>
             </Field>
             <Field
               label="Dominio personalizado"
-              hint="Si tienes tu propio dominio: www.tuempresa.com — agrega el CNAME según la guía de despliegue."
+              hint={hasSitioPropio
+                ? 'Si tienes tu propio dominio: www.tuempresa.com — agrega el CNAME según la guía de despliegue.'
+                : 'Disponible desde el plan PRO'}
             >
-              <input value={portal.dominio_personalizado ?? ''} onChange={sp('dominio_personalizado')} placeholder="www.tuempresa.com" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={portal.dominio_personalizado ?? ''}
+                  onChange={hasSitioPropio ? sp('dominio_personalizado') : undefined}
+                  placeholder={hasSitioPropio ? 'www.tuempresa.com' : 'Requiere plan PRO o superior'}
+                  disabled={!hasSitioPropio}
+                  style={!hasSitioPropio ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                />
+                {!hasSitioPropio && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--accent-amber, #f59e0b)', fontWeight: 600 }}>
+                    Plan PRO+
+                  </span>
+                )}
+              </div>
             </Field>
             <Field label="Estado del portal">
               <Toggle value={portal.portal_activo} onChange={(v) => setPortal((p) => ({ ...p, portal_activo: v }))} />
@@ -262,10 +270,10 @@ export default function SettingsPortalPage() {
           <div className="settings-card">
             <div className="settings-card-header">
               <div className="settings-card-title">
-                <div className="settings-card-icon">🎨</div>
+                <div className="settings-card-icon">🏢</div>
                 <div>
-                  <h2>Colores de marca</h2>
-                  <p>Se aplican tanto al CRM como al portal público.</p>
+                  <h2>Identidad visual</h2>
+                  <p>Nombre e imagen que se muestran en el portal público.</p>
                 </div>
               </div>
             </div>
@@ -276,26 +284,6 @@ export default function SettingsPortalPage() {
               <Field label="URL del logotipo" hint="URL pública de la imagen (PNG/SVG recomendado)">
                 <input value={branding.logo_url ?? ''} onChange={(e) => setBranding((b) => ({ ...b, logo_url: e.target.value || null }))} placeholder="https://..." />
               </Field>
-            </div>
-            <div className="settings-color-row" style={{ marginTop: 16 }}>
-              {([
-                ['color_primario',       'Primario'],
-                ['color_secundario',     'Secundario'],
-                ['color_acento',         'Acento'],
-                ['color_fondo_alterno',  'Fondo alt.'],
-                ['color_fondo_principal','Fondo ppal.'],
-                ['color_texto',          'Texto'],
-              ] as [keyof TenantBranding, string][]).map(([key, label]) => (
-                <div className="settings-color-item" key={key}>
-                  <input
-                    type="color"
-                    value={branding[key] as string}
-                    onChange={(e) => setBranding((b) => ({ ...b, [key]: e.target.value }))}
-                  />
-                  <label>{label}</label>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{branding[key] as string}</span>
-                </div>
-              ))}
             </div>
             <SaveBar saving={saving} msg={savedMsg} onSave={saveBranding} />
           </div>

@@ -1,0 +1,108 @@
+/* ─── Theme selector ───────────────────────────────────────── */
+
+.tema-options {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tema-card {
+  background: none;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0;
+  cursor: pointer;
+  transition: border-color var(--transition), transform var(--transition);
+  overflow: hidden;
+  width: 200px;
+  text-align: left;
+}
+
+.tema-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+}
+
+.tema-card-active {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+/* ─── Mini UI preview ──────────────────────────────────────── */
+
+.tema-preview {
+  display: flex;
+  height: 120px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.tema-preview-oscuro {
+  background: #0a0e1a;
+}
+
+.tema-preview-claro {
+  background: #f1f5f9;
+}
+
+.tema-preview .tp-sidebar {
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.tema-preview-oscuro .tp-sidebar { background: #111827; }
+.tema-preview-claro  .tp-sidebar { background: #e2e8f0; }
+
+.tema-preview .tp-content {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tema-preview .tp-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.tema-preview-oscuro .tp-bar { background: #1a1f35; }
+.tema-preview-claro  .tp-bar { background: #cbd5e1; }
+
+.tema-preview .tp-bar-1 { width: 70%; }
+.tema-preview .tp-bar-2 { width: 45%; }
+
+.tema-preview .tp-card {
+  flex: 1;
+  border-radius: 6px;
+  margin-top: 2px;
+}
+
+.tema-preview-oscuro .tp-card { background: #1a1f35; }
+.tema-preview-claro  .tp-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.06); }
+
+/* ─── Label row ────────────────────────────────────────────── */
+
+.tema-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-card);
+}
+
+.tema-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tema-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-blue);
+  padding: 2px 8px;
+  border-radius: 20px;
+}

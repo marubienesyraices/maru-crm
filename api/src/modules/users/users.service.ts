@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { CreateUserDto, UpdateUserDto, CreateAdminDto, UpdateAdminDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
@@ -124,6 +124,21 @@ export class UsersService {
     });
   }
 
+  async findMe(tenantId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenant_id: tenantId },
+      select: { id: true, email: true, nombre: true, rol: true, tema: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return user;
+  }
+
+  async updateTema(tenantId: string, userId: string, tema: 'oscuro' | 'claro') {
+    await this.findOne(tenantId, userId);
+    await this.prisma.user.update({ where: { id: userId }, data: { tema } });
+    return { tema };
+  }
+
   // ─── HIERARCHY: Get full downline (recursive) ────────────
 
   async getDownline(tenantId: string, userId: string): Promise<any[]> {
@@ -184,6 +199,96 @@ export class UsersService {
     };
 
     return roots.map((r) => ({ ...r, subordinados: buildTree(r.id) }));
+  }
+
+  // ─── SUPER_ADMIN: gestión de administradores ─────────────
+
+  async findAllAdmins() {
+    return this.prisma.user.findMany({
+      where: { rol: 'ADMIN' },
+      select: {
+        id: true, email: true, nombre: true, rol: true, estado: true,
+        ultimo_login: true, created_at: true,
+        tenant: { select: { id: true, nombre: true, plan: true, estado: true } },
+      },
+      orderBy: [{ tenant: { nombre: 'asc' } }, { nombre: 'asc' }],
+    });
+  }
+
+  async createAdmin(dto: CreateAdminDto) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+    if (!tenant) throw new NotFoundException('Empresa no encontrada');
+
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: { tenant_id: dto.tenantId, rol: 'ADMIN' },
+      select: { nombre: true, email: true },
+    });
+    if (existingAdmin) {
+      throw new BadRequestException(
+        `La empresa "${tenant.nombre}" ya tiene un administrador (${existingAdmin.nombre} — ${existingAdmin.email})`,
+      );
+    }
+
+    const activationToken = randomUUID();
+    const tempPassword = await bcrypt.hash('temp-' + randomUUID(), 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        tenant_id: dto.tenantId,
+        email: dto.email,
+        password_hash: tempPassword,
+        nombre: dto.nombre,
+        rol: 'ADMIN',
+        estado: 'PENDIENTE',
+        activation_token: activationToken,
+        activation_expires: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      },
+    });
+
+    const activationUrl = `${this.frontendUrl}/onboarding?token=${activationToken}`;
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`Admin activation: ${activationUrl}`);
+    }
+
+    this.email.sendClientEmail({
+      to: user.email,
+      subject: '¡Bienvenido/a al CRM! — GestPro',
+      heading: `¡Bienvenido/a, ${user.nombre}!`,
+      body: `Tu cuenta como <strong>Administrador</strong> ha sido creada en GestPro CRM para la empresa <strong>${tenant.nombre}</strong>. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
+      cta: { label: 'Activar mi cuenta', url: activationUrl },
+    }).catch(() => {});
+
+    return { ...user, activationToken };
+  }
+
+  async updateAdmin(id: string, dto: UpdateAdminDto) {
+    const user = await this.prisma.user.findFirst({ where: { id, rol: 'ADMIN' } });
+    if (!user) throw new NotFoundException('Administrador no encontrado');
+
+    if (dto.tenantId && dto.tenantId !== user.tenant_id) {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+      if (!tenant) throw new NotFoundException('Empresa no encontrada');
+
+      const existingAdmin = await this.prisma.user.findFirst({
+        where: { tenant_id: dto.tenantId, rol: 'ADMIN', id: { not: id } },
+        select: { nombre: true, email: true },
+      });
+      if (existingAdmin) {
+        throw new BadRequestException(
+          `La empresa "${tenant.nombre}" ya tiene un administrador (${existingAdmin.nombre} — ${existingAdmin.email})`,
+        );
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        nombre: dto.nombre,
+        email: dto.email,
+        estado: dto.estado as any,
+        tenant_id: dto.tenantId,
+      },
+    });
   }
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────

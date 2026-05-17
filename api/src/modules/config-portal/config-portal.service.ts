@@ -22,6 +22,22 @@ export class ConfigPortalService {
   }
 
   async update(tenantId: string, dto: UpdateConfigPortalDto) {
+    // Strip sitio_propio fields if the plan doesn't include them
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true },
+    });
+    if (tenant) {
+      const catalog = await this.prisma.catalogoPlan.findUnique({
+        where: { plan: tenant.plan },
+        select: { tiene_sitio_propio: true },
+      });
+      if (catalog && !catalog.tiene_sitio_propio) {
+        delete (dto as any).subdominio;
+        delete (dto as any).dominio_personalizado;
+      }
+    }
+
     const row = await this.prisma.configPortal.upsert({
       where:  { tenant_id: tenantId },
       create: { tenant_id: tenantId, ...dto },
@@ -56,9 +72,7 @@ export class ConfigPortalService {
       });
 
     const domainSql = Prisma.sql`
-      SELECT cp.*, t.color_primario, t.color_secundario, t.color_acento,
-             t.color_fondo_alterno, t.color_fondo_principal, t.color_texto,
-             t.logo_url, t.nombre AS tenant_nombre
+      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
       WHERE cp.dominio_personalizado = ${host}
@@ -67,9 +81,7 @@ export class ConfigPortalService {
       LIMIT 1`;
 
     const subdomainSql = Prisma.sql`
-      SELECT cp.*, t.color_primario, t.color_secundario, t.color_acento,
-             t.color_fondo_alterno, t.color_fondo_principal, t.color_texto,
-             t.logo_url, t.nombre AS tenant_nombre
+      SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
       WHERE cp.subdominio = ${subdomain}
@@ -100,9 +112,7 @@ export class ConfigPortalService {
     const rows = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'true'`);
       return tx.$queryRaw<any[]>`
-        SELECT cp.*, t.color_primario, t.color_secundario, t.color_acento,
-               t.color_fondo_alterno, t.color_fondo_principal, t.color_texto,
-               t.logo_url, t.nombre AS tenant_nombre
+        SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre
         FROM config_portal cp
         JOIN tenants t ON t.id = cp.tenant_id
         WHERE cp.portal_activo = true AND t.estado = 'ACTIVA'

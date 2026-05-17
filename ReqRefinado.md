@@ -1,4 +1,4 @@
-# Requerimientos Refinados — CRM Inmobiliario "Maru Bienes y Raíces"
+# Requerimientos Refinados — GestPro CRM
 
 > **Versión:** 1.0 Refinada
 > **Fecha:** 19 de abril de 2026
