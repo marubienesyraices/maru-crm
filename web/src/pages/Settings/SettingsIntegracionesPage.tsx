@@ -383,13 +383,13 @@ export default function SettingsIntegracionesPage() {
       {/* Mobile tabs / Desktop pills */}
       <div className="settings-tabs" style={{ marginBottom: 24 }}>
         {SECTIONS.map((s) => {
-          const locked = s.id === 'meta' && planFeatures !== null && !planFeatures.tiene_meta;
+          const locked = s.id === 'meta' && planFeatures !== null && !planFeatures.tiene_integraciones;
           return (
             <button
               key={s.id}
               className={`settings-tab${activeSection === s.id ? ' active' : ''}${locked ? ' settings-tab-locked' : ''}`}
               onClick={() => setActiveSection(s.id)}
-              title={locked ? 'Requiere plan PRO o superior' : undefined}
+              title={locked ? 'Requiere plan ENTERPRISE' : undefined}
             >
               {s.icon} {s.label}{locked ? ' 🔒' : ''}
             </button>
@@ -400,8 +400,8 @@ export default function SettingsIntegracionesPage() {
       {activeSection === 'email'       && <EmailSection       {...sectionProps} />}
       {activeSection === 'whatsapp'    && <WhatsAppSection    {...sectionProps} />}
       {activeSection === 'meta'        && (
-        planFeatures !== null && !planFeatures.tiene_meta
-          ? <PlanLockedCard feature="Publicación en Meta (Facebook / Instagram)" requiredPlan="PRO" />
+        planFeatures !== null && !planFeatures.tiene_integraciones
+          ? <PlanLockedCard feature="Publicación en Meta (Facebook / Instagram)" requiredPlan="ENTERPRISE" />
           : <MetaSection {...sectionProps} />
       )}
       {activeSection === 'zoom'        && <ZoomSection        {...sectionProps} />}

@@ -358,7 +358,7 @@ export default function MetaPage() {
   const [tab, setTab] = useState<Tab>('lista');
   const [configured, setConfigured] = useState<boolean | null>(null);
 
-  const planAllowed = planFeatures === null || planFeatures.tiene_meta;
+  const planAllowed = planFeatures === null || planFeatures.tiene_integraciones;
 
   useEffect(() => {
     if (!planAllowed) return;

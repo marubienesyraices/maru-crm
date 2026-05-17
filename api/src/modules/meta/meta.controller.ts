@@ -14,7 +14,7 @@ import { CreateMetaPublicacionDto, ProgramarMetaDto, UpdateMetaPublicacionDto } 
 @ApiBearerAuth('JWT')
 @UseGuards(JwtAuthGuard, RolesGuard, PlanGuard)
 @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
-@PlanFeature('tiene_meta')
+@PlanFeature('tiene_integraciones')
 @Controller('api/meta')
 export class MetaController {
   constructor(private readonly svc: MetaService) {}
