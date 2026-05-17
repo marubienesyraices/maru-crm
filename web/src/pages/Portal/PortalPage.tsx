@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './Portal.css';
 
@@ -243,6 +244,7 @@ function MapboxMap({ properties, activeId, onSelect }: {
 
 export default function PortalPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -255,9 +257,10 @@ export default function PortalPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '50' });
-      if (filters.busqueda) params.set('busqueda', filters.busqueda);
-      if (filters.tipo)     params.set('tipo', filters.tipo);
-      if (filters.gestion)  params.set('gestion', filters.gestion);
+      if (user?.tenantId)    params.set('tenantId', user.tenantId);
+      if (filters.busqueda)  params.set('busqueda', filters.busqueda);
+      if (filters.tipo)      params.set('tipo', filters.tipo);
+      if (filters.gestion)   params.set('gestion', filters.gestion);
       if (filters.precioMax) params.set('precioMax', filters.precioMax);
 
       const res = await fetch(`${API}/api/public/propiedades?${params}`);
