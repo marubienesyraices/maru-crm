@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import { Plan, EstadoTenant } from '@prisma/client';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
+const SUSPENDED_STATES: EstadoTenant[] = ['SUSPENDIDA', 'CANCELADA'];
+
 @Injectable()
 export class TenantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   async create(dto: CreateTenantDto) {
     const plan = (dto.plan as Plan) || 'FREE';
@@ -116,7 +122,7 @@ export class TenantsService {
       }
     }
 
-    return this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id },
       data: {
         nombre: dto.nombre,
@@ -132,5 +138,14 @@ export class TenantsService {
           : undefined,
       },
     });
+
+    // When suspending or cancelling: kick all active sessions immediately
+    if (dto.estado && SUSPENDED_STATES.includes(dto.estado as EstadoTenant)) {
+      await this.prisma.session.deleteMany({ where: { tenant_id: id } });
+      // Invalidate the JWT-strategy status cache so tokens are rejected within seconds
+      await this.redis.set(`tenant:status:${id}`, dto.estado, 60);
+    }
+
+    return updated;
   }
 }

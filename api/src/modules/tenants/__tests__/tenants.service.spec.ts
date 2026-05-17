@@ -2,18 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { TenantsService } from '../tenants.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { RedisService } from '../../../redis/redis.service';
 import { createMockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 describe('TenantsService', () => {
   let service: TenantsService;
   let prisma: ReturnType<typeof createMockPrismaService>;
 
+  const mockRedis = { get: jest.fn(), set: jest.fn(), deleteByPattern: jest.fn() };
   const mockTenant = { id: 'tenant-1', nombre: 'Test', plan: 'PRO', estado: 'ACTIVA', created_at: new Date() };
 
   beforeEach(async () => {
     prisma = createMockPrismaService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TenantsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        TenantsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: RedisService, useValue: mockRedis },
+      ],
     }).compile();
     service = module.get<TenantsService>(TenantsService);
   });

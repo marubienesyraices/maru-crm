@@ -189,8 +189,16 @@ export class AuthService {
       throw new UnauthorizedException('Sesión expirada');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: session.user_id } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: session.user_id },
+      include: { tenant: { select: { estado: true } } },
+    });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    if (user.tenant.estado !== 'ACTIVA' && user.tenant.estado !== 'TRIAL') {
+      await this.prisma.session.deleteMany({ where: { refresh_token: refreshToken } });
+      throw new UnauthorizedException('La empresa se encuentra suspendida o cancelada');
+    }
 
     const accessToken = this.jwt.sign(
       { sub: user.id, tenantId: user.tenant_id, email: user.email, rol: user.rol },
