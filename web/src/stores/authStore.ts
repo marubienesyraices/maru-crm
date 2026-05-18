@@ -85,6 +85,28 @@ function applyBranding(info: BrandingResponse) {
 const _rawRefresh = localStorage.getItem('refreshToken');
 const _initRefresh = (_rawRefresh && _rawRefresh !== 'undefined' && _rawRefresh !== 'null') ? _rawRefresh : null;
 
+// ── Proactive token refresh timer ──────────────────────────────
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearRefreshTimer() {
+  if (_refreshTimer) { clearTimeout(_refreshTimer); _refreshTimer = null; }
+}
+
+function scheduleRefresh(token: string) {
+  clearRefreshTimer();
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp) return;
+    // Fire 60s before expiry; clamp to 0 if already past that window
+    const delay = Math.max(0, payload.exp * 1000 - Date.now() - 60_000);
+    _refreshTimer = setTimeout(() => {
+      useAuthStore.getState().refresh().then((newToken) => {
+        if (newToken) scheduleRefresh(newToken);
+      });
+    }, delay);
+  } catch { /* malformed token — ignore */ }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user:              null,
   accessToken:       localStorage.getItem('accessToken'),
@@ -115,6 +137,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false });
+      scheduleRefresh(data.accessToken);
       // Fetch user preferences (tema) and tenant plan after login
       apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
         .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
@@ -141,6 +164,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false });
+      scheduleRefresh(data.accessToken);
       apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
         .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })
         .catch(() => {});
@@ -165,6 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
     } catch { /* best-effort */ }
+    clearRefreshTimer();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, planFeatures: null, tema: 'oscuro' });
@@ -203,6 +228,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ user, accessToken: data.accessToken });
       }
+      scheduleRefresh(data.accessToken);
       return data.accessToken;
     } catch {
       get().forceLogout();
@@ -212,6 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // ── Force logout (expired / invalid refresh token) ───────────────
   forceLogout: () => {
+    clearRefreshTimer();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     set({ user: null, accessToken: null, refreshToken: null, plan: null, limiteUsuarios: null, limitePropiedades: null, planFeatures: null });
@@ -260,6 +287,7 @@ if (storedToken) {
 
     if (tokenAlive) {
       useAuthStore.setState({ user: payload });
+      scheduleRefresh(storedToken);
       // Restore plan from branding endpoint (non-blocking)
       apiRequest<BrandingResponse>('/api/tenants/branding', { token: storedToken })
         .then(applyBranding)
