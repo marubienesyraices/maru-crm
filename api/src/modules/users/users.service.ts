@@ -293,6 +293,42 @@ export class UsersService {
     });
   }
 
+  async resendActivation(tenantId: string, id: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenant_id: tenantId },
+      include: { tenant: { select: { nombre: true } } },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (user.estado !== 'PENDIENTE') {
+      throw new BadRequestException('Solo se puede reenviar el correo a usuarios pendientes de activación');
+    }
+
+    const activationToken = randomUUID();
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        activation_token: activationToken,
+        activation_expires: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      },
+    });
+
+    const activationUrl = `${this.frontendUrl}/onboarding?token=${activationToken}`;
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`Resend activation: ${activationUrl}`);
+    }
+
+    this.email.sendClientEmail({
+      to: user.email,
+      subject: 'Activa tu cuenta — GestPro',
+      heading: `Hola, ${user.nombre}`,
+      body: `Se ha generado un nuevo enlace de activación para tu cuenta como <strong>${user.rol}</strong> en GestPro CRM. El enlace anterior ya no es válido.`,
+      cta: { label: 'Activar mi cuenta', url: activationUrl },
+      tenantId,
+    }).catch(() => {});
+
+    return { message: 'Correo de activación reenviado' };
+  }
+
   // ─── PRIVATE HELPERS ─────────────────────────────────────
 
   private async validateSupervisor(tenantId: string, supervisorId: string, rol?: string) {

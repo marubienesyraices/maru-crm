@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto, UpdateTemaDto, CreateAdminDto, UpdateAdminDto } from './dto';
@@ -91,6 +91,14 @@ export class UsersController {
   @ApiOperation({ summary: 'Cadena de supervisores de un usuario' })
   getUpline(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.usersService.getUpline(tenantId, id);
+  }
+
+  @Post(':id/reenviar-activacion')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reenviar correo de activación a usuario pendiente' })
+  resendActivation(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.usersService.resendActivation(tenantId, id);
   }
 
   @Put(':id')

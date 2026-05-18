@@ -58,6 +58,7 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
 
   const fetchUsers = useCallback(async () => {
@@ -105,6 +106,21 @@ export default function AdminUsersPage() {
     });
     setError('');
     setShowModal(true);
+  };
+
+  const handleResendActivation = async () => {
+    if (!editing) return;
+    setResending(true);
+    setError('');
+    try {
+      await apiRequest(`/api/users/${editing.id}/reenviar-activacion`, { method: 'POST', token: accessToken! });
+      setError('');
+      alert('Correo de activación reenviado correctamente.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleSave = async () => {
@@ -369,6 +385,22 @@ export default function AdminUsersPage() {
                 <select className="input-field" value={form.estado} onChange={(e) => updateField('estado', e.target.value)}>
                   {ESTADOS_USER.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
+              </div>
+            )}
+
+            {editing && editing.estado === 'PENDIENTE' && (
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--bg-subtle)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                  Este usuario aún no ha activado su cuenta.
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}
+                  disabled={resending}
+                  onClick={handleResendActivation}
+                >
+                  {resending ? 'Enviando...' : '✉ Reenviar correo'}
+                </button>
               </div>
             )}
 
