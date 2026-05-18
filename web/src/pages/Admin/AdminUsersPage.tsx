@@ -125,6 +125,7 @@ export default function AdminUsersPage() {
         }
       } else {
         const body: any = { ...form };
+        delete body.tenantId;
         if (!body.idSupervisor) delete body.idSupervisor;
         if (!editing) delete body.estado;
         if (editing) {
