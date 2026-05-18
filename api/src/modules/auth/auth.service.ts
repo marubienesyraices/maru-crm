@@ -293,11 +293,6 @@ export class AuthService {
     });
 
     if (!user) throw new BadRequestException('Token de activación inválido o expirado');
-    if (!user.totp_secret) throw new BadRequestException('Configure 2FA primero');
-
-    const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
-    const isValid = totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
-    if (!isValid) throw new BadRequestException('Código 2FA inválido');
 
     const hash = await bcrypt.hash(dto.password, 12);
 
@@ -307,7 +302,6 @@ export class AuthService {
         password_hash: hash,
         password_history: [hash],
         password_changed_at: new Date(),
-        totp_habilitado: true,
         estado: 'ACTIVO',
         activation_token: null,
         activation_expires: null,

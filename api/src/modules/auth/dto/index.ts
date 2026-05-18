@@ -51,10 +51,6 @@ export class OnboardingDto {
       'La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial',
   })
   password: string;
-
-  @IsString()
-  @IsNotEmpty()
-  totpCode: string;
 }
 
 export class RefreshTokenDto {

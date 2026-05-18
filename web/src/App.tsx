@@ -27,6 +27,7 @@ import RankingPage from './pages/Ranking/RankingPage';
 import CampanasPage from './pages/Campanas/CampanasPage';
 import MetaPage from './pages/Meta/MetaPage';
 import HelpPage from './pages/Help/HelpPage';
+import OnboardingPage from './pages/Onboarding/OnboardingPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
@@ -67,6 +68,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify-2fa" element={<Verify2FAPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/portal" element={<PortalPage />} />
         <Route path="/portal/verificar" element={<PortalVerifyPage />} />
         <Route path="/portal/reprogramar/:token" element={<PortalReprogramarPage />} />
