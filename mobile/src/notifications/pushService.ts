@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -60,11 +61,12 @@ export function useNotificationListeners(
   onNotification: (notification: Notifications.Notification) => void,
   onResponse: (response: Notifications.NotificationResponse) => void,
 ) {
-  const notifListener = Notifications.addNotificationReceivedListener(onNotification);
-  const responseListener = Notifications.addNotificationResponseReceivedListener(onResponse);
-
-  return () => {
-    notifListener.remove();
-    responseListener.remove();
-  };
+  useEffect(() => {
+    const notifListener = Notifications.addNotificationReceivedListener(onNotification);
+    const responseListener = Notifications.addNotificationResponseReceivedListener(onResponse);
+    return () => {
+      notifListener.remove();
+      responseListener.remove();
+    };
+  }, []);
 }

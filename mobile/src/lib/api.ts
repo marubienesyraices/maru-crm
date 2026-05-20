@@ -5,6 +5,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
+  retried = false,
 ): Promise<T> {
   const token = await SecureStore.getItemAsync('accessToken');
 
@@ -18,10 +19,10 @@ export async function apiRequest<T>(
   });
 
   if (res.status === 401) {
-    // Intentar renovar token
+    if (retried) throw new Error('SESSION_EXPIRED');
     const refreshed = await refreshTokens();
     if (!refreshed) throw new Error('SESSION_EXPIRED');
-    return apiRequest<T>(path, options);
+    return apiRequest<T>(path, options, true);
   }
 
   if (!res.ok) {

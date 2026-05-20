@@ -1,17 +1,23 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
 import { registerForPushNotifications, useNotificationListeners } from '../src/notifications/pushService';
 
 export default function RootLayout() {
-  const { loadSession } = useAuthStore();
+  const router = useRouter();
+  const { loadSession, user, isLoading } = useAuthStore();
 
   useEffect(() => {
     loadSession();
     registerForPushNotifications();
   }, []);
 
-  // Escuchar notificaciones en foreground (solo loguear por ahora)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isLoading]);
+
   useNotificationListeners(
     (notif) => console.log('Notificación recibida:', notif.request.content.title),
     (response) => console.log('Notificación abierta:', response.notification.request.content.title),
@@ -23,6 +29,10 @@ export default function RootLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="verify-2fa" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="propiedad/[id]"
+        options={{ headerShown: true, title: 'Propiedad', headerTintColor: '#111827' }}
+      />
     </Stack>
   );
 }

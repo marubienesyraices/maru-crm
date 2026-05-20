@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   TextInput, ActivityIndicator, RefreshControl,
@@ -36,6 +36,7 @@ export default function PropiedadesScreen() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const isLoadingMore = useRef(false);
 
   async function loadPropiedades(reset = false) {
     const currentPage = reset ? 1 : page;
@@ -130,7 +131,11 @@ export default function PropiedadesScreen() {
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          onEndReached={() => hasMore && loadPropiedades()}
+          onEndReached={() => {
+            if (!hasMore || isLoadingMore.current) return;
+            isLoadingMore.current = true;
+            loadPropiedades().finally(() => { isLoadingMore.current = false; });
+          }}
           onEndReachedThreshold={0.3}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.empty}>Sin propiedades</Text>}
