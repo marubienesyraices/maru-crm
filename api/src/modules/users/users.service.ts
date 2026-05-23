@@ -64,13 +64,12 @@ export class UsersService {
     }
 
     // Welcome email with activation link (fire-and-forget)
-    this.email.sendClientEmail({
+    this.email.sendSystemEmail({
       to: user.email,
       subject: '¡Bienvenido/a al CRM! — GestPro',
       heading: `¡Bienvenido/a, ${user.nombre}!`,
       body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en GestPro CRM. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
-      tenantId,
     }).catch(() => {});
 
     return { ...user, activationToken };
@@ -251,13 +250,12 @@ export class UsersService {
       this.logger.debug(`Admin activation: ${activationUrl}`);
     }
 
-    this.email.sendClientEmail({
+    this.email.sendSystemEmail({
       to: user.email,
       subject: '¡Bienvenido/a al CRM! — GestPro',
       heading: `¡Bienvenido/a, ${user.nombre}!`,
       body: `Tu cuenta como <strong>Administrador</strong> ha sido creada en GestPro CRM para la empresa <strong>${tenant.nombre}</strong>. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
-      tenantId: dto.tenantId,
     }).catch(() => {});
 
     return { ...user, activationToken };
@@ -317,13 +315,12 @@ export class UsersService {
       this.logger.debug(`Resend activation: ${activationUrl}`);
     }
 
-    this.email.sendClientEmail({
+    this.email.sendSystemEmail({
       to: user.email,
       subject: 'Activa tu cuenta — GestPro',
       heading: `Hola, ${user.nombre}`,
       body: `Se ha generado un nuevo enlace de activación para tu cuenta como <strong>${user.rol}</strong> en GestPro CRM. El enlace anterior ya no es válido.`,
       cta: { label: 'Activar mi cuenta', url: activationUrl },
-      tenantId,
     }).catch(() => {});
 
     return { message: 'Correo de activación reenviado' };

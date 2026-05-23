@@ -48,6 +48,68 @@ export class EmailService {
     this.clientCache.delete(tenantId);
   }
 
+  // ─── System emails: always use global env-var credentials ──────────
+  // Use for auth flows (account activation, password reset) so they
+  // are never tied to a tenant's own Resend account.
+  async sendSystemEmail(params: {
+    to: string;
+    subject: string;
+    heading: string;
+    body: string;
+    cta?: { label: string; url: string };
+  }): Promise<void> {
+    if (!this.globalResend) return;
+
+    const ctaHtml = params.cta
+      ? `<a href="${params.cta.url}"
+           style="display:inline-block;margin-top:24px;padding:12px 28px;background:#3b82f6;color:#fff;
+                  text-decoration:none;border-radius:6px;font-size:.9375rem;font-weight:600;">
+           ${params.cta.label} →
+         </a>`
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+        <tr>
+          <td style="background:#0f172a;padding:20px 32px;">
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
+            <span style="color:#64748b;font-size:0.8125rem;margin-left:12px;">CRM</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;color:#475569;line-height:1.7;font-size:.9375rem;">
+            <h2 style="margin:0 0 16px;font-size:1.125rem;color:#0f172a;">${params.heading}</h2>
+            <p style="margin:0;">${params.body}</p>
+            ${ctaHtml}
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 0;">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;background:#f8fafc;">
+            <p style="margin:0;font-size:.75rem;color:#94a3b8;">
+              GestPro CRM · Sistema de gestión inmobiliaria
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      await this.globalResend.emails.send({ from: this.globalFrom, to: [params.to], subject: params.subject, html });
+    } catch (err) {
+      this.logger.error(`sendSystemEmail failed to ${params.to}: ${err}`);
+    }
+  }
+
   // ─── Automated email to external clients (portal users) ──────────
   async sendClientEmail(params: {
     to: string;

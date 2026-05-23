@@ -13,6 +13,7 @@ import * as QRCode from 'qrcode';
 import * as geoip from 'geoip-lite';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { EmailService } from '../email/email.service';
 import { LoginDto, Verify2FADto, ResetPasswordDto, OnboardingDto } from './dto';
 import { randomUUID } from 'crypto';
 
@@ -27,6 +28,7 @@ export class AuthService {
     private jwt: JwtService,
     private config: ConfigService,
     private redis: RedisService,
+    private email: EmailService,
   ) {}
 
   // ─── LOGIN STEP 1: Email + Password ──────────────────────
@@ -236,9 +238,19 @@ export class AuthService {
       data: { reset_token: token, reset_token_expires: expires },
     });
 
+    const resetUrl = `${this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'}/reset-password?token=${token}`;
+
     if (process.env.NODE_ENV !== 'production') {
-      this.logger.debug(`Reset link: ${this.config.get('FRONTEND_URL')}/reset-password?token=${token}`);
+      this.logger.debug(`Reset link: ${resetUrl}`);
     }
+
+    this.email.sendSystemEmail({
+      to: user.email,
+      subject: 'Recuperación de contraseña — GestPro CRM',
+      heading: 'Restablecer contraseña',
+      body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta. Usa el siguiente enlace (válido por 30 minutos). Si no solicitaste este cambio, puedes ignorar este correo.`,
+      cta: { label: 'Restablecer contraseña', url: resetUrl },
+    }).catch(() => {});
 
     return { message: 'Si el correo existe, recibirá un enlace de recuperación' };
   }
