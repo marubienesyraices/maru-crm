@@ -59,6 +59,15 @@ export class AuthController {
     return this.authService.confirm2FA(user.sub, totpCode);
   }
 
+  @Post('disable-2fa')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desactivar 2FA con código TOTP actual' })
+  async disable2FA(@CurrentUser() user: any, @Body('totpCode') totpCode: string) {
+    return this.authService.disable2FA(user.sub, totpCode);
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refrescar access token con refresh token' })

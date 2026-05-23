@@ -68,7 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await fetch(`${API_URL}/api/auth/verify-2fa`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, tempToken }),
+      body: JSON.stringify({ totpCode: code, tempToken }),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.message ?? 'Código inválido');

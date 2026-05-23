@@ -127,7 +127,7 @@ export class UsersService {
   async findMe(tenantId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId },
-      select: { id: true, email: true, nombre: true, rol: true, tema: true },
+      select: { id: true, email: true, nombre: true, rol: true, tema: true, totp_habilitado: true },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;

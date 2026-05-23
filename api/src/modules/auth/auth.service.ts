@@ -180,6 +180,26 @@ export class AuthService {
     return { message: '2FA activado exitosamente' };
   }
 
+  async disable2FA(userId: string, totpCode: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.totp_secret || !user.totp_habilitado) {
+      throw new BadRequestException('El 2FA no está habilitado');
+    }
+
+    const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
+    const isValid = totpInstance.validate({ token: totpCode, window: 1 }) !== null;
+    if (!isValid) {
+      throw new BadRequestException('Código inválido');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totp_habilitado: false, totp_secret: null },
+    });
+
+    return { message: '2FA desactivado exitosamente' };
+  }
+
   // ─── REFRESH TOKEN ────────────────────────────────────────
 
   async refreshToken(refreshToken: string) {
