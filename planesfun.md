@@ -189,7 +189,7 @@ Ocultar "Mi Portal" y "Portal público" en el sidebar cuando `plan === 'FREE'`.
 
 ### 6. Sitio propio — subdominio y dominio personalizado (solo PRO y ENTERPRISE)
 
-**Qué hace:** PRO y ENTERPRISE pueden configurar un subdominio propio (ej. `miinmobiliaria.gestpro.com`) y un dominio personalizado (ej. `www.miinmobiliaria.com`). BASIC solo tiene el portal bajo el dominio genérico de GestPro.
+**Qué hace:** PRO y ENTERPRISE pueden configurar un subdominio propio (ej. `miinmobiliaria.gestprop.net`) y un dominio personalizado (ej. `www.miinmobiliaria.com`). BASIC solo tiene el portal bajo el dominio genérico de GestPro.
 
 **Impacto:** Bloquear los campos `subdominio` y `dominio_personalizado` del formulario de config portal.
 

@@ -365,13 +365,13 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 
    | Rol | Email | Contraseña |
    |-----|-------|------------|
-   | Super Admin | `superadmin@gestpro.com` | `SuperAdmin@2026` |
-   | Admin | `admin@gestpro.com` | `Admin@2026` |
-   | Senior | `carlos.senior@gestpro.com` | `Agent@2026` |
-   | Junior | `ana.junior@gestpro.com` | `Agent@2026` |
+   | Super Admin | `superadmin@gestprop.net` | `SuperAdmin@2026` |
+   | Admin | `admin@gestprop.net` | `Admin@2026` |
+   | Senior | `carlos.senior@gestprop.net` | `Agent@2026` |
+   | Junior | `ana.junior@gestprop.net` | `Agent@2026` |
 
 2. Acceder al CRM en `https://crm.tudominio.com`.
-3. Iniciar sesión con `superadmin@gestpro.com` / `SuperAdmin@2026`.
+3. Iniciar sesión con `superadmin@gestprop.net` / `SuperAdmin@2026`.
 4. Ir a **Configuración** → **Mi Perfil** → cambiar email y contraseña del super admin.
 5. Ir a **Admin** → **Empresas** → crear el primer tenant real (empresa inmobiliaria).
 6. Dentro del tenant, ir a **Admin** → **Usuarios** → crear el primer usuario ADMIN.
@@ -435,7 +435,7 @@ Antes de considerar el despliegue completo:
 - [ ] RLS policies aplicadas en Neon (`migration.sql` y `migration_v2.sql` en ese orden)
 - [ ] Contraseña del rol `gestpro_app` (RLS) cambiada en producción
 - [ ] Seed ejecutado (`npx ts-node prisma/seed.ts`)
-- [ ] Contraseña de `superadmin@gestpro.com` cambiada tras el primer login
+- [ ] Contraseña de `superadmin@gestprop.net` cambiada tras el primer login
 
 ### Almacenamiento y email
 - [ ] Dominio verificado en Resend y emails de prueba recibidos sin ir a spam
