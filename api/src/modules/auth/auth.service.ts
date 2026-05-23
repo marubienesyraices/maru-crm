@@ -180,6 +180,35 @@ export class AuthService {
     return { message: '2FA activado exitosamente' };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Usuario no encontrado');
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) throw new BadRequestException('La contraseña actual es incorrecta');
+
+    const history: string[] = (user.password_history as string[]) || [];
+    for (const oldHash of history) {
+      if (await bcrypt.compare(newPassword, oldHash)) {
+        throw new BadRequestException('No puede reutilizar las últimas 5 contraseñas');
+      }
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    const newHistory = [hash, ...history].slice(0, 5);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password_hash: hash,
+        password_history: newHistory,
+        password_changed_at: new Date(),
+      },
+    });
+
+    return { message: 'Contraseña actualizada exitosamente' };
+  }
+
   async disable2FA(userId: string, totpCode: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.totp_secret || !user.totp_habilitado) {

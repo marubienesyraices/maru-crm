@@ -82,6 +82,76 @@
 .tema-preview-oscuro .tp-card { background: #1a1f35; }
 .tema-preview-claro  .tp-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.06); }
 
+/* ─── Password change form ──────────────────────────────────── */
+
+.pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 420px;
+}
+
+.pw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pw-field label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.pw-input-wrap {
+  position: relative;
+}
+
+.pw-input-wrap input {
+  width: 100%;
+  padding: 9px 40px 9px 12px;
+  background: var(--bg-input, #151b2e);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+
+.pw-input-wrap input:focus {
+  border-color: var(--border-focus);
+}
+
+.pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity .15s;
+}
+
+.pw-toggle:hover { opacity: 1; }
+
+.pw-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.pw-mismatch {
+  font-size: 0.75rem;
+  color: var(--accent-red, #ef4444);
+}
+
 /* ─── 2FA section ──────────────────────────────────────────── */
 
 .twofa-section {

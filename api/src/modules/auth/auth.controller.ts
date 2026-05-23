@@ -4,7 +4,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   LoginDto, Verify2FADto, ForgotPasswordDto,
-  ResetPasswordDto, OnboardingDto, RefreshTokenDto,
+  ResetPasswordDto, OnboardingDto, RefreshTokenDto, ChangePasswordDto,
 } from './dto';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -57,6 +57,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Confirmar y activar 2FA con código TOTP' })
   async confirm2FA(@CurrentUser() user: any, @Body('totpCode') totpCode: string) {
     return this.authService.confirm2FA(user.sub, totpCode);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cambiar contraseña del usuario autenticado' })
+  async changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(user.sub, dto.currentPassword, dto.newPassword);
   }
 
   @Post('disable-2fa')

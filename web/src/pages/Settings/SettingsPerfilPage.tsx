@@ -4,31 +4,65 @@ import { apiRequest } from '../../lib/api';
 import './Settings.css';
 import './SettingsPerfil.css';
 
+type Tab = 'apariencia' | 'seguridad';
 type TwoFAStep = 'idle' | 'setup' | 'disabling';
 
 export default function SettingsPerfilPage() {
-  const { tema, updateTema, accessToken } = useAuthStore();
+  const { tema, updateTema, accessToken, user } = useAuthStore();
+  const [tab, setTab] = useState<Tab>('apariencia');
 
+  // ── Cambio de contraseña ──────────────────────────────────
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess('');
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError('Las contraseñas nuevas no coinciden');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      await apiRequest('/api/auth/change-password', {
+        method: 'POST',
+        token: accessToken!,
+        body: { currentPassword: pwForm.current, newPassword: pwForm.next },
+      });
+      setPwSuccess('Contraseña actualizada correctamente.');
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (e: any) {
+      setPwError(e.message);
+    } finally {
+      setPwLoading(false);
+    }
+  }
+
+  // ── 2FA ──────────────────────────────────────────────────
   const [totpHabilitado, setTotpHabilitado] = useState<boolean | null>(null);
-  const [step, setStep] = useState<TwoFAStep>('idle');
+  const [twoFAStep, setTwoFAStep] = useState<TwoFAStep>('idle');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [secret, setSecret] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [twoFAError, setTwoFAError] = useState('');
+  const [twoFASuccess, setTwoFASuccess] = useState('');
 
   useEffect(() => {
     if (!accessToken) return;
     apiRequest<{ totp_habilitado: boolean }>('/api/users/me', { token: accessToken })
-      .then((data) => setTotpHabilitado(data.totp_habilitado))
+      .then((d) => setTotpHabilitado(d.totp_habilitado))
       .catch(() => {});
   }, [accessToken]);
 
   async function handleStartSetup() {
-    setLoading(true);
-    setError('');
+    setTwoFALoading(true);
+    setTwoFAError('');
     try {
       const data = await apiRequest<{ secret: string; qrCodeDataUrl: string }>(
         '/api/auth/setup-2fa',
@@ -36,17 +70,17 @@ export default function SettingsPerfilPage() {
       );
       setQrCodeUrl(data.qrCodeDataUrl);
       setSecret(data.secret);
-      setStep('setup');
+      setTwoFAStep('setup');
     } catch (e: any) {
-      setError(e.message);
+      setTwoFAError(e.message);
     } finally {
-      setLoading(false);
+      setTwoFALoading(false);
     }
   }
 
   async function handleConfirmSetup() {
-    setLoading(true);
-    setError('');
+    setTwoFALoading(true);
+    setTwoFAError('');
     try {
       await apiRequest('/api/auth/confirm-2fa', {
         method: 'POST',
@@ -54,19 +88,19 @@ export default function SettingsPerfilPage() {
         body: { totpCode: confirmCode },
       });
       setTotpHabilitado(true);
-      setStep('idle');
+      setTwoFAStep('idle');
       setConfirmCode('');
-      setSuccessMsg('2FA activado exitosamente. Tu cuenta ahora tiene una capa extra de seguridad.');
+      setTwoFASuccess('2FA activado. Tu cuenta ahora tiene una capa extra de seguridad.');
     } catch (e: any) {
-      setError(e.message);
+      setTwoFAError(e.message);
     } finally {
-      setLoading(false);
+      setTwoFALoading(false);
     }
   }
 
-  async function handleDisable() {
-    setLoading(true);
-    setError('');
+  async function handleDisable2FA() {
+    setTwoFALoading(true);
+    setTwoFAError('');
     try {
       await apiRequest('/api/auth/disable-2fa', {
         method: 'POST',
@@ -74,203 +108,318 @@ export default function SettingsPerfilPage() {
         body: { totpCode: disableCode },
       });
       setTotpHabilitado(false);
-      setStep('idle');
+      setTwoFAStep('idle');
       setDisableCode('');
-      setSuccessMsg('2FA desactivado.');
+      setTwoFASuccess('2FA desactivado.');
     } catch (e: any) {
-      setError(e.message);
+      setTwoFAError(e.message);
     } finally {
-      setLoading(false);
+      setTwoFALoading(false);
     }
   }
 
-  function cancelStep() {
-    setStep('idle');
+  function cancelTwoFA() {
+    setTwoFAStep('idle');
     setConfirmCode('');
     setDisableCode('');
-    setError('');
+    setTwoFAError('');
   }
+
+  const PASSWORD_HINT = 'Mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (@$!%*?&)';
 
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <h1>Preferencias</h1>
-        <p>Personaliza tu experiencia en el CRM</p>
+        <h1>Mi Perfil</h1>
+        <p>{user?.email}</p>
       </div>
 
-      {/* ── Apariencia ─────────────────────────────────────────── */}
-      <div className="settings-card">
-        <div className="settings-card-header">
-          <div className="settings-card-title">
-            <div className="settings-card-icon">🎨</div>
-            <div>
-              <h2>Apariencia</h2>
-              <p>Selecciona el tema visual que prefieras</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="tema-options">
-          <button
-            className={`tema-card${tema === 'oscuro' ? ' tema-card-active' : ''}`}
-            onClick={() => updateTema('oscuro')}
-            aria-pressed={tema === 'oscuro'}
-          >
-            <div className="tema-preview tema-preview-oscuro">
-              <div className="tp-sidebar" />
-              <div className="tp-content">
-                <div className="tp-bar tp-bar-1" />
-                <div className="tp-bar tp-bar-2" />
-                <div className="tp-card" />
-              </div>
-            </div>
-            <div className="tema-label">
-              <span className="tema-name">Oscuro</span>
-              {tema === 'oscuro' && <span className="tema-badge">Activo</span>}
-            </div>
-          </button>
-
-          <button
-            className={`tema-card${tema === 'claro' ? ' tema-card-active' : ''}`}
-            onClick={() => updateTema('claro')}
-            aria-pressed={tema === 'claro'}
-          >
-            <div className="tema-preview tema-preview-claro">
-              <div className="tp-sidebar" />
-              <div className="tp-content">
-                <div className="tp-bar tp-bar-1" />
-                <div className="tp-bar tp-bar-2" />
-                <div className="tp-card" />
-              </div>
-            </div>
-            <div className="tema-label">
-              <span className="tema-name">Claro</span>
-              {tema === 'claro' && <span className="tema-badge">Activo</span>}
-            </div>
-          </button>
-        </div>
+      <div className="settings-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={tab === 'apariencia'}
+          className={`settings-tab${tab === 'apariencia' ? ' active' : ''}`}
+          onClick={() => setTab('apariencia')}
+        >
+          Apariencia
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'seguridad'}
+          className={`settings-tab${tab === 'seguridad' ? ' active' : ''}`}
+          onClick={() => setTab('seguridad')}
+        >
+          Seguridad
+        </button>
       </div>
 
-      {/* ── Autenticación de dos factores ──────────────────────── */}
-      <div className="settings-card">
-        <div className="settings-card-header">
-          <div className="settings-card-title">
-            <div className="settings-card-icon">🔐</div>
-            <div>
-              <h2>Autenticación de dos factores</h2>
-              <p>Protege tu cuenta con un código adicional al iniciar sesión</p>
+      {/* ── TAB: Apariencia ──────────────────────────────────── */}
+      {tab === 'apariencia' && (
+        <div className="settings-card">
+          <div className="settings-card-header">
+            <div className="settings-card-title">
+              <div className="settings-card-icon">🎨</div>
+              <div>
+                <h2>Apariencia</h2>
+                <p>Selecciona el tema visual que prefieras</p>
+              </div>
             </div>
           </div>
-          {totpHabilitado !== null && (
-            <span className={`settings-badge ${totpHabilitado ? 'settings-badge-ok' : 'settings-badge-off'}`}>
-              {totpHabilitado ? '● Activo' : '○ Inactivo'}
-            </span>
-          )}
-        </div>
 
-        {successMsg && (
-          <div className="twofa-alert twofa-alert-ok">
-            {successMsg}
-            <button className="twofa-alert-close" onClick={() => setSuccessMsg('')}>✕</button>
-          </div>
-        )}
+          <div className="tema-options">
+            <button
+              className={`tema-card${tema === 'oscuro' ? ' tema-card-active' : ''}`}
+              onClick={() => updateTema('oscuro')}
+              aria-pressed={tema === 'oscuro'}
+            >
+              <div className="tema-preview tema-preview-oscuro">
+                <div className="tp-sidebar" />
+                <div className="tp-content">
+                  <div className="tp-bar tp-bar-1" />
+                  <div className="tp-bar tp-bar-2" />
+                  <div className="tp-card" />
+                </div>
+              </div>
+              <div className="tema-label">
+                <span className="tema-name">Oscuro</span>
+                {tema === 'oscuro' && <span className="tema-badge">Activo</span>}
+              </div>
+            </button>
 
-        {/* Estado: desactivado */}
-        {step === 'idle' && totpHabilitado === false && (
-          <div className="twofa-section">
-            <p className="twofa-desc">
-              Usa una aplicación autenticadora (Google Authenticator, Authy, etc.) para generar
-              códigos de un solo uso. Añade una capa extra de seguridad ante accesos no autorizados.
-            </p>
-            <button className="btn btn-primary" onClick={handleStartSetup} disabled={loading}>
-              {loading ? 'Cargando…' : 'Configurar 2FA'}
+            <button
+              className={`tema-card${tema === 'claro' ? ' tema-card-active' : ''}`}
+              onClick={() => updateTema('claro')}
+              aria-pressed={tema === 'claro'}
+            >
+              <div className="tema-preview tema-preview-claro">
+                <div className="tp-sidebar" />
+                <div className="tp-content">
+                  <div className="tp-bar tp-bar-1" />
+                  <div className="tp-bar tp-bar-2" />
+                  <div className="tp-card" />
+                </div>
+              </div>
+              <div className="tema-label">
+                <span className="tema-name">Claro</span>
+                {tema === 'claro' && <span className="tema-badge">Activo</span>}
+              </div>
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Estado: configurando — mostrar QR */}
-        {step === 'setup' && (
-          <div className="twofa-section">
-            <div className="twofa-step">
-              <span className="twofa-step-num">1</span>
-              <p>Escanea este código QR con tu aplicación autenticadora</p>
+      {/* ── TAB: Seguridad ───────────────────────────────────── */}
+      {tab === 'seguridad' && (
+        <>
+          {/* Cambio de contraseña */}
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-title">
+                <div className="settings-card-icon">🔑</div>
+                <div>
+                  <h2>Cambiar contraseña</h2>
+                  <p>Actualiza tu contraseña de acceso al CRM</p>
+                </div>
+              </div>
             </div>
-            <img src={qrCodeUrl} alt="Código QR para 2FA" className="twofa-qr" />
-            <p className="twofa-secret-hint">
-              ¿No puedes escanear? Ingresa este código manualmente:<br />
-              <code className="twofa-secret">{secret}</code>
-            </p>
-            <div className="twofa-step">
-              <span className="twofa-step-num">2</span>
-              <p>Ingresa el código de 6 dígitos que muestra la aplicación</p>
-            </div>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="000 000"
-              value={confirmCode}
-              onChange={(e) => { setConfirmCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-              className="twofa-code-input"
-              autoFocus
-            />
-            {error && <p className="twofa-error">{error}</p>}
-            <div className="twofa-actions">
+
+            {pwSuccess && (
+              <div className="twofa-alert twofa-alert-ok" style={{ marginBottom: 16 }}>
+                {pwSuccess}
+                <button className="twofa-alert-close" onClick={() => setPwSuccess('')}>✕</button>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="pw-form" noValidate>
+              <div className="pw-field">
+                <label htmlFor="pw-current">Contraseña actual</label>
+                <div className="pw-input-wrap">
+                  <input
+                    id="pw-current"
+                    type={showPw.current ? 'text' : 'password'}
+                    value={pwForm.current}
+                    onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button type="button" className="pw-toggle" onClick={() => setShowPw((s) => ({ ...s, current: !s.current }))}>
+                    {showPw.current ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pw-field">
+                <label htmlFor="pw-next">Nueva contraseña</label>
+                <div className="pw-input-wrap">
+                  <input
+                    id="pw-next"
+                    type={showPw.next ? 'text' : 'password'}
+                    value={pwForm.next}
+                    onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))}
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button type="button" className="pw-toggle" onClick={() => setShowPw((s) => ({ ...s, next: !s.next }))}>
+                    {showPw.next ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <span className="pw-hint">{PASSWORD_HINT}</span>
+              </div>
+
+              <div className="pw-field">
+                <label htmlFor="pw-confirm">Confirmar nueva contraseña</label>
+                <div className="pw-input-wrap">
+                  <input
+                    id="pw-confirm"
+                    type={showPw.confirm ? 'text' : 'password'}
+                    value={pwForm.confirm}
+                    onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))}
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button type="button" className="pw-toggle" onClick={() => setShowPw((s) => ({ ...s, confirm: !s.confirm }))}>
+                    {showPw.confirm ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {pwForm.confirm && pwForm.next !== pwForm.confirm && (
+                  <span className="pw-mismatch">Las contraseñas no coinciden</span>
+                )}
+              </div>
+
+              {pwError && <p className="twofa-error">{pwError}</p>}
+
               <button
+                type="submit"
                 className="btn btn-primary"
-                onClick={handleConfirmSetup}
-                disabled={loading || confirmCode.length !== 6}
+                disabled={pwLoading || !pwForm.current || !pwForm.next || pwForm.next !== pwForm.confirm}
               >
-                {loading ? 'Verificando…' : 'Activar 2FA'}
+                {pwLoading ? 'Actualizando…' : 'Actualizar contraseña'}
               </button>
-              <button className="btn btn-ghost" onClick={cancelStep}>Cancelar</button>
-            </div>
+            </form>
           </div>
-        )}
 
-        {/* Estado: activado */}
-        {step === 'idle' && totpHabilitado === true && (
-          <div className="twofa-section">
-            <p className="twofa-desc">
-              Tu cuenta está protegida con 2FA. Se te pedirá un código de tu aplicación
-              autenticadora cada vez que inicies sesión.
-            </p>
-            <button className="btn btn-danger-outline" onClick={() => setStep('disabling')}>
-              Desactivar 2FA
-            </button>
-          </div>
-        )}
-
-        {/* Estado: desactivando */}
-        {step === 'disabling' && (
-          <div className="twofa-section">
-            <p className="twofa-desc">
-              Para desactivar el 2FA ingresa el código actual de tu aplicación autenticadora.
-            </p>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="000 000"
-              value={disableCode}
-              onChange={(e) => { setDisableCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-              className="twofa-code-input"
-              autoFocus
-            />
-            {error && <p className="twofa-error">{error}</p>}
-            <div className="twofa-actions">
-              <button
-                className="btn btn-danger"
-                onClick={handleDisable}
-                disabled={loading || disableCode.length !== 6}
-              >
-                {loading ? 'Procesando…' : 'Confirmar desactivación'}
-              </button>
-              <button className="btn btn-ghost" onClick={cancelStep}>Cancelar</button>
+          {/* 2FA */}
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-title">
+                <div className="settings-card-icon">🔐</div>
+                <div>
+                  <h2>Autenticación de dos factores</h2>
+                  <p>Código adicional requerido al iniciar sesión</p>
+                </div>
+              </div>
+              {totpHabilitado !== null && (
+                <span className={`settings-badge ${totpHabilitado ? 'settings-badge-ok' : 'settings-badge-off'}`}>
+                  {totpHabilitado ? '● Activo' : '○ Inactivo'}
+                </span>
+              )}
             </div>
+
+            {twoFASuccess && (
+              <div className="twofa-alert twofa-alert-ok">
+                {twoFASuccess}
+                <button className="twofa-alert-close" onClick={() => setTwoFASuccess('')}>✕</button>
+              </div>
+            )}
+
+            {/* Desactivado — botón de activar */}
+            {twoFAStep === 'idle' && totpHabilitado === false && (
+              <div className="twofa-section">
+                <p className="twofa-desc">
+                  Usa Google Authenticator, Authy u otra aplicación para generar códigos de un solo uso.
+                  Añade protección extra ante accesos no autorizados.
+                </p>
+                <button className="btn btn-primary" onClick={handleStartSetup} disabled={twoFALoading}>
+                  {twoFALoading ? 'Cargando…' : 'Activar 2FA'}
+                </button>
+              </div>
+            )}
+
+            {/* Setup: mostrar QR */}
+            {twoFAStep === 'setup' && (
+              <div className="twofa-section">
+                <div className="twofa-step">
+                  <span className="twofa-step-num">1</span>
+                  <p>Escanea el código QR con tu aplicación autenticadora</p>
+                </div>
+                <img src={qrCodeUrl} alt="QR 2FA" className="twofa-qr" />
+                <p className="twofa-secret-hint">
+                  ¿No puedes escanear? Ingresa este código manualmente:<br />
+                  <code className="twofa-secret">{secret}</code>
+                </p>
+                <div className="twofa-step">
+                  <span className="twofa-step-num">2</span>
+                  <p>Ingresa el código de 6 dígitos que muestra la aplicación</p>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000 000"
+                  value={confirmCode}
+                  onChange={(e) => { setConfirmCode(e.target.value.replace(/\D/g, '')); setTwoFAError(''); }}
+                  className="twofa-code-input"
+                  autoFocus
+                />
+                {twoFAError && <p className="twofa-error">{twoFAError}</p>}
+                <div className="twofa-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleConfirmSetup}
+                    disabled={twoFALoading || confirmCode.length !== 6}
+                  >
+                    {twoFALoading ? 'Verificando…' : 'Activar 2FA'}
+                  </button>
+                  <button className="btn btn-ghost" onClick={cancelTwoFA}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Activado */}
+            {twoFAStep === 'idle' && totpHabilitado === true && (
+              <div className="twofa-section">
+                <p className="twofa-desc">
+                  Tu cuenta está protegida. Se te pedirá un código de tu aplicación autenticadora
+                  cada vez que inicies sesión.
+                </p>
+                <button className="btn btn-danger-outline" onClick={() => setTwoFAStep('disabling')}>
+                  Desactivar 2FA
+                </button>
+              </div>
+            )}
+
+            {/* Desactivando */}
+            {twoFAStep === 'disabling' && (
+              <div className="twofa-section">
+                <p className="twofa-desc">
+                  Ingresa el código actual de tu aplicación autenticadora para confirmar.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000 000"
+                  value={disableCode}
+                  onChange={(e) => { setDisableCode(e.target.value.replace(/\D/g, '')); setTwoFAError(''); }}
+                  className="twofa-code-input"
+                  autoFocus
+                />
+                {twoFAError && <p className="twofa-error">{twoFAError}</p>}
+                <div className="twofa-actions">
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleDisable2FA}
+                    disabled={twoFALoading || disableCode.length !== 6}
+                  >
+                    {twoFALoading ? 'Procesando…' : 'Confirmar desactivación'}
+                  </button>
+                  <button className="btn btn-ghost" onClick={cancelTwoFA}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
