@@ -1,0 +1,68 @@
+@startuml C4_Nivel3_Componentes_API
+!include <C4/C4_Component>
+
+title Diagrama C4 — Nivel 3: Componentes del API Backend\nCRM Inmobiliario "GestPro CRM Inmobiliario"
+
+LAYOUT_WITH_LEGEND()
+UpdateElementStyle("external_system", $bgColor="#BEDBFF", $fontColor="black", $borderColor="#5B8FD9")
+UpdateElementStyle("external_container", $bgColor="#87CEEB", $fontColor="#000000", $borderColor="#3A90C9")
+
+' ─────────────────────────────────────────────
+'  CONTENEDOR EXTERNO QUE CONSUME LA API
+' ─────────────────────────────────────────────
+Container_Ext(webApp, "CRM Web (SPA)", "React 18 + Vite", "Interfaz de gestión para agentes y administradores.")
+
+' ─────────────────────────────────────────────
+'  BOUNDARY — API BACKEND (NestJS)
+' ─────────────────────────────────────────────
+Container_Boundary(api, "API Backend — NestJS + TypeScript") {
+
+    ' ── CAPA TRANSVERSAL ──────────────────────────────────────
+    Component(jwtGuard,        "JwtAuthGuard",      "NestJS Guard",       "Valida JWT; inyecta req.user con sub, tenantId y rol.")
+    Component(rolesGuard,      "RolesGuard",        "NestJS Guard",       "Verifica @Roles() contra req.user.rol.")
+    Component(visibilityGuard, "VisibilityGuard",   "NestJS Guard",       "Inyecta req.visibleUserIds según jerarquía de rol.")
+
+    ' ── INFRAESTRUCTURA ───────────────────────────────────────
+    Component(prismaService,  "PrismaService",      "NestJS Service", "Prisma ORM con RLS activo por tenant.")
+    Component(storageService, "StorageService",     "NestJS Service", "Selecciona Cloudflare R2 o disco local según env.")
+
+    ' ── MÓDULOS DE DOMINIO ────────────────────────────────────
+    Component(authModule,     "AuthModule",         "NestJS Module", "Login, JWT, 2FA TOTP, bloqueo progresivo y refresh tokens.")
+    Component(propModule,     "PropiedadesModule",  "NestJS Module", "CRUD + máquina de estados + motor de precios PostGIS.")
+    Component(pipelineModule, "PipelineModule",     "NestJS Module", "Kanban con transiciones validadas y cálculo de comisión.")
+    Component(visitasModule,  "VisitasModule",      "NestJS Module", "Agendamiento con prevención de conflictos e invitaciones .ics.")
+    Component(brochureModule, "BrochureModule",     "NestJS Module", "Genera PDF via BullMQ; polleo de estado y tracking de descarga.")
+    Component(biModule,       "BiModule",           "NestJS Module", "Dashboards con métricas inmobiliarias; cache Redis 15 min.")
+    Component(uploadModule,   "UploadModule",       "NestJS Module", "Multer memory storage; delega compresión y almacenamiento.")
+}
+
+' ─────────────────────────────────────────────
+'  RELACIONES — CLIENTE → API
+' ─────────────────────────────────────────────
+Rel(webApp, api, "")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — CAPA TRANSVERSAL
+' ─────────────────────────────────────────────
+Rel(jwtGuard,   rolesGuard,      "Cadena de guards por endpoint")
+Rel(rolesGuard, visibilityGuard, "Cadena de guards por endpoint")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — MÓDULOS → INFRAESTRUCTURA
+' ─────────────────────────────────────────────
+Rel(authModule,     prismaService, "Valida credenciales y gestiona sesiones")
+
+Rel(propModule,     prismaService,  "CRUD de propiedades con RLS")
+Rel(propModule,     storageService, "Sube imágenes y documentos")
+
+Rel(pipelineModule, prismaService, "Transacciones atómicas de estado")
+
+Rel(visitasModule,  prismaService, "CRUD de visitas y reportes")
+
+Rel(brochureModule, storageService, "Descarga imágenes y sube PDF final")
+
+Rel(biModule, prismaService, "Consulta vistas materializadas")
+
+Rel(uploadModule, storageService, "Delega almacenamiento del archivo")
+
+@enduml

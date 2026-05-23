@@ -1,0 +1,78 @@
+@startuml
+title **HU-09.01 — Agendamiento de Visitas con Prevención de Conflictos**\n**GestPro CRM**
+skinparam backgroundColor #FAFAFA
+skinparam sequenceParticipantBorderColor #4472C4
+skinparam sequenceParticipantBackgroundColor #4472C4
+skinparam participantFontColor white
+
+skinparam sequenceLifeLineBorderColor #4472C4
+skinparam sequenceGroupBorderColor #4472C4
+skinparam sequenceDividerBackgroundColor #BEDBFF
+skinparam sequenceDividerBorderColor #4472C4
+skinparam sequenceDividerFontColor black
+
+skinparam noteBorderColor #4472C4
+skinparam noteBackgroundColor #BEDBFF
+skinparam noteFontColor black
+
+skinparam actorBorderColor #312C85
+skinparam actorBackgroundColor #312C85
+skinparam actorFontColor black
+
+skinparam participantFontColor black
+skinparam participantBorderColor #312C85
+skinparam databaseFontColor black
+
+actor       "**Agente**"            as AGENT
+participant "**React Web**"         as UI    #2B7FFF
+participant "**VisitasController**" as CTRL  #2B7FFF
+database    "**PostgreSQL**"        as DB    #2B7FFF
+participant "**Email / Notif.**"    as EMAIL #2B7FFF
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 1: AGENDAR VISITA
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 1: Agendar Visita (POST /api/visitas)** ==
+
+AGENT -> UI : Selecciona trámite, fecha inicio/fin y ubicación
+UI -> CTRL : POST /api/visitas { interesId, fechaInicio, fechaFin, ubicacion }
+
+CTRL -> DB : SELECT trámite + cliente + propiedad
+DB --> CTRL : interes { cliente.email, propiedad.codigo }
+
+alt **trámite no encontrado**
+  CTRL --> UI : HTTP 404
+  UI --> AGENT : Error — trámite inválido
+end
+
+group **Prevención de Conflictos (buffer)**
+  CTRL -> DB :*SELECT config buffer_entre_citas_min\n(default 30 min)
+  CTRL -> DB : SELECT visitas WHERE agente_id = $1\nAND fecha solapada ± buffer
+  alt **existe solapamiento**
+    CTRL --> UI : HTTP 409 — Conflicto de horario\n(incluido buffer de N min)
+    UI --> AGENT : Slot ocupado — elige otro horario
+  end
+end
+
+CTRL -> DB : INSERT visita { fechas, ubicacion,\nreschedule_token: uuid, estado: PENDIENTE }
+DB --> CTRL : visita creada
+
+CTRL -> EMAIL : Notificación al agente (in-app)\nEmail al cliente con:\n· Confirmación de visita\n· Enlace para reprogramar (token único)\n· Adjunto .ics (Google / Outlook / Apple)
+note left of EMAIL : Fire-and-forget —\nno bloquea la respuesta
+
+CTRL --> UI : HTTP 201 { visita }
+UI --> AGENT : Visita agendada
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 2: DESCARGAR INVITACIÓN DE CALENDARIO (.ics)
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 2: Descargar Invitación de Calendario (GET /api/visitas/:id/ics)** ==
+
+AGENT -> UI : Descarga invitación .ics
+UI -> CTRL : GET /api/visitas/:id/ics
+CTRL -> DB : SELECT visita + agente + propiedad
+DB --> CTRL : datos de la visita
+CTRL -> CTRL : Genera archivo .ics**\n**(VEVENT con fecha, ubicación y asistentes)
+CTRL --> UI : Content-Type: text/calendar**\n**visita-<id>.ics
+UI --> AGENT : Descarga lista para importar al calendario
+@enduml

@@ -1,0 +1,270 @@
+@startuml CasosDeUso_CRM_Inmobiliario
+
+title CRM Inmobiliario "Maru Bienes y Raices"\nDiagrama de Casos de Uso
+
+skinparam actorStyle awesome
+skinparam defaultFontSize 11
+skinparam usecase {
+  BackgroundColor #EBF5FB
+  BorderColor #1A5276
+  FontColor #1A5276
+}
+skinparam package {
+  BackgroundColor #F8F9FA
+  BorderColor #AEB6BF
+  FontColor #2C3E50
+}
+skinparam actor {
+  BackgroundColor #D5E8D4
+  BorderColor #27AE60
+  FontColor #1E8449
+}
+skinparam arrow {
+  Color #5D6D7E
+}
+
+' ============================================================
+' ACTORES
+' ============================================================
+
+actor "Super\nAdmin" as superAdmin #D5E8D4
+actor "Admin" as admin #D5E8D4
+actor "Agente\nSenior" as senior #D5E8D4
+actor "Agente\nJunior" as junior #D5E8D4
+actor "Cliente /\nProspecto" as cliente #D6EAF8
+actor "Sistema\n(Automatico)" as sistema #FDEBD0
+
+' Herencia de actores
+superAdmin -|> admin
+senior -|> junior
+
+' ============================================================
+' UC-01: GESTION DE EMPRESAS (HU-01.01)
+' ============================================================
+package "Gestion de Empresas (HU-01.01)" {
+  usecase "Configurar tenant\n(logo, colores, plan,\nmoneda, zona horaria)" as UC01a
+  usecase "Gestionar plan\nde suscripcion" as UC01b
+  usecase "Activar / desactivar\nRow-Level Security" as UC01c
+}
+
+' ============================================================
+' UC-02: AUTENTICACION Y SEGURIDAD (HU-02.01, 02.02, 02.03)
+' ============================================================
+package "Autenticacion y Seguridad (HU-02.01/02/03)" {
+  usecase "Iniciar sesion\n(email + password)" as UC02a
+  usecase "Verificar 2FA\n(TOTP Google Auth)" as UC02b
+  usecase "Recuperar contrasena\n(enlace 30 min, un uso)" as UC02c
+  usecase "Completar onboarding\n(1er login + setup 2FA)" as UC02d
+  usecase "Configurar geocerca\ny whitelist IP" as UC02e
+  usecase "Bloqueo progresivo\npor intentos fallidos" as UC02f
+}
+
+' ============================================================
+' UC-03: AUDITORIA INMUTABLE (HU-03.01)
+' ============================================================
+package "Auditoria (HU-03.01)" {
+  usecase "Ver log de auditoria\n(JSON diff inmutable)" as UC03a
+  usecase "Filtrar historial\npor usuario / modulo" as UC03b
+}
+
+' ============================================================
+' UC-04: ORGANIZACION Y ROLES (HU-04.01)
+' ============================================================
+package "Organizacion y Roles (HU-04.01)" {
+  usecase "Gestionar arbol\norganizacional (jerarquia)" as UC04a
+  usecase "Asignar rol a agente\n(Admin/Senior/Junior)" as UC04b
+  usecase "Ver equipo segun\nvisibilidad recursiva" as UC04c
+}
+
+' ============================================================
+' UC-05: PROPIEDADES (HU-05.01, 05.02, 05.03, 05.04)
+' ============================================================
+package "Gestion de Propiedades (HU-05.01/02/03/04)" {
+  usecase "Crear y editar\npropiedad" as UC05a
+  usecase "Gestionar ciclo de vida\n(Borrador->Disponible->\nReservada->Vendida)" as UC05b
+  usecase "Motor de precio\nsugerido (PostGIS 5km)" as UC05c
+  usecase "Cargar multimedia\n(fotos, videos, planos)" as UC05d
+  usecase "Geolocalizar propiedad\n(Mapbox + Google Geocoding)" as UC05e
+  usecase "Gestionar propietario\ny expediente legal" as UC05f
+  usecase "Generar brochure PDF\n(Worker async BullMQ)" as UC05g
+  usecase "Compartir propiedad\n(WhatsApp, Email, Link)" as UC05h
+}
+
+' ============================================================
+' UC-06: PORTAL PUBLICO (HU-06.01, 06.02)
+' ============================================================
+package "Portal Publico (HU-06.01/02)" {
+  usecase "Buscar propiedades\n(filtros + mapa Mapbox)" as UC06a
+  usecase "Ver detalle\nde propiedad" as UC06b
+  usecase "Registrarse como cliente\n(verificacion por email)" as UC06c
+  usecase "Configurar preferencias\n(tipo, precio, zona)" as UC06d
+  usecase "Recibir alerta de\nmatching de propiedad" as UC06e
+}
+
+' ============================================================
+' UC-07: EMBUDO DE VENTAS (HU-07.01, 07.02)
+' ============================================================
+package "Embudo de Ventas / Pipeline (HU-07.01/02)" {
+  usecase "Ver tablero Kanban\n(drag & drop)" as UC07a
+  usecase "Iniciar tramite sobre\nuna propiedad" as UC07b
+  usecase "Avanzar etapa del embudo\n(Interesado->Negociacion\n->Cerrado)" as UC07c
+  usecase "Reservar propiedad\n(transaccion atomica)" as UC07d
+  usecase "Calcular comision\nal finalizar tramite" as UC07e
+}
+
+' ============================================================
+' UC-08: INTERACCIONES (HU-08.01, 08.02)
+' ============================================================
+package "Interacciones y Productividad (HU-08.01/02)" {
+  usecase "Registrar interaccion\n(llamada, email, nota,\nWhatsApp)" as UC08a
+  usecase "Ver timeline\nde interacciones" as UC08b
+  usecase "Gestionar tareas\nautomaticas (recordatorios)" as UC08c
+  usecase "Ver estadisticas\nde productividad" as UC08d
+}
+
+' ============================================================
+' UC-09: AGENDA Y VISITAS (HU-09.01, 09.02)
+' ============================================================
+package "Agenda y Visitas (HU-09.01/02)" {
+  usecase "Agendar visita\n(slots + prevencion\nde conflictos)" as UC09a
+  usecase "Enviar invitacion .ics\npor email" as UC09b
+  usecase "Reprogramar visita\n(portal del cliente)" as UC09c
+  usecase "Registrar reporte\npost-visita (2h limite)" as UC09d
+}
+
+' ============================================================
+' UC-10: MARKETING (HU-10.01, 10.02, 10.03)
+' ============================================================
+package "Marketing y Automatizacion (HU-10.01/02/03)" {
+  usecase "Publicar en Facebook\ne Instagram (Meta API)" as UC10a
+  usecase "Enviar campana\nde email con plantilla" as UC10b
+  usecase "Chatbot portal:\ncapturar lead 24/7" as UC10c
+}
+
+' ============================================================
+' UC-11: BUSINESS INTELLIGENCE (HU-11.01, 11.02, 11.03)
+' ============================================================
+package "Business Intelligence (HU-11.01/02/03)" {
+  usecase "Ver dashboard\nde propiedades (KPIs)" as UC11a
+  usecase "Ver reporte de desempeno\nde agentes" as UC11b
+  usecase "Ver ranking anonimo\nde agentes (gamificacion)" as UC11c
+  usecase "Exportar reporte\n(PDF / Excel)" as UC11d
+}
+
+' ============================================================
+' UC-12: INTEGRACIONES EXTERNAS (HU-12.01, 12.02, 12.03)
+' ============================================================
+package "Integraciones Externas (HU-12.01/02/03)" {
+  usecase "Sindical propiedad a\nportales (Encuentra24,\nMercadoLibre)" as UC12a
+  usecase "Firmar contrato digital\n(DocuSign)" as UC12b
+  usecase "Videollamada virtual\n(Zoom / Google Meet)" as UC12c
+  usecase "Usar app movil\n(React Native + Expo)" as UC12d
+}
+
+' ============================================================
+' UC-13: HERRAMIENTAS TRANSVERSALES (HU-13.01, 13.02, 13.03)
+' ============================================================
+package "Herramientas Transversales (HU-13.01/02/03)" {
+  usecase "Gestionar notificaciones\n(in-app, email, push)" as UC13a
+  usecase "Busqueda global\n(Ctrl+K, todos los modulos)" as UC13b
+  usecase "Importacion masiva\n(Excel / CSV con validacion)" as UC13c
+}
+
+' ============================================================
+' RELACIONES — SUPER ADMIN
+' ============================================================
+superAdmin --> UC01a
+superAdmin --> UC01b
+superAdmin --> UC01c
+superAdmin --> UC03a
+superAdmin --> UC03b
+
+' ============================================================
+' RELACIONES — ADMIN
+' ============================================================
+admin --> UC02a
+admin --> UC02b
+admin --> UC02d
+admin --> UC02e
+admin --> UC04a
+admin --> UC04b
+admin --> UC04c
+admin --> UC10a
+admin --> UC10b
+admin --> UC11a
+admin --> UC11b
+admin --> UC11c
+admin --> UC11d
+admin --> UC13a
+admin --> UC13b
+admin --> UC13c
+
+' ============================================================
+' RELACIONES — SENIOR (hereda junior + mas)
+' ============================================================
+senior --> UC05c
+senior --> UC05f
+senior --> UC05g
+senior --> UC05h
+senior --> UC07c
+senior --> UC07d
+senior --> UC08d
+senior --> UC12a
+senior --> UC12b
+senior --> UC12c
+
+' ============================================================
+' RELACIONES — JUNIOR (base de todos los agentes)
+' ============================================================
+junior --> UC02a
+junior --> UC02b
+junior --> UC02c
+junior --> UC02d
+junior --> UC05a
+junior --> UC05b
+junior --> UC05d
+junior --> UC05e
+junior --> UC07a
+junior --> UC07b
+junior --> UC07c
+junior --> UC07e
+junior --> UC08a
+junior --> UC08b
+junior --> UC08c
+junior --> UC09a
+junior --> UC09d
+junior --> UC12d
+junior --> UC13a
+junior --> UC13b
+
+' ============================================================
+' RELACIONES — CLIENTE / PROSPECTO
+' ============================================================
+cliente --> UC02c
+cliente --> UC06a
+cliente --> UC06b
+cliente --> UC06c
+cliente --> UC06d
+cliente --> UC09c
+cliente --> UC10c
+
+' ============================================================
+' RELACIONES — SISTEMA (automatismos)
+' ============================================================
+sistema --> UC06e
+sistema --> UC07e
+sistema --> UC08c
+sistema --> UC09b
+sistema --> UC13a
+
+' ============================================================
+' RELACIONES INCLUDE / EXTEND
+' ============================================================
+UC02a ..> UC02b : <<include>>
+UC02a ..> UC02f : <<extend>>
+UC05g ..> UC05h : <<extend>>
+UC07c ..> UC07d : <<include>>
+UC09a ..> UC09b : <<include>>
+UC11b ..> UC11d : <<extend>>
+
+@enduml

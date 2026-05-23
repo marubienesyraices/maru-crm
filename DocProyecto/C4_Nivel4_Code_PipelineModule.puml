@@ -1,0 +1,331 @@
+@startuml C4_Nivel4_Code_PipelineModule
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classHeaderBackgroundColor #1168BD
+skinparam classHeaderFontColor #FFFFFF
+skinparam classBackgroundColor #E8F4FD
+skinparam classBorderColor #1168BD
+skinparam arrowColor #1168BD
+skinparam packageBackgroundColor #F5F5F5
+skinparam packageBorderColor #999999
+skinparam noteFontSize 10
+skinparam noteBackgroundColor #FFFFCC
+
+title Diagrama C4 - Nivel 4: Codigo - PipelineModule\nCRM Inmobiliario "GestPro CRM Inmobiliario"
+
+' =================================================
+'  ENUMS (shared package)
+' =================================================
+package "@maru/shared" #EEF7EE {
+
+    enum EstadoPipeline {
+        NUEVO
+        CONTACTADO
+        INTERESADO
+        EN_NEGOCIACION
+        GANADO
+        PERDIDO
+    }
+
+    enum TipoGestion {
+        VENTA
+        RENTA
+    }
+
+    enum Rol {
+        SUPER_ADMIN
+        ADMIN
+        SENIOR
+        JUNIOR
+    }
+}
+
+' =================================================
+'  DTOs
+' =================================================
+package "DTOs" #FFF3E0 {
+
+    class CreatePipelineDto {
+        +propiedadId: string
+        +clienteId: string
+        +tipoGestion: TipoGestion
+        +notas?: string
+    }
+
+    class MovePipelineDto {
+        +nuevoEstado: EstadoPipeline
+        +motivoCancelacion?: string
+        +precioFinal?: number
+    }
+
+    class PipelineResponseDto {
+        +id: string
+        +estado: EstadoPipeline
+        +tipoGestion: TipoGestion
+        +propiedad: PropiedadSummaryDto
+        +cliente: ClienteSummaryDto
+        +agente: AgenteSummaryDto
+        +comisionCalculada?: number
+        +creadoEn: Date
+        +actualizadoEn: Date
+    }
+
+    class PropiedadSummaryDto {
+        +id: string
+        +titulo: string
+        +estado: string
+        +precio: number
+    }
+
+    class ClienteSummaryDto {
+        +id: string
+        +nombre: string
+        +email: string
+    }
+
+    class AgenteSummaryDto {
+        +id: string
+        +nombre: string
+        +rol: Rol
+    }
+}
+
+' =================================================
+'  INTERFACES
+' =================================================
+package "Interfaces" #F3E5F5 {
+
+    interface IJwtPayload {
+        +sub: string
+        +tenantId: string
+        +email: string
+        +rol: Rol
+    }
+
+    interface ITransicionValida {
+        +[estado: EstadoPipeline]: EstadoPipeline[]
+    }
+
+    interface IPipelineService {
+        +findAll(userId, tenantId, visibleUserIds): Promise<PipelineResponseDto[]>
+        +findOne(id, tenantId): Promise<PipelineResponseDto>
+        +create(dto, userId, tenantId): Promise<PipelineResponseDto>
+        +move(id, dto, user, tenantId): Promise<PipelineResponseDto>
+        +remove(id, tenantId): Promise<void>
+    }
+}
+
+' =================================================
+'  CONTROLLER
+' =================================================
+package "pipeline.controller.ts" #E3F2FD {
+
+    class PipelineController {
+        -pipelineService: PipelineService
+        --
+        +constructor(service: PipelineService)
+        ..Endpoints..
+        +findAll(req, query): Promise<PipelineResponseDto[]>
+        +findOne(id, req): Promise<PipelineResponseDto>
+        +create(dto, req): Promise<PipelineResponseDto>
+        +move(id, dto, req): Promise<PipelineResponseDto>
+        +remove(id, req): Promise<void>
+    }
+
+    note right of PipelineController
+        Decoradores aplicados:
+        @Controller("pipeline")
+        @UseGuards(JwtAuthGuard, RolesGuard, VisibilityGuard)
+        @Roles(ADMIN, SENIOR, JUNIOR)
+    end note
+}
+
+' =================================================
+'  SERVICE (logica de negocio principal)
+' =================================================
+package "pipeline.service.ts" #E8F5E9 {
+
+    class PipelineService {
+        -prisma: PrismaService
+        -redis: RedisService
+        -notificaciones: NotificacionesService
+        --
+        +constructor(prisma, redis, notificaciones)
+        ..Consultas..
+        +findAll(userId, tenantId, visibleUserIds): Promise<PipelineResponseDto[]>
+        +findOne(id, tenantId): Promise<PipelineResponseDto>
+        ..Mutaciones..
+        +create(dto, userId, tenantId): Promise<PipelineResponseDto>
+        +move(id, dto, user, tenantId): Promise<PipelineResponseDto>
+        +remove(id, tenantId): Promise<void>
+        ..Logica interna privada..
+        -validarTransicion(actual, nuevo): void
+        -validarConcurrencia(propiedadId, tenantId, rol): Promise<void>
+        -calcularComision(precio, pct): number
+        -reservarPropiedad(propiedadId, tenantId, tx): Promise<void>
+        -liberarPropiedad(propiedadId, tenantId, tx): Promise<void>
+        -invalidarCacheBI(tenantId): Promise<void>
+    }
+
+    class TransicionesValidas {
+        {static} +MAPA: ITransicionValida
+        --
+        {static} NUEVO      -> [CONTACTADO, PERDIDO]
+        {static} CONTACTADO -> [INTERESADO, PERDIDO]
+        {static} INTERESADO -> [EN_NEGOCIACION, PERDIDO]
+        {static} EN_NEGOCIACION -> [GANADO, PERDIDO]
+        {static} PERDIDO    -> [NUEVO]
+    }
+
+    note right of PipelineService
+        move() ejecuta prisma.$transaction():
+        1. Valida transicion con TRANSICIONES_VALIDAS
+        2. Si -> EN_NEGOCIACION: valida concurrencia
+           y reserva propiedad (UPDATE atomico)
+        3. Si -> GANADO: calcula comision
+        4. Si -> PERDIDO: libera propiedad si
+           no hay otros tramites activos
+        5. UPDATE tramite -> nuevo estado
+        6. Invalida cache Redis BI del tenant
+        7. Genera notificacion in-app
+    end note
+}
+
+' =================================================
+'  SCHEDULERS relacionados
+' =================================================
+package "pipeline.scheduler.ts" #FFF8E1 {
+
+    class PipelineScheduler {
+        -prisma: PrismaService
+        -emailService: EmailService
+        --
+        +constructor(prisma, email)
+        +alertarLeadsInactivos(): Promise<void>
+        +alertarNegociacionesEstancadas(): Promise<void>
+    }
+
+    note right of PipelineScheduler
+        @Cron("0 9 * * *") — diario 9am:
+        alertarLeadsInactivos()
+          > leads sin interaccion > diasInactividad
+          > notifica al agente asignado
+
+        @Cron("0 10 * * *") — diario 10am:
+        alertarNegociacionesEstancadas()
+          > EN_NEGOCIACION > 30 dias sin cambio
+          > notifica agente + admin
+    end note
+}
+
+' =================================================
+'  PRISMA MODEL (esquema de BD)
+' =================================================
+package "schema.prisma (modelo Pipeline)" #FCE4EC {
+
+    class PrismaModelPipeline <<model>> {
+        +id: String (uuid)
+        +tenantId: String
+        +propiedadId: String
+        +clienteId: String
+        +agenteId: String
+        +estado: EstadoPipeline
+        +tipoGestion: TipoGestion
+        +precioFinal: Decimal?
+        +comisionPct: Decimal
+        +comisionMonto: Decimal?
+        +motivoCancelacion: String?
+        +notas: String?
+        +creadoEn: DateTime
+        +actualizadoEn: DateTime
+        --
+        <<relation>> propiedad: Propiedad
+        <<relation>> cliente: Cliente
+        <<relation>> agente: Usuario
+        <<relation>> interacciones: Interaccion[]
+        <<index>> [tenantId, propiedadId]
+        <<index>> [tenantId, agenteId]
+        <<index>> [tenantId, estado]
+    }
+
+    note bottom of PrismaModelPipeline
+        RLS Policy (PostgreSQL):
+        CREATE POLICY pipeline_tenant_isolation
+        ON pipeline USING (
+          tenant_id = current_setting('app.tenant_id')
+        );
+    end note
+}
+
+' =================================================
+'  DEPENDENCIAS EXTERNAS USADAS
+' =================================================
+package "Servicios compartidos" #ECEFF1 {
+
+    class PrismaService {
+        +$transaction(fn): Promise<T>
+        +pipeline: PrismaModelPipeline
+        +propiedad: Prisma.PropiedadDelegate
+    }
+
+    class RedisService {
+        +del(key: string): Promise<void>
+        +get(key: string): Promise<string>
+        +set(key, value, ttl): Promise<void>
+    }
+
+    class NotificacionesService {
+        +crear(tenantId, usuarioId, tipo, mensaje): Promise<void>
+    }
+
+    class EmailService {
+        +sendTransactionalEmail(opts): Promise<void>
+    }
+}
+
+' =================================================
+'  RELACIONES
+' =================================================
+
+' Controller -> Service
+PipelineController "1" --> "1" PipelineService : inyecta
+
+' Service implementa interfaz
+PipelineService ..|> IPipelineService : implements
+
+' Service usa
+PipelineService "1" --> "1" PrismaService       : usa
+PipelineService "1" --> "1" RedisService        : usa
+PipelineService "1" --> "1" NotificacionesService : usa
+PipelineService "1" ..> "1" TransicionesValidas : consulta mapa
+
+' Scheduler usa
+PipelineScheduler "1" --> "1" PrismaService  : usa
+PipelineScheduler "1" --> "1" EmailService   : usa
+
+' DTOs
+PipelineController ..> CreatePipelineDto  : recibe
+PipelineController ..> MovePipelineDto    : recibe
+PipelineController ..> PipelineResponseDto: retorna
+PipelineService    ..> PipelineResponseDto: construye
+
+PipelineResponseDto *-- PropiedadSummaryDto
+PipelineResponseDto *-- ClienteSummaryDto
+PipelineResponseDto *-- AgenteSummaryDto
+
+' Enums usados
+CreatePipelineDto  ..> TipoGestion      : usa
+MovePipelineDto    ..> EstadoPipeline   : usa
+PipelineService    ..> EstadoPipeline   : valida
+TransicionesValidas ..> EstadoPipeline  : mapea
+
+' Modelo BD
+PrismaService      --> PrismaModelPipeline : ORM
+PrismaModelPipeline ..> EstadoPipeline     : enum
+PrismaModelPipeline ..> TipoGestion        : enum
+
+' JWT payload
+PipelineController ..> IJwtPayload : req.user
+PipelineService    ..> IJwtPayload : user param
+
+@enduml

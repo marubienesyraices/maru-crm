@@ -1,0 +1,85 @@
+@startuml
+title **HU-06.01 — Catálogo Público Filtrable con Búsqueda Avanzada**\n**GestPro CRM · Portal Next.js 14 SSR**
+skinparam backgroundColor #FAFAFA
+skinparam sequenceParticipantBorderColor #4472C4
+skinparam sequenceParticipantBackgroundColor #4472C4
+skinparam participantFontColor white
+
+skinparam sequenceLifeLineBorderColor #4472C4
+skinparam sequenceGroupBorderColor #4472C4
+skinparam sequenceDividerBackgroundColor #BEDBFF
+skinparam sequenceDividerBorderColor #4472C4
+skinparam sequenceDividerFontColor black
+
+skinparam noteBorderColor #4472C4
+skinparam noteBackgroundColor #BEDBFF
+skinparam noteFontColor black
+
+skinparam actorBorderColor #312C85
+skinparam actorBackgroundColor #312C85
+skinparam actorFontColor black
+
+skinparam participantFontColor black
+skinparam participantBorderColor #312C85
+skinparam databaseFontColor black
+
+actor       "**Visitante**"             as USER
+participant "**Next.js Portal**\n**(SSR / RSC)**" as PORTAL #2B7FFF
+participant "**PortalController**\n**(API pública)**" as CTRL #2B7FFF
+database    "**PostgreSQL**"            as DB    #2B7FFF
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 1: CARGAR CATÁLOGO CON FILTROS
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 1: Listar Catálogo (GET /)** ==
+
+USER -> PORTAL : Accede al portal\n/?tipo=CASA&gestion=VENTA&departamento=Guatemala&page=1
+note right of PORTAL : No requiere autenticación.\nServer Component — renderiza en servidor.
+
+group **Fetch de propiedades (Server-side)**
+  PORTAL -> CTRL : GET /api/public/propiedades\n?tipo&gestion&departamento&busqueda\n&precioMin&precioMax&habitacionesMin&page\n{ next: { revalidate: 60 } }
+  CTRL -> DB : SELECT propiedades WHERE estado IN (DISPONIBLE, NUEVO)\nAND tenant activo + filtros aplicados\nORDER BY created_at DESC  LIMIT 12 OFFSET (page-1)*12
+  DB --> CTRL : { data: propiedades[], meta: { total, page, totalPages } }
+  CTRL --> PORTAL : 200 { data, meta }
+end
+
+PORTAL --> USER : HTML renderizado en servidor (SSR)\n· Cards de propiedades (foto, precio, tipo, zona)\n· Barra de búsqueda y filtros activos\n· Paginación basada en meta.totalPages
+note right of PORTAL : ISR: Next.js revalida la caché\ncada 60 s sin recargar el servidor.
+
+alt **sin resultados**
+  PORTAL --> USER : Mensaje "No se encontraron propiedades"\ncon sugerencia de limpiar filtros
+end
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 2: APLICAR FILTROS / BUSCAR
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 2: Aplicar Filtros o Buscar** ==
+
+USER -> PORTAL : Completa filtros o escribe en buscador\ny envía el formulario (GET con query params)
+note right of USER : Filtros disponibles: tipo, gestión,\ndepartamento, precio min/max,\nhabitaciones mínimas, búsqueda libre.
+
+PORTAL -> CTRL : GET /api/public/propiedades?<nuevos filtros>
+CTRL -> DB : SELECT con nuevos filtros
+DB --> CTRL : resultados filtrados
+CTRL --> PORTAL : 200 { data, meta }
+PORTAL --> USER : Página re-renderizada con resultados filtrados
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 3: VER DETALLE DE PROPIEDAD
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 3: Detalle de Propiedad (GET /propiedades/:id)** ==
+
+USER -> PORTAL : Hace clic en una propiedad
+PORTAL -> CTRL : GET /api/public/propiedades/:id\n{ next: { revalidate: 120 } }
+CTRL -> DB : SELECT propiedad + imagenes + tenant\nWHERE id = $1 AND estado = DISPONIBLE
+DB --> CTRL : propiedad completa
+
+alt **no encontrada o inactiva**
+  CTRL --> PORTAL : 404
+  PORTAL --> USER : Página "Propiedad no disponible"
+end
+
+CTRL --> PORTAL : 200 { propiedad }
+PORTAL --> USER : Página de detalle con:\n· Galería de imágenes\n· Ficha técnica completa\n· Mapa Mapbox con pin de ubicación\n· Botón de contacto / WhatsApp
+
+@enduml

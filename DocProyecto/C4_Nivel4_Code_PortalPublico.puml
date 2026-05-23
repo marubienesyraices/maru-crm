@@ -1,0 +1,169 @@
+@startuml C4_Nivel4_Code_PortalPublico
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classHeaderBackgroundColor #1168BD
+skinparam classHeaderFontColor #FFFFFF
+skinparam classBackgroundColor #E8F4FD
+skinparam classBorderColor #1168BD
+skinparam arrowColor #1168BD
+skinparam packageBackgroundColor #F5F5F5
+skinparam packageBorderColor #999999
+skinparam noteFontSize 10
+skinparam noteBackgroundColor #FFFFCC
+
+title Diagrama C4 — Nivel 4: Código — Portal Público (Catálogo de Propiedades)\nCRM Inmobiliario "GestPro CRM Inmobiliario"
+
+' =================================================
+'  DTOs
+' =================================================
+package "DTOs" #ECEFF1 {
+
+    class FiltrosPropiedadDto {
+        +tipo?: string
+        +precioMin?: number
+        +precioMax?: number
+        +zona?: string
+        +habitaciones?: number
+        +page: number = 1
+        +limit: number = 12
+    }
+
+    class PropiedadPublicaDto {
+        +id: string
+        +titulo: string
+        +precio: number
+        +tipo: string
+        +zona: string
+        +habitaciones: number
+        +areaM2: number
+        +imagenes: string[]
+        +lat: number
+        +lng: number
+    }
+
+    class RegistroInteresDto {
+        +nombre: string
+        +email: string
+        +telefono?: string
+        +propiedadId: string
+        +mensaje?: string
+    }
+}
+
+' =================================================
+'  API — CONTROLLER
+' =================================================
+package "portal.controller.ts  [NestJS]" #E3F2FD {
+
+    class PortalController {
+        -portalService: PortalService
+        --
+        +getCatalogo(filtros): Promise<PropiedadPublicaDto[]>
+        +getDetalle(slug): Promise<PropiedadPublicaDto>
+        +registrarInteres(dto): Promise<void>
+        +chatbotLead(dto): Promise<void>
+    }
+}
+
+' =================================================
+'  API — SERVICE
+' =================================================
+package "portal.service.ts  [NestJS]" #E8F5E9 {
+
+    class PortalService {
+        -prisma: PrismaService
+        -email: EmailService
+        --
+        +getCatalogo(filtros): Promise<PropiedadPublicaDto[]>
+        +getDetalle(slug): Promise<PropiedadPublicaDto>
+        +registrarInteres(dto): Promise<void>
+        +procesarChatbotLead(dto): Promise<void>
+    }
+}
+
+' =================================================
+'  PORTAL NEXT.JS (SSR / RSC)
+' =================================================
+package "portal/  [Next.js 14 App Router]" #ECEFF1 {
+
+    class CatalogPage <<ServerComponent>> {
+        +searchParams: FiltrosPropiedadDto
+        --
+        +Page(props): JSX
+        ' revalidate: 60s (ISR)
+    }
+
+    class DetallePage <<ServerComponent>> {
+        +params: { slug: string }
+        --
+        +Page(props): JSX
+        +generateMetadata(params): Metadata
+        ' revalidate: 120s (ISR)
+    }
+
+    class PropertyCard <<ClientComponent>> {
+        +propiedad: PropiedadPublicaDto
+        --
+        +render(): JSX
+    }
+
+    class PropertyFilters <<ClientComponent>> {
+        +onFilterChange(filtros): void
+        --
+        +render(): JSX
+    }
+
+    class RegistroInteresForm <<ClientComponent>> {
+        +propiedadId: string
+        --
+        +handleSubmit(data): Promise<void>
+        +render(): JSX
+    }
+}
+
+' =================================================
+'  SERVICIOS COMPARTIDOS
+' =================================================
+package "Servicios compartidos" #ECEFF1 {
+
+    class PrismaService {
+        +propiedad: Prisma.PropiedadDelegate
+        +cliente: Prisma.ClienteDelegate
+    }
+
+    class EmailService {
+        +sendClientEmail(opts): Promise<void>
+    }
+}
+
+' =================================================
+'  RELACIONES
+' =================================================
+
+' Controller <-> Service
+PortalController "1" --> "1" PortalService : inyecta
+
+' Service -> infraestructura
+PortalService "1" --> "1" PrismaService : usa
+PortalService "1" --> "1" EmailService  : usa (confirmación de interés)
+
+' Controller <-> DTOs
+PortalController ..> FiltrosPropiedadDto  : recibe (query params)
+PortalController ..> PropiedadPublicaDto  : retorna
+PortalController ..> RegistroInteresDto   : recibe
+PortalService    ..> PropiedadPublicaDto  : construye
+
+' Next.js -> API
+CatalogPage  ..> PortalController : GET /api/public/propiedades
+DetallePage  ..> PortalController : GET /api/public/propiedades/:slug
+
+' Composición de componentes
+CatalogPage  *-- PropertyCard
+CatalogPage  *-- PropertyFilters
+DetallePage  *-- RegistroInteresForm
+
+' Componentes <-> DTOs
+PropertyCard        ..> PropiedadPublicaDto : usa
+RegistroInteresForm ..> RegistroInteresDto  : envía
+
+@enduml

@@ -1,0 +1,82 @@
+@startuml Red_Topologia_Seguridad
+
+skinparam nodeBackgroundColor #E8F4FD
+skinparam nodeBorderColor     #1168BD
+skinparam nodeFontColor       #000000
+skinparam nodeFontSize        12
+
+skinparam componentBackgroundColor #BEDBFF
+skinparam componentBorderColor     #1168BD
+skinparam componentFontSize        10
+
+skinparam databaseBackgroundColor  #D0E8FF
+skinparam databaseBorderColor      #1168BD
+skinparam databaseFontSize         10
+
+skinparam actorBackgroundColor #D6ECFF
+skinparam actorBorderColor     #1168BD
+skinparam actorFontColor       #000000
+skinparam actorFontSize        10
+
+skinparam cloudBackgroundColor #C5E0F5
+skinparam cloudBorderColor     #1168BD
+skinparam cloudFontColor       #000000
+skinparam cloudFontSize        10
+
+skinparam rectangleBackgroundColor transparent
+skinparam rectangleBorderColor     #1168BD
+skinparam rectangleFontColor       #000000
+skinparam rectangleFontSize        10
+
+skinparam arrowColor    #1168BD
+skinparam arrowFontSize 10
+
+skinparam NoteBackgroundColor #EEF5FF
+skinparam NoteBorderColor     #1168BD
+skinparam NoteFontSize        9
+
+title Diagrama de Red y Topología de Seguridad — GestPro CRM
+
+rectangle "Clientes" as zClientes {
+  actor "Navegador\n(CRM · Portal)" as browser
+  actor "App Móvil\n(Expo / React Native)" as mobile
+}
+
+cloud "Cloudflare  (CDN + WAF)\n────────────────────────────\nDDoS L3/L4/L7  ·  Bot Fight Mode\nWAF Rules  ·  Rate Limiting\nDNS Proxy  ·  IP Geoblocking" as cf
+
+node "VPS · Ubuntu 22.04  —  Docker Compose" as vps {
+
+  rectangle "Red Docker: external  (bridge — acceso público)" as netExt {
+    component "Nginx 1.27-alpine\n──────────────────\npuertos :80 / :443 expuestos\nTLS 1.2 / TLS 1.3  ·  HSTS\nHTTP → HTTPS redirect\nX-Frame-Options DENY\nX-Content-Type-Options nosniff\nContent-Security-Policy\nserver_tokens off  ·  max body 25 MB" as nginx
+  }
+
+  rectangle "Red Docker: internal  (bridge — aislada, sin internet)" as netInt {
+    component "API  NestJS\n──────────\n:3000 (interno)\nJWT  ·  RolesGuard\nVisibilityGuard  ·  Throttle\nAuditInterceptor  ·  RLS" as api
+    component "CRM Web\nReact + Vite\n:80 (interno)" as web
+    component "Portal SSR\nNext.js 14\n:3001 (interno)" as portal
+    component "Worker BullMQ\n(sin puerto expuesto)\nPDF · Posts sociales" as worker
+  }
+
+  rectangle "Capa de Datos  (red interna — nunca expuesta a internet)" as netData {
+    database "PostgreSQL 16\n─────────────\n:5432 (interno)\nRLS por tenant\nRol gestpro_app\naudit_logs inmutable\nBackup diario" as pg
+    database "Redis 7\n─────────────\n:6379 (interno)\nPassword requerida\nmaxmemory 256 MB\nBullMQ + BI Cache" as redis
+  }
+}
+
+browser  -down-> cf     : HTTPS 443
+mobile   -down-> cf     : HTTPS 443
+
+cf       -down-> nginx  : HTTPS (CF-Connecting-IP)
+
+nginx    -down-> api    : HTTP/1.1 · WS  :3000
+nginx    -down-> web    : HTTP  :80
+nginx    -down-> portal : HTTP/1.1 · WS  :3001
+
+api      -down-> pg     : TCP :5432
+api      -down-> redis  : TCP :6379
+worker   -down-> pg     : TCP :5432
+worker   -down-> redis  : TCP :6379
+
+
+
+@enduml
