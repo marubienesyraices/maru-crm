@@ -1,0 +1,300 @@
+.tareas-page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.tareas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.tareas-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.tareas-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.tareas-stat {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tareas-stat.overdue {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.tareas-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.filter-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+.tareas-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.tareas-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 16px;
+  font-size: 0.95rem;
+}
+
+.tareas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tarea-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.tarea-card:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.tarea-card.completed {
+  opacity: 0.6;
+}
+
+.tarea-card.overdue {
+  border-left: 3px solid #ef4444;
+}
+
+.tarea-check {
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.check-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  transition: all 0.15s;
+}
+
+.check-btn:hover {
+  border-color: #22c55e;
+  background: rgba(34,197,94,0.1);
+}
+
+.check-btn.checked {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.tarea-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tarea-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tarea-titulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tarea-card.completed .tarea-titulo {
+  text-decoration: line-through;
+}
+
+.tarea-prioridad {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tarea-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 4px 0 6px;
+  line-height: 1.4;
+}
+
+.tarea-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.tarea-estado-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.tarea-estado-badge.estado-PENDIENTE {
+  background: rgba(107,114,128,0.15);
+  color: #6b7280;
+}
+
+.tarea-estado-badge.estado-EN_PROGRESO {
+  background: rgba(59,130,246,0.15);
+  color: #3b82f6;
+}
+
+.tarea-estado-badge.estado-COMPLETADA {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+}
+
+.tarea-fecha {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.tarea-fecha.overdue {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.tarea-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tarea-card:hover .tarea-actions {
+  opacity: 1;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.btn-sm:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.btn-sm.danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* Form */
+.tarea-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.tarea-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tarea-form input,
+.tarea-form textarea,
+.tarea-form select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.tarea-form input:focus,
+.tarea-form textarea:focus,
+.tarea-form select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-error {
+  color: #ef4444;
+  font-size: 0.82rem;
+}
+
+.required {
+  color: #ef4444;
+}

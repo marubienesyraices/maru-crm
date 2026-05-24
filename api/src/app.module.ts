@@ -29,6 +29,7 @@ import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { MetaModule } from './modules/meta/meta.module';
 import { SindicacionModule } from './modules/sindicacion/sindicacion.module';
 import { FirmaDigitalModule } from './modules/firma-digital/firma-digital.module';
+import { TareasModule } from './modules/tareas/tareas.module';
 import { VideollamadasModule } from './modules/videollamadas/videollamadas.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -84,6 +85,7 @@ import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.
     MetaModule,
     SindicacionModule,
     FirmaDigitalModule,
+    TareasModule,
     VideollamadasModule,
     ConfigIntegracionesModule,
     ConfigPortalModule,

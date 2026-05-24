@@ -26,6 +26,7 @@ import CampanasPage from './pages/Campanas/CampanasPage';
 import MetaPage from './pages/Meta/MetaPage';
 import HelpPage from './pages/Help/HelpPage';
 import OnboardingPage from './pages/Onboarding/OnboardingPage';
+import TareasPage from './pages/Tareas/TareasPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
           <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />
           <Route path="/settings/perfil" element={<SettingsPerfilPage />} />
+          <Route path="/tareas" element={<TareasPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Route>
 

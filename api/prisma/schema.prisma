@@ -85,6 +85,7 @@ model Tenant {
   clientes         Cliente[]
   notificaciones      Notificacion[]
   meta_publicaciones  MetaPublicacion[]
+  tareas              Tarea[]
 
   @@map("tenants")
 }
@@ -211,6 +212,7 @@ model User {
   interacciones         Interaccion[]       @relation("InteraccionUsuario")
   visitas               Visita[]            @relation("VisitaAgente")
   meta_publicaciones    MetaPublicacion[]   @relation("UserMeta")
+  tareas                Tarea[]             @relation("TareaUsuario")
 
   @@unique([tenant_id, email])
   @@map("users")
@@ -783,6 +785,18 @@ enum EstadoFirma {
   VENCIDO
 }
 
+enum EstadoTarea {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
+}
+
+enum PrioridadTarea {
+  BAJA
+  MEDIA
+  ALTA
+}
+
 model FirmaSolicitud {
   id              String      @id @default(uuid())
   tenant_id       String
@@ -843,5 +857,28 @@ model MetaPublicacion {
   @@index([tenant_id, estado])
   @@index([tenant_id, created_at])
   @@map("meta_publicaciones")
+}
+
+// ─── F-19: Panel de Tareas (To-Do) ───────────────────────────
+
+model Tarea {
+  id           String         @id @default(uuid())
+  tenant_id    String
+  user_id      String
+  titulo       String
+  descripcion  String?
+  estado       EstadoTarea    @default(PENDIENTE)
+  prioridad    PrioridadTarea @default(MEDIA)
+  fecha_limite DateTime?
+  completed_at DateTime?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  user   User   @relation("TareaUsuario", fields: [user_id], references: [id])
+
+  @@index([tenant_id, user_id, estado])
+  @@index([tenant_id, fecha_limite])
+  @@map("tareas")
 }
 
