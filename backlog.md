@@ -1,4 +1,4 @@
-# Backlog — GestPro CRM
+# Backlog — GestProp CRM
 
 > **Generado:** 21 de abril de 2026
 > **Fuente:** [Requerimientos.md](file:///c:/proyectos/MaruBienesyRaices/CRM/web2/Requerimientos.md)

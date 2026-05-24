@@ -2,7 +2,7 @@
 
 Guía completa para llevar el proyecto de desarrollo local a producción: dominio, DNS, correos corporativos, hosting y despliegue de los tres servicios.
 
-> **Sistema:** GestPro CRM
+> **Sistema:** GestProp CRM
 
 ---
 
@@ -12,7 +12,7 @@ Guía completa para llevar el proyecto de desarrollo local a producción: domini
 
 | Área | Cambio |
 |------|--------|
-| **Marca** | Sistema renombrado a **GestPro**; logo y branding unificado en CRM, portal y emails |
+| **Marca** | Sistema renombrado a **GestProp**; logo y branding unificado en CRM, portal y emails |
 | **Temas claro/oscuro** | Paleta de color fija a nivel de app (no por tenant); toggle persistente en CRM y portal público (localStorage) |
 | **Portal** | Página 404 personalizada; toggle de tema en el header; `sitemap.xml` y `robots.txt` automáticos |
 | **Módulo Meta** | Publicación automática de propiedades en Facebook e Instagram vía Meta Graph API; cola BullMQ propia |
@@ -153,7 +153,7 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 
 ## PASO 5 — Base de datos PostgreSQL en Neon
 
-1. Crear cuenta en [neon.tech](https://neon.tech) → **New Project** → nombre `gestpro-crm` → región más cercana (ej: `us-east-1` o `us-east-2`).
+1. Crear cuenta en [neon.tech](https://neon.tech) → **New Project** → nombre `gestprop-crm` → región más cercana (ej: `us-east-1` o `us-east-2`).
 2. En el proyecto creado → **Connection Details** → copiar la **Connection String** (tiene la forma `postgresql://usuario:password@host/db?sslmode=require`).
 3. Guardar esta URL — se usará como `DATABASE_URL` en producción.
 4. En el **SQL Editor** de Neon, ejecutar en orden:
@@ -167,9 +167,9 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 
    > `migration_v2.sql` cubre las tablas añadidas en la 4ta y 5ta entrega: `reporte_visita`, `meta_publicaciones`, `sindicacion`, `firma_digital`, `videollamadas`, `brochure_descargas`, entre otras. Siempre usar la versión más reciente del archivo.
 
-5. Cambiar la contraseña del rol de base de datos inmediatamente (el rol `gestpro_app` es creado por los scripts RLS con permisos limitados de lectura/escritura, diferente al usuario administrador de la BD):
+5. Cambiar la contraseña del rol de base de datos inmediatamente (el rol `gestprop_app` es creado por los scripts RLS con permisos limitados de lectura/escritura, diferente al usuario administrador de la BD):
    ```sql
-   ALTER ROLE gestpro_app PASSWORD 'contraseña-segura-aqui';
+   ALTER ROLE gestprop_app PASSWORD 'contraseña-segura-aqui';
    ```
 
 ---
@@ -177,7 +177,7 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 ## PASO 6 — Redis en Upstash
 
 1. Crear cuenta en [upstash.com](https://upstash.com) → **Create Database**.
-2. Nombre: `gestpro-redis` → región: `us-east-1` → tipo: **Regional** → plan **Free**.
+2. Nombre: `gestprop-redis` → región: `us-east-1` → tipo: **Regional** → plan **Free**.
 3. En la base de datos creada → pestaña **Details** → copiar:
    - **Endpoint** → será el `REDIS_HOST`
    - **Port** → `6379`
@@ -212,13 +212,13 @@ Railway ejecuta el Dockerfile existente sin configuración extra.
 
    # ── Email (Resend) ────────────────────────────────────
    RESEND_API_KEY=re_...
-   EMAIL_FROM=GestPro CRM <noreply@tudominio.com>
+   EMAIL_FROM=GestProp CRM <noreply@tudominio.com>
 
    # ── Almacenamiento (Cloudflare R2) ───────────────────
    R2_ACCOUNT_ID=...
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
-   R2_BUCKET=gestpro-files
+   R2_BUCKET=gestprop-files
    R2_PUBLIC_URL=https://...r2.cloudflarestorage.com
 
    # ── Mapbox ────────────────────────────────────────────
@@ -289,7 +289,7 @@ Vercel es el hosting oficial de Next.js y ofrece plan gratuito generoso.
 
    ```env
    NEXT_PUBLIC_API_URL=https://api.tudominio.com
-   NEXT_PUBLIC_COMPANY_NAME=GestPro
+   NEXT_PUBLIC_COMPANY_NAME=GestProp
    NEXT_PUBLIC_COMPANY_EMAIL=info@tudominio.com
    NEXT_PUBLIC_WHATSAPP=50212345678
    NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
@@ -433,7 +433,7 @@ Antes de considerar el despliegue completo:
 - [ ] Variables de entorno de producción completas (sin valores de desarrollo)
 - [ ] Migraciones de Prisma aplicadas (`npx prisma migrate deploy` en Railway)
 - [ ] RLS policies aplicadas en Neon (`migration.sql` y `migration_v2.sql` en ese orden)
-- [ ] Contraseña del rol `gestpro_app` (RLS) cambiada en producción
+- [ ] Contraseña del rol `gestprop_app` (RLS) cambiada en producción
 - [ ] Seed ejecutado (`npx ts-node prisma/seed.ts`)
 - [ ] Contraseña de `superadmin@gestprop.net` cambiada tras el primer login
 

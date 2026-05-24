@@ -28,7 +28,7 @@
 
 | Tarea del plan | Estado | Notas |
 |:--------------|:-------|:------|
-| Scaffolding monorepo (`/api`, `/web`, `/shared`) | ✅ Completo | npm workspaces; TypeScript en los 3 paquetes; `@gestpro/shared` exporta enums/DTOs |
+| Scaffolding monorepo (`/api`, `/web`, `/shared`) | ✅ Completo | npm workspaces; TypeScript en los 3 paquetes; `@gestprop/shared` exporta enums/DTOs |
 | PostgreSQL + Prisma, migraciones, seed | ✅ Completo | 10+ migraciones aplicadas; seed crea SUPER_ADMIN + tenant demo |
 | Modelo de Empresas — CRUD (HU-01.01) | ✅ Completo | Plan FREE/PRO/ENTERPRISE; colores, moneda, zona horaria, límites de usuarios/propiedades |
 | Row-Level Security en todas las tablas | ✅ Completo | `TenantMiddleware` inyecta `app.tenant_id`; SUPER_ADMIN usa `bypass_rls`; **22 tablas cubiertas** en `migration.sql` (Fase 1) + `migration_v2.sql` (Fase 2-12); tablas hijas sin `tenant_id` protegidas por subquery al padre |
@@ -217,7 +217,7 @@
 | MetaPage | ✅ Funcional | Publicar en Meta; 2 tabs: Listado (badge estado, publicar/eliminar) y Nueva publicación (plataforma, propiedad, ✨ auto-texto, preview live, borrador/programar/publicar inmediato); aviso si Meta no configurado; solo ADMIN/SUPER_ADMIN |
 | AppLayout / ProtectedRoute | ✅ Funcional | Sidebar; rutas protegidas por JWT; "Campañas" ✉️ y "Publicar en Meta" 📢 en sección admin; "Reportes" + "Ranking" ⭐ |
 
-### Portal Público (`portal/` — Next.js 14, paquete workspace `@gestpro/portal`)
+### Portal Público (`portal/` — Next.js 14, paquete workspace `@gestprop/portal`)
 
 > Puerto 3001 · `npm run dev:portal` · App Router (RSC + SSR)
 
@@ -394,12 +394,12 @@
 
 ### Completados post-v1.0 (mayo 2026)
 - ~~**Unificación Cliente/Propietario**~~ ✅ — Tabla `propietarios` eliminada; `clientes` extendida con `es_propietario`, `nit`, `direccion`; relación `Propiedad.propietario → Cliente`; al asignar propietario en formulario de propiedad se marca automáticamente con `$transaction`; módulo `/api/propietarios` eliminado; rutas web redirigen a `/clientes?esPropietario=true`
-- ~~**Rename GestPro → GestProp**~~ ✅ — 44 archivos actualizados: UI, emails, Docker, paquetes npm (`@gestprop/`), roles DB (`gestprop_app`, `gestprop_admin`), CI, mobile
+- ~~**Rename GestProp → GestProp**~~ ✅ — 44 archivos actualizados: UI, emails, Docker, paquetes npm (`@gestprop/`), roles DB (`gestprop_app`, `gestprop_admin`), CI, mobile
 - ~~**Throttler en desarrollo**~~ ✅ — `ThrottlerModule.forRootAsync` con `NODE_ENV`; dev=9999 req/min, prod=120; login a 20 intentos por 15 min
 
 ### Pendiente (deuda menor)
 - ~~**Migración de datos one-shot**~~ ✅ — Script `api/prisma/scripts/migrate-maru-data.ts`; ejecutar con `npm run db:migrate-data` desde `api/`; 15 propiedades importadas (CASA-0016…LOCA-0030); clientes ya existían en el tenant demo
-- **Rename rol DB en producción** — ejecutar `ALTER ROLE gestpro_app RENAME TO gestprop_app` en la BD de prod
+- **Rename rol DB en producción** — ejecutar `ALTER ROLE gestprop_app RENAME TO gestprop_app` en la BD de prod
 
 > **Estado actual (24-may-2026):** Sistema completo. Unificación cliente/propietario aplicada. Nombre de sistema corregido a GestProp. 146 tests pasando.
 

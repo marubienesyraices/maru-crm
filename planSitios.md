@@ -1,4 +1,4 @@
-# Plan de Configuración de Servicios Externos — GestPro CRM
+# Plan de Configuración de Servicios Externos — GestProp CRM
 
 Guía paso a paso para conectar el proyecto con cada servicio externo. Los marcados como **Requerido** bloquean el arranque si faltan. Los marcados como **Opcional** degradan funcionalidad pero no impiden el inicio.
 
@@ -29,9 +29,9 @@ Usa las credenciales del `docker-compose.yml`. No requiere configuración adicio
    # 1. api/prisma/sql/rls_policies/migration.sql
    # 2. api/prisma/sql/rls_policies/migration_v2.sql
    ```
-6. **Importante:** los scripts RLS crean un rol PostgreSQL llamado `gestpro_app` con permisos limitados (SELECT/INSERT/UPDATE/DELETE sin DROP). Cambiar su contraseña inmediatamente tras la primera aplicación:
+6. **Importante:** los scripts RLS crean un rol PostgreSQL llamado `gestprop_app` con permisos limitados (SELECT/INSERT/UPDATE/DELETE sin DROP). Cambiar su contraseña inmediatamente tras la primera aplicación:
    ```sql
-   ALTER ROLE gestpro_app PASSWORD 'contraseña-segura-nueva';
+   ALTER ROLE gestprop_app PASSWORD 'contraseña-segura-nueva';
    ```
    > Este rol es distinto del usuario administrador de la BD. Es el rol que usa la app en producción — tiene las políticas RLS aplicadas.
 
@@ -97,7 +97,7 @@ Sin esto los emails son silenciosos no-ops, pero el sistema funciona.
 4. Configurar en `.env`:
    ```env
    RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-   EMAIL_FROM="GestPro <noreply@tudominio.com>"
+   EMAIL_FROM="GestProp <noreply@tudominio.com>"
    ```
    El `EMAIL_FROM` debe usar el dominio verificado en el paso 3.
 
@@ -141,7 +141,7 @@ Sin esto los emails son silenciosos no-ops, pero el sistema funciona.
 **Qué hace:** almacena imágenes de propiedades, documentos y brochures PDF. Sin configurar, usa disco local (`api/uploads/`), que no persiste en despliegues serverless.
 
 1. Crear cuenta en [cloudflare.com](https://cloudflare.com).
-2. Ir a **R2 Object Storage** → **Create bucket** → elegir nombre (ej: `gestpro-files`).
+2. Ir a **R2 Object Storage** → **Create bucket** → elegir nombre (ej: `gestprop-files`).
 3. En el bucket → **Settings** → **Public access** → habilitar si las imágenes deben ser públicas (para el portal).
 4. Ir a **Manage R2 API Tokens** → **Create API Token** → permisos **Object Read & Write** en el bucket creado.
 5. Anotar: Account ID (en la URL de R2), Access Key ID, Secret Access Key.
@@ -150,7 +150,7 @@ Sin esto los emails son silenciosos no-ops, pero el sistema funciona.
    R2_ACCOUNT_ID="tu_account_id"
    R2_ACCESS_KEY_ID="tu_access_key_id"
    R2_SECRET_ACCESS_KEY="tu_secret_access_key"
-   R2_BUCKET="gestpro-files"
+   R2_BUCKET="gestprop-files"
    R2_PUBLIC_URL="https://tu_account_id.r2.cloudflarestorage.com"
    # O si tienes dominio personalizado: "https://archivos.tudominio.com"
    ```

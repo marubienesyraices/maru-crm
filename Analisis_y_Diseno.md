@@ -1,4 +1,4 @@
-# Proyecto: Análisis y Diseño — GestPro CRM
+# Proyecto: Análisis y Diseño — GestProp CRM
 
 > **Documento de Análisis y Diseño del Sistema**
 > Versión: 1.2
@@ -64,7 +64,7 @@
 
 ## 1.3 Introducción
 
-El presente documento constituye el análisis y diseño completo del sistema **GestPro CRM** para la gestión inmobiliaria. Este CRM tiene como finalidad automatizar y centralizar todos los procesos de gestión inmobiliaria, incluyendo:
+El presente documento constituye el análisis y diseño completo del sistema **GestProp CRM** para la gestión inmobiliaria. Este CRM tiene como finalidad automatizar y centralizar todos los procesos de gestión inmobiliaria, incluyendo:
 
 - **Gestión de inventario de propiedades** (registro, multimedia, geolocalización, documentos legales).
 - **Gestión de clientes y prospectos** (captación, perfilamiento, embudo de ventas).
@@ -1382,4 +1382,4 @@ Ajustes requeridos por cambios en el entorno externo:
 
 ---
 
-*Documento generado y mantenido por el equipo de desarrollo de GestPro. Versión 1.2 — Mayo 2026.*
+*Documento generado y mantenido por el equipo de desarrollo de GestProp. Versión 1.2 — Mayo 2026.*

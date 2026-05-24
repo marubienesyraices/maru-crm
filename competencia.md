@@ -1,4 +1,4 @@
-# Análisis Diferenciador — GestPro CRM vs. Competencia Local
+# Análisis Diferenciador — GestProp CRM vs. Competencia Local
 
 > **Fecha:** 21 de abril de 2026
 > **Mercado analizado:** Guatemala y Centroamérica
@@ -8,13 +8,13 @@
 
 ## Resumen Ejecutivo
 
-Tras analizar las 7 plataformas CRM inmobiliarias con presencia en el mercado guatemalteco y centroamericano, se identificaron **12 diferenciadores significativos** de tu sistema. GestPro CRM destaca especialmente en 3 ejes donde la competencia local es débil o inexistente: **seguridad empresarial avanzada**, **control jerárquico granular** y **gestión legal/documental nativa**.
+Tras analizar las 7 plataformas CRM inmobiliarias con presencia en el mercado guatemalteco y centroamericano, se identificaron **12 diferenciadores significativos** de tu sistema. GestProp CRM destaca especialmente en 3 ejes donde la competencia local es débil o inexistente: **seguridad empresarial avanzada**, **control jerárquico granular** y **gestión legal/documental nativa**.
 
 ---
 
 ## Matriz Comparativa General
 
-| Funcionalidad | GestPro | Wasi | EasyBroker | BEX | Obrien | 2clics | CODE 49 |
+| Funcionalidad | GestProp | Wasi | EasyBroker | BEX | Obrien | 2clics | CODE 49 |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Multitenancy real (RLS) | ✅ | ⚠️ SaaS | ❌ | ⚠️ | ❌ | ❌ | ❌ |
 | 2FA con Google Authenticator | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -118,7 +118,7 @@ Tras analizar las 7 plataformas CRM inmobiliarias con presencia en el mercado gu
 
 **Lo que ofrece la competencia:** EasyBroker ofrece "Análisis Comparativo de Mercado" pero es un proceso manual. 2clics tiene un módulo de tasaciones pero basado en input del agente. Ningún competidor usa geolocalización automática para sugerir precios.
 
-> **Impacto:** Esto posiciona a GestPro como una herramienta de inteligencia de mercado, no solo un CRM operativo.
+> **Impacto:** Esto posiciona a GestProp como una herramienta de inteligencia de mercado, no solo un CRM operativo.
 
 ---
 
@@ -166,7 +166,7 @@ Tras analizar las 7 plataformas CRM inmobiliarias con presencia en el mercado gu
 
 **Lo que ofrece la competencia:** Wasi opera como SaaS multitenant pero sin personalización visual profunda ni RLS explícito. BEX usa RLS pero está enfocado en desarrolladores, no en múltiples inmobiliarias independientes. Ningún otro competidor ofrece verdadero multitenancy.
 
-> **Impacto:** Esto permite a GestPro escalar como plataforma SaaS para múltiples inmobiliarias, un modelo de negocio que ningún competidor local ofrece con este nivel de aislamiento y personalización.
+> **Impacto:** Esto permite a GestProp escalar como plataforma SaaS para múltiples inmobiliarias, un modelo de negocio que ningún competidor local ofrece con este nivel de aislamiento y personalización.
 
 ---
 

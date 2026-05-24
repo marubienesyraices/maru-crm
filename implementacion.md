@@ -1,4 +1,4 @@
-# Plan de Implementación — GestPro CRM
+# Plan de Implementación — GestProp CRM
 
 > **Versión:** 1.0
 > **Fecha:** 21 de abril de 2026
