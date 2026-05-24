@@ -181,6 +181,41 @@ export class UsersService {
     return result;
   }
 
+  // ─── Transfer and deactivate ──────────────────────────────
+
+  async transferAndDeactivate(tenantId: string, fromUserId: string, toUserId: string) {
+    const [fromUser, toUser] = await Promise.all([
+      this.prisma.user.findFirst({ where: { id: fromUserId, tenant_id: tenantId } }),
+      this.prisma.user.findFirst({ where: { id: toUserId, tenant_id: tenantId, estado: 'ACTIVO' } }),
+    ]);
+    if (!fromUser) throw new NotFoundException('Usuario origen no encontrado');
+    if (!toUser)   throw new NotFoundException('Usuario destino no encontrado o inactivo');
+    if (fromUserId === toUserId) throw new BadRequestException('El usuario origen y destino deben ser distintos');
+
+    const [propiedades, clientes] = await this.prisma.$transaction([
+      this.prisma.propiedad.updateMany({
+        where: { agente_id: fromUserId, tenant_id: tenantId },
+        data:  { agente_id: toUserId },
+      }),
+      this.prisma.cliente.updateMany({
+        where: { agente_id: fromUserId, tenant_id: tenantId },
+        data:  { agente_id: toUserId },
+      }),
+    ]);
+
+    await this.prisma.user.update({
+      where: { id: fromUserId },
+      data:  { estado: 'INACTIVO' },
+    });
+
+    return {
+      propiedades_transferidas: propiedades.count,
+      clientes_transferidos: clientes.count,
+      usuario_desactivado: fromUserId,
+      usuario_destino: toUserId,
+    };
+  }
+
   // ─── Get hierarchy tree for orgchart ──────────────────────
 
   async getHierarchyTree(tenantId: string) {

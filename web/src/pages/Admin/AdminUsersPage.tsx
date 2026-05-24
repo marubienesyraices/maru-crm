@@ -60,6 +60,10 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [transferModal, setTransferModal] = useState<UserItem | null>(null);
+  const [targetUserId, setTargetUserId] = useState('');
+  const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState('');
 
   const fetchUsers = useCallback(async () => {
     setIsError(false);
@@ -161,6 +165,31 @@ export default function AdminUsersPage() {
 
   const updateField = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const openTransferModal = (u: UserItem) => {
+    setTransferModal(u);
+    setTargetUserId('');
+    setTransferError('');
+  };
+
+  const handleTransfer = async () => {
+    if (!transferModal || !targetUserId) return;
+    setTransferring(true);
+    setTransferError('');
+    try {
+      await apiRequest(`/api/users/${transferModal.id}/transferir`, {
+        method: 'POST',
+        body: { targetUserId },
+        token: accessToken!,
+      });
+      setTransferModal(null);
+      fetchUsers();
+    } catch (err: any) {
+      setTransferError(err.message ?? 'Error al transferir');
+    } finally {
+      setTransferring(false);
+    }
   };
 
   const statusClass = (estado: string) => {
@@ -318,6 +347,15 @@ export default function AdminUsersPage() {
                   <td>
                     <div className="admin-table-actions">
                       <button onClick={() => openEdit(u)}>Editar</button>
+                      {!isSuperAdmin && u.estado === 'ACTIVO' && u.id !== user?.sub && (
+                        <button
+                          className="btn-danger-outline"
+                          title="Desactivar y transferir propiedades/trámites"
+                          onClick={() => openTransferModal(u)}
+                        >
+                          Desactivar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -408,6 +446,53 @@ export default function AdminUsersPage() {
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn btn-primary" disabled={saving || !form.nombre || !form.email} onClick={handleSave}>
                 {saving ? 'Guardando...' : editing ? 'Guardar Cambios' : isSuperAdmin ? 'Crear Administrador' : 'Crear Usuario'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal transferir y desactivar */}
+      {transferModal && (
+        <div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setTransferModal(null); }}>
+          <div className="admin-modal">
+            <h2>Desactivar: {transferModal.nombre}</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 16px' }}>
+              Las propiedades y trámites activos del usuario serán transferidos al agente seleccionado antes de desactivar la cuenta.
+            </p>
+
+            {transferError && (
+              <div className="alert alert-error" style={{ marginBottom: 16 }}>{transferError}</div>
+            )}
+
+            <div className="input-group">
+              <label>Transferir a *</label>
+              <select
+                className="input-field"
+                value={targetUserId}
+                onChange={(e) => setTargetUserId(e.target.value)}
+              >
+                <option value="">— Seleccionar agente destino —</option>
+                {users
+                  .filter((u) => u.id !== transferModal.id && u.estado === 'ACTIVO')
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nombre} ({rolLabels[u.rol] || u.rol})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="admin-modal-footer" style={{ marginTop: 20 }}>
+              <button className="btn btn-secondary" onClick={() => setTransferModal(null)} disabled={transferring}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-danger"
+                disabled={!targetUserId || transferring}
+                onClick={handleTransfer}
+              >
+                {transferring ? 'Transfiriendo…' : 'Transferir y Desactivar'}
               </button>
             </div>
           </div>

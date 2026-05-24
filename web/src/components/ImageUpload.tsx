@@ -1,4 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, useSortable, rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAuthStore } from '../stores/authStore';
 import { useToast } from './Toast';
 import { useConfirm } from './ConfirmDialog';
@@ -22,6 +29,48 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const MAX_IMAGENES = 30;
 const MAX_VIDEOS   = 3;
 
+function SortableThumb({
+  img, idx, onSetPortada, onDelete, onOpen,
+}: {
+  img: PropiedadImagen; idx: number;
+  onSetPortada: (id: string) => void;
+  onDelete: (id: string, tipo: string) => void;
+  onOpen: (idx: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`img-thumb ${img.tipo === 'portada' ? 'img-thumb-cover' : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <img
+        src={`${API}${img.url}`}
+        alt={img.nombre || 'Imagen'}
+        draggable={false}
+        onClick={() => onOpen(idx)}
+        style={{ cursor: 'pointer' }}
+      />
+      {img.tipo === 'portada' && <span className="img-cover-badge">★ Portada</span>}
+      <div className="img-thumb-actions">
+        {img.tipo !== 'portada' && (
+          <button title="Marcar como portada" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onSetPortada(img.id); }}>★</button>
+        )}
+        <button title="Eliminar" className="img-btn-delete" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(img.id, img.tipo); }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) {
   const { accessToken } = useAuthStore();
   const toast = useToast();
@@ -31,11 +80,38 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
   const [dragOver, setDragOver] = useState(false);
   const [dragOverVideo, setDragOverVideo] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
 
   const fotos  = imagenes.filter((i) => i.tipo !== 'video');
   const videos = imagenes.filter((i) => i.tipo === 'video');
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIdx = fotos.findIndex((f) => f.id === active.id);
+    const newIdx = fotos.findIndex((f) => f.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+
+    const reordered = arrayMove(fotos, oldIdx, newIdx);
+    setReordering(true);
+    try {
+      await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/reorder`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageIds: reordered.map((f) => f.id) }),
+      });
+      onUpdate();
+    } catch {
+      toast.error('Error al reordenar imágenes');
+    } finally {
+      setReordering(false);
+    }
+  }, [fotos, propiedadId, accessToken, onUpdate, toast]);
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -191,24 +267,27 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
       )}
 
       {fotos.length > 0 && (
-        <div className="img-gallery">
-          {fotos.map((img, idx) => (
-            <div key={img.id} className={`img-thumb ${img.tipo === 'portada' ? 'img-thumb-cover' : ''}`}>
-              <img
-                src={`${API}${img.url}`}
-                alt={img.nombre || 'Imagen'}
-                onClick={() => setLightboxIndex(idx)}
-              />
-              {img.tipo === 'portada' && <span className="img-cover-badge">★ Portada</span>}
-              <div className="img-thumb-actions">
-                {img.tipo !== 'portada' && (
-                  <button title="Marcar como portada" onClick={(e) => { e.stopPropagation(); handleSetPortada(img.id); }}>★</button>
-                )}
-                <button title="Eliminar" className="img-btn-delete" onClick={(e) => { e.stopPropagation(); handleDelete(img.id, img.tipo); }}>✕</button>
+        <>
+          {fotos.length > 1 && (
+            <p className="img-reorder-hint">{reordering ? 'Guardando orden…' : 'Arrastra las miniaturas para reordenar'}</p>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={fotos.map((f) => f.id)} strategy={rectSortingStrategy}>
+              <div className="img-gallery">
+                {fotos.map((img, idx) => (
+                  <SortableThumb
+                    key={img.id}
+                    img={img}
+                    idx={idx}
+                    onSetPortada={handleSetPortada}
+                    onDelete={handleDelete}
+                    onOpen={setLightboxIndex}
+                  />
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
 
       {/* ── Sección videos ───────────────────────────────── */}

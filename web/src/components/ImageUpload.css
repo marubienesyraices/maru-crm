@@ -231,6 +231,15 @@
   to { opacity: 1; }
 }
 
+/* ─── Reorder hint ────────────────────────────────────────── */
+
+.img-reorder-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+}
+
 /* ─── Section header ───────────────────────────────────────── */
 
 .img-section-header {

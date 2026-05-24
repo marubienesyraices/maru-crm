@@ -31,19 +31,19 @@
 
 [data-theme="claro"] {
   /* ── Light palette ────────────────────────────── */
-  --bg-primary:    #f8fafc;           /* background */
-  --bg-secondary:  #f0f4f8;           /* sidebar / secondary surfaces */
-  --bg-card:       #ffffff;           /* surface */
-  --bg-card-hover: #f8fafc;           /* surface hovered */
-  --bg-input:      #ffffff;           /* input fill */
-  --border-subtle: #e2e8f0;           /* border */
+  --bg-primary:    #f3f4f6;           /* softer background */
+  --bg-secondary:  #e5e7eb;           /* sidebar / secondary surfaces */
+  --bg-card:       #f9fafb;           /* surface (off-white, not pure white) */
+  --bg-card-hover: #f3f4f6;           /* surface hovered */
+  --bg-input:      #f9fafb;           /* input fill */
+  --border-subtle: #d1d5db;           /* border */
   --border-focus:  #2563eb;
-  --text-primary:  #0f172a;           /* text-primary */
-  --text-secondary:#475569;           /* text-secondary */
-  --text-muted:    #94a3b8;           /* derived muted */
+  --text-primary:  #1f2937;           /* text-primary (softer black) */
+  --text-secondary:#4b5563;           /* text-secondary */
+  --text-muted:    #9ca3af;           /* derived muted */
   --accent-blue:       #2563eb;       /* accent */
   --accent-blue-hover: #1d4ed8;
-  --shadow-glow: 0 0 40px rgba(37, 99, 235, 0.08);
+  --shadow-glow: 0 0 30px rgba(37, 99, 235, 0.05);
 }
 
 [data-theme="claro"] .toast-success {
@@ -816,4 +816,13 @@ body {
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle);
   margin-top: 8px;
+}
+
+img[src*="gestprop.png"] {
+  mix-blend-mode: lighten;
+}
+
+[data-theme="claro"] img[src*="gestprop.png"] {
+  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: multiply;
 }

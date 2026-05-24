@@ -29,6 +29,8 @@ import OnboardingPage from './pages/Onboarding/OnboardingPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
+import AuditPage from './pages/Audit/AuditPage';
+import OrgChartPage from './pages/Admin/OrgChart/OrgChartPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
@@ -102,6 +104,8 @@ export default function App() {
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/planes" element={<AdminPlanesPage />} />
+          <Route path="/admin/organigrama" element={<OrgChartPage />} />
+          <Route path="/auditoria" element={<AuditPage />} />
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
           <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />
           <Route path="/settings/perfil" element={<SettingsPerfilPage />} />

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto, UpdateTemaDto, CreateAdminDto, UpdateAdminDto } from './dto';
@@ -110,5 +110,16 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.update(tenantId, id, dto);
+  }
+
+  @Post(':id/transferir')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Transferir propiedades y trámites a otro agente y desactivar usuario' })
+  transferAndDeactivate(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
+  ) {
+    return this.usersService.transferAndDeactivate(tenantId, id, targetUserId);
   }
 }
