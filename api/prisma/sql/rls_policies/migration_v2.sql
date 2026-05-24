@@ -268,7 +268,7 @@ ALTER TABLE visitas FORCE ROW LEVEL SECURITY;
 
 
 -- ============================================================
--- SECCIÓN C: Permisos para el rol gestpro_app
+-- SECCIÓN C: Permisos para el rol gestprop_app
 -- Las tablas nuevas heredan permisos si se usaron DEFAULT
 -- PRIVILEGES, pero se listan explícitamente para seguridad.
 -- ============================================================
@@ -293,4 +293,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   meta_publicaciones,
   config_integraciones,
   config_portal
-TO gestpro_app;
+TO gestprop_app;

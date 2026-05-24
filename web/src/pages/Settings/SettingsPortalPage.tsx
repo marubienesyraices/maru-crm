@@ -214,16 +214,16 @@ export default function SettingsPortalPage() {
         <div className="settings-card">
           <div className="settings-grid single">
             <Field
-              label="Subdominio en GestPro"
+              label="Subdominio en GestProp"
               hint={hasSitioPropio
-                ? `Tu portal estará disponible en: ${portal.subdominio ? portal.subdominio + '.gestprop.net' : '(sin configurar)'}`
+                ? `Tu portal estará disponible en: ${portal.subdominio ? portal.subdominio + '.gestpropp.net' : '(sin configurar)'}`
                 : 'Disponible desde el plan PRO'}
             >
               <div style={{ position: 'relative' }}>
                 <input
                   value={portal.subdominio ?? ''}
                   onChange={hasSitioPropio ? sp('subdominio') : undefined}
-                  placeholder={hasSitioPropio ? 'miempresa  →  miempresa.gestprop.net' : 'Requiere plan PRO o superior'}
+                  placeholder={hasSitioPropio ? 'miempresa  →  miempresa.gestpropp.net' : 'Requiere plan PRO o superior'}
                   disabled={!hasSitioPropio}
                   style={!hasSitioPropio ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                 />

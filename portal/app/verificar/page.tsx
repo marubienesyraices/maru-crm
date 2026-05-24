@@ -26,8 +26,8 @@ export default function VerificarPage() {
       </main>
 
       <footer className="portal-footer">
-        <strong>GestPro</strong><br />
-        © {new Date().getFullYear()} GestPro. Todos los derechos reservados.
+        <strong>GestProp</strong><br />
+        © {new Date().getFullYear()} GestProp. Todos los derechos reservados.
       </footer>
     </div>
   );

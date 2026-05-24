@@ -1,4 +1,4 @@
-# GestPro CRM
+# GestProp CRM
 
 CRM inmobiliario multi-tenant SaaS para agencias de bienes raíces en Guatemala. Monorepo con cuatro paquetes: `api` (NestJS), `web` (React/Vite), `portal` (Next.js 14 SSR) y `shared` (tipos TypeScript compartidos).
 
@@ -35,7 +35,7 @@ CRM inmobiliario multi-tenant SaaS para agencias de bienes raíces en Guatemala.
 ## Estructura del proyecto
 
 ```
-gestpro-crm/
+gestprop-crm/
 ├── api/          # Backend NestJS (puerto 3000)
 │   ├── prisma/   # Esquema, migraciones y seed
 │   ├── src/
@@ -62,7 +62,7 @@ gestpro-crm/
 
 ```bash
 git clone <url-del-repo>
-cd gestpro-crm
+cd gestprop-crm
 ```
 
 ### 2. Instalar dependencias
@@ -152,7 +152,7 @@ Todas las variables se definen en un único `.env` en la raíz. El API las lee v
 | `R2_BUCKET` | No | Cloudflare R2 |
 | `R2_PUBLIC_URL` | No | URL pública del bucket R2 |
 | `RESEND_API_KEY` | No | API key de Resend para emails |
-| `EMAIL_FROM` | No | Remitente de emails (ej. `GestPro CRM <no-reply@...>`) |
+| `EMAIL_FROM` | No | Remitente de emails (ej. `GestProp CRM <no-reply@...>`) |
 | `VITE_MAPBOX_TOKEN` | No | Token Mapbox expuesto al navegador |
 | `MAPBOX_TOKEN` | No | Token Mapbox solo servidor (auto-geocodificación) |
 | `PORTAL_TENANT_ID` | No | UUID del tenant cuyas propiedades muestra el portal público |
@@ -212,7 +212,7 @@ Cada tabla con columna `tenant_id` tiene una política de Row-Level Security. El
 
 ### Paquete compartido
 
-`@gestpro/shared` exporta enums (`Rol`, `EstadoUsuario`, `Plan`, `EstadoPropiedad`, etc.) y DTOs usados tanto por el API como por el frontend. Se consume directamente como TypeScript fuente, sin paso de compilación.
+`@gestprop/shared` exporta enums (`Rol`, `EstadoUsuario`, `Plan`, `EstadoPropiedad`, etc.) y DTOs usados tanto por el API como por el frontend. Se consume directamente como TypeScript fuente, sin paso de compilación.
 
 ### Almacenamiento de archivos
 
@@ -226,7 +226,7 @@ Cada tabla con columna `tenant_id` tiene una política de Row-Level Security. El
 
 ### Auditoría
 
-`AuditInterceptor` registrado globalmente auto-loguea todas las solicitudes mutantes (POST/PUT/PATCH/DELETE) en `audit_logs`. Los campos sensibles son redactados. Las rutas pueden excluirse con `@SkipAudit()`. El registro de auditoría es inmutable — el rol de BD `gestpro_app` tiene `UPDATE`/`DELETE` revocados.
+`AuditInterceptor` registrado globalmente auto-loguea todas las solicitudes mutantes (POST/PUT/PATCH/DELETE) en `audit_logs`. Los campos sensibles son redactados. Las rutas pueden excluirse con `@SkipAudit()`. El registro de auditoría es inmutable — el rol de BD `gestprop_app` tiene `UPDATE`/`DELETE` revocados.
 
 ---
 

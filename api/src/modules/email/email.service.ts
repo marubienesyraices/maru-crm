@@ -34,7 +34,7 @@ export class EmailService {
   ) {
     const apiKey = config.get<string>('RESEND_API_KEY');
     this.globalResend = apiKey ? new Resend(apiKey) : null;
-    this.globalFrom    = config.get<string>('EMAIL_FROM') ?? 'GestPro CRM <onboarding@resend.dev>';
+    this.globalFrom    = config.get<string>('EMAIL_FROM') ?? 'GestProp CRM <onboarding@resend.dev>';
     this.appUrl        = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
     this.frontendUrl   = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
   }
@@ -78,7 +78,7 @@ export class EmailService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#0f172a;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestProp</span>
             <span style="color:#64748b;font-size:0.8125rem;margin-left:12px;">CRM</span>
           </td>
         </tr>
@@ -93,7 +93,7 @@ export class EmailService {
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
             <p style="margin:0;font-size:.75rem;color:#94a3b8;">
-              GestPro CRM · Sistema de gestión inmobiliaria
+              GestProp CRM · Sistema de gestión inmobiliaria
             </p>
           </td>
         </tr>
@@ -156,7 +156,7 @@ export class EmailService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#0f172a;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestProp</span>
             <span style="color:#64748b;font-size:0.8125rem;margin-left:12px;">Portal de Propiedades</span>
           </td>
         </tr>
@@ -171,7 +171,7 @@ export class EmailService {
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
             <p style="margin:0;font-size:.75rem;color:#94a3b8;">
-              GestPro · Propiedades en Guatemala
+              GestProp · Propiedades en Guatemala
             </p>
           </td>
         </tr>
@@ -317,7 +317,7 @@ export class EmailService {
              style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
         <tr>
           <td style="background:#1e293b;padding:20px 32px;">
-            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestPro</span>
+            <span style="color:#fff;font-size:1.125rem;font-weight:700;">GestProp</span>
           </td>
         </tr>
         <tr>
@@ -335,7 +335,7 @@ export class EmailService {
         <tr>
           <td style="padding:16px 32px;background:#f8fafc;">
             <p style="margin:0;font-size:.75rem;color:#94a3b8;">
-              Recibiste este mensaje porque eres usuario de GestPro CRM.
+              Recibiste este mensaje porque eres usuario de GestProp CRM.
             </p>
           </td>
         </tr>

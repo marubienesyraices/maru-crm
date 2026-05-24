@@ -132,7 +132,7 @@ export default function PortalReprogramarPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          GestPro
+          GestProp
         </div>
         {children}
       </div>

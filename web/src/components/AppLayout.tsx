@@ -156,10 +156,10 @@ export default function AppLayout() {
         aria-label="Navegación lateral"
       >
         <div className="sidebar-header">
-          <div className="sidebar-logo" aria-label="GestPro">
+          <div className="sidebar-logo" aria-label="GestProp">
             <img
-              src="/gestpro.png"
-              alt="GestPro"
+              src="/gestprop.png"
+              alt="GestProp"
               style={{
                 height: 60,
                 width: collapsed ? 60 : 'auto',

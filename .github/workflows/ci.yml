@@ -1,4 +1,4 @@
-name: CI — GestPro CRM
+name: CI — GestProp CRM
 
 on:
   push:
@@ -86,9 +86,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: gestpro_test
-          POSTGRES_PASSWORD: gestpro_test
-          POSTGRES_DB: gestpro_crm_test
+          POSTGRES_USER: gestprop_test
+          POSTGRES_PASSWORD: gestprop_test
+          POSTGRES_DB: gestprop_crm_test
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -118,12 +118,12 @@ jobs:
           npx ts-node prisma/seed.ts
         working-directory: api
         env:
-          DATABASE_URL: postgresql://gestpro_test:gestpro_test@localhost:5432/gestpro_crm_test
+          DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
 
       - name: Start API (background)
         run: npm run dev:api &
         env:
-          DATABASE_URL: postgresql://gestpro_test:gestpro_test@localhost:5432/gestpro_crm_test
+          DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_ACCESS_SECRET: ci-test-access-secret-32chars-ok

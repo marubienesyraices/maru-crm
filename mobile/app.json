@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "GestPro CRM",
-    "slug": "gestpro-crm",
+    "name": "GestProp CRM",
+    "slug": "gestprop-crm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -32,7 +32,8 @@
           "color": "#1a56db",
           "sounds": []
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

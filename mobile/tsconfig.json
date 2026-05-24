@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@gestpro/shared": [
+      "@gestprop/shared": [
         "../shared/src/index.ts"
       ]
     }

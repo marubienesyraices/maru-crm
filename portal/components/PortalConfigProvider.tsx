@@ -22,5 +22,5 @@ export function usePortalConfig(): PortalConfig {
 }
 
 export function displayName(cfg: PortalConfig): string {
-  return cfg.nombre_empresa ?? cfg.tenant_nombre ?? 'GestPro';
+  return cfg.nombre_empresa ?? cfg.tenant_nombre ?? 'GestProp';
 }

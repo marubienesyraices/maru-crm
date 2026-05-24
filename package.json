@@ -1,8 +1,8 @@
 {
-  "name": "gestpro-crm",
+  "name": "gestprop-crm",
   "version": "0.1.0",
   "private": true,
-  "description": "GestPro — CRM Inmobiliario",
+  "description": "GestProp — CRM Inmobiliario",
   "workspaces": [
     "shared",
     "api",

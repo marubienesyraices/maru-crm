@@ -38,7 +38,7 @@ async function bootstrap() {
 
   // ─── Swagger / OpenAPI ─────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('GestPro CRM — API')
+    .setTitle('GestProp CRM — API')
     .setDescription(
       'API multi-tenant para gestión de propiedades, clientes, pipeline de ventas y automatización de marketing.\n\n' +
       '**Autenticación:** JWT Bearer. Obtén el token con `POST /api/auth/login` y pégalo en el botón "Authorize" (sin el prefijo "Bearer").',
@@ -80,7 +80,7 @@ async function bootstrap() {
       filter: true,
       showRequestDuration: true,
     },
-    customSiteTitle: 'GestPro CRM — API Docs',
+    customSiteTitle: 'GestProp CRM — API Docs',
   });
 
   const port = process.env.PORT || 3000;

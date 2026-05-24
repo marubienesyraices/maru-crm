@@ -288,7 +288,7 @@ export default function PortalPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          GestPro
+          GestProp
         </div>
         <div className="portal-header-actions">
           <button

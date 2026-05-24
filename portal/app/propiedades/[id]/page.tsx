@@ -9,7 +9,7 @@ import RegistroInteresForm from '@/components/RegistroInteresForm';
 
 const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
 const EMAIL   = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestProp';
 const API     = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {

@@ -143,7 +143,7 @@ export class AuthService {
 
     const secret = new OTPAuth.Secret();
     const totpInstance = new OTPAuth.TOTP({
-      issuer: 'GestPro',
+      issuer: 'GestProp',
       label: user.email,
       secret,
     });
@@ -295,7 +295,7 @@ export class AuthService {
 
     this.email.sendSystemEmail({
       to: user.email,
-      subject: 'Recuperación de contraseña — GestPro CRM',
+      subject: 'Recuperación de contraseña — GestProp CRM',
       heading: 'Restablecer contraseña',
       body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta. Usa el siguiente enlace (válido por 30 minutos). Si no solicitaste este cambio, puedes ignorar este correo.`,
       cta: { label: 'Restablecer contraseña', url: resetUrl },

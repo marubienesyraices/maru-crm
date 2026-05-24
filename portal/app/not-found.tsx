@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
 
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestPro';
+const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestProp';
 
 export default function NotFound() {
   return (

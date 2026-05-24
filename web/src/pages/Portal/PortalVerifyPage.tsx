@@ -48,7 +48,7 @@ export default function PortalVerifyPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          GestPro
+          GestProp
         </div>
 
         {state === 'loading' && (
@@ -65,7 +65,7 @@ export default function PortalVerifyPage() {
               ¡Correo confirmado{nombre ? `, ${nombre}` : ''}!
             </h2>
             <p style={{ margin: '0 0 28px', color: '#94a3b8', fontSize: '0.9375rem', lineHeight: 1.6 }}>
-              Tu registro está activo. Un agente de GestPro se pondrá en contacto contigo pronto.
+              Tu registro está activo. Un agente de GestProp se pondrá en contacto contigo pronto.
             </p>
             <button className="portal-contact-btn portal-contact-primary" onClick={() => navigate('/portal')}>
               Ver propiedades →

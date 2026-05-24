@@ -246,7 +246,7 @@ export default function PortalDetailPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          GestPro
+          GestProp
         </div>
         <button className="btn btn-ghost" style={{ fontSize: '0.8125rem' }} onClick={() => navigate('/portal')}>
           ← Ver todas las propiedades

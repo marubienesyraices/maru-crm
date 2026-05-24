@@ -73,7 +73,7 @@ Access tokens expire in 15 min; refresh tokens last 7 days, stored in the `sessi
 - `VisibilityGuard` — injects `req.visibleUserIds`: JUNIOR → self only; SENIOR → self + recursive downline; ADMIN/SUPER_ADMIN → all
 
 ### Global Audit Interceptor
-`AuditInterceptor` (`api/src/common/interceptors/audit.interceptor.ts`) is registered globally and auto-logs all POST/PUT/PATCH/DELETE to `audit_logs`. Opt out with `@SkipAudit()`. The `gestpro_app` DB role has UPDATE/DELETE revoked on `audit_logs` — the table is intentionally immutable.
+`AuditInterceptor` (`api/src/common/interceptors/audit.interceptor.ts`) is registered globally and auto-logs all POST/PUT/PATCH/DELETE to `audit_logs`. Opt out with `@SkipAudit()`. The `gestprop_app` DB role has UPDATE/DELETE revoked on `audit_logs` — the table is intentionally immutable.
 
 ### State Machines
 Enforced via `TRANSICIONES_VALIDAS` maps in the respective services; invalid transitions throw `BadRequestException`.
@@ -109,7 +109,7 @@ Requires `RESEND_API_KEY` + `EMAIL_FROM`. Missing key causes silent no-ops (emai
 `RedisService` (`api/src/redis/`) is a `@Global()` provider wrapping ioredis. `BiService` caches all dashboard queries for 15 min using key pattern `bi:<tenantId>:<type>:<params>`. Cache is invalidated automatically by `PipelineService` on state changes, or manually via `POST /api/bi/cache/flush`.
 
 ### Shared Package
-`@gestpro/shared` (`shared/src/index.ts`) exports enums (`Rol`, `EstadoUsuario`, `Plan`, `AccionAudit`, etc.) and auth DTOs/interfaces used by both `api` and `web`. Consumed as raw TypeScript source — no build step needed.
+`@gestprop/shared` (`shared/src/index.ts`) exports enums (`Rol`, `EstadoUsuario`, `Plan`, `AccionAudit`, etc.) and auth DTOs/interfaces used by both `api` and `web`. Consumed as raw TypeScript source — no build step needed.
 
 ### Frontend Data Fetching (TanStack Query)
 All API calls in `web/` go through `apiRequest()` (`web/src/lib/api.ts`) which reads `VITE_API_URL` (defaults to `http://localhost:3000`). Domain hooks in `web/src/hooks/` wrap TanStack Query:
@@ -126,7 +126,7 @@ Every mutation's `onSuccess` calls `queryClient.invalidateQueries` to keep data 
 QueryClient config (in `web/src/main.tsx`): `staleTime: 30s`, `gcTime: 5min`, `retry: 1`, `refetchOnWindowFocus: false`.
 
 ### Portal (Next.js 14)
-`portal/` is a separate Next.js 14 App Router package (`@gestpro/portal`). It is SSR/RSC by default — components are server components unless marked `'use client'`. It fetches directly from the API using env var `NEXT_PUBLIC_API_URL`. Key env vars: `NEXT_PUBLIC_COMPANY_NAME`, `NEXT_PUBLIC_WHATSAPP`, `NEXT_PUBLIC_COMPANY_EMAIL`, `NEXT_PUBLIC_MAPBOX_TOKEN`. The `ChatbotWidget` is mounted globally in `layout.tsx` and posts leads to `POST /api/public/chatbot-lead`.
+`portal/` is a separate Next.js 14 App Router package (`@gestprop/portal`). It is SSR/RSC by default — components are server components unless marked `'use client'`. It fetches directly from the API using env var `NEXT_PUBLIC_API_URL`. Key env vars: `NEXT_PUBLIC_COMPANY_NAME`, `NEXT_PUBLIC_WHATSAPP`, `NEXT_PUBLIC_COMPANY_EMAIL`, `NEXT_PUBLIC_MAPBOX_TOKEN`. The `ChatbotWidget` is mounted globally in `layout.tsx` and posts leads to `POST /api/public/chatbot-lead`.
 
 ### Public API Routes (`/api/public/*`)
 These routes bypass `JwtAuthGuard` and RLS (bypass mode). They handle: portal registration, email verification, client reschedule links, and chatbot lead capture. They are in `PortalModule`.

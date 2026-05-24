@@ -58,7 +58,7 @@ export default function OnboardingPage() {
         <div className="login-container animate-slide-up">
           <div className="login-header">
             <div className="login-logo">
-              <img src="/gestpro.png" alt="GestPro" style={{ height: 64, objectFit: 'contain' }} />
+              <img src="/gestprop.png" alt="GestProp" style={{ height: 64, objectFit: 'contain' }} />
             </div>
             <h1>Enlace inválido</h1>
             <p>El enlace de activación es inválido o ya expiró. Solicita un nuevo correo al administrador.</p>
@@ -106,10 +106,10 @@ export default function OnboardingPage() {
       <div className="login-container animate-slide-up">
         <div className="login-header">
           <div className="login-logo">
-            <img src="/gestpro.png" alt="GestPro" style={{ height: 64, objectFit: 'contain' }} />
+            <img src="/gestprop.png" alt="GestProp" style={{ height: 64, objectFit: 'contain' }} />
           </div>
           <h1>Activa tu cuenta</h1>
-          <p>Establece una contraseña para comenzar a usar GestPro CRM</p>
+          <p>Establece una contraseña para comenzar a usar GestProp CRM</p>
         </div>
 
         {error && (
@@ -218,7 +218,7 @@ export default function OnboardingPage() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          <span>Conexión segura • GestPro CRM</span>
+          <span>Conexión segura • GestProp CRM</span>
         </div>
       </div>
     </div>

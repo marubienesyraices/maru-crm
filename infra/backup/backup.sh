@@ -3,7 +3,7 @@
 # Se ejecuta como cron dentro del contenedor backup de docker-compose.prod.yml
 
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="/backups/gestpro_crm_${TIMESTAMP}.sql.gz"
+BACKUP_FILE="/backups/gestprop_crm_${TIMESTAMP}.sql.gz"
 RETENTION_DAYS=30
 
 echo "[$(date)] Iniciando backup: ${BACKUP_FILE}"
@@ -36,6 +36,6 @@ if [ -n "${R2_BUCKET}" ] && [ -n "${R2_ACCESS_KEY_ID}" ]; then
 fi
 
 # Limpieza de archivos locales más antiguos que RETENTION_DAYS
-find /backups -name "gestpro_crm_*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
+find /backups -name "gestprop_crm_*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
 echo "[$(date)] Backups retenidos (últimos ${RETENTION_DAYS} días):"
 ls -lh /backups/*.sql.gz 2>/dev/null || echo "  (ninguno)"

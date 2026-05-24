@@ -42,7 +42,7 @@ export interface PortalConfig {
 }
 
 const DEFAULTS: PortalConfig = {
-  nombre_empresa: 'GestPro',
+  nombre_empresa: 'GestProp',
   chatbot_activo:  true,
   portal_activo:   true,
 };
@@ -74,5 +74,5 @@ export const getPortalConfig = cache(async (): Promise<PortalConfig> => {
 
 /** Returns the best display name for the tenant. */
 export function displayName(cfg: PortalConfig): string {
-  return cfg.nombre_empresa ?? cfg.tenant_nombre ?? 'GestPro';
+  return cfg.nombre_empresa ?? cfg.tenant_nombre ?? 'GestProp';
 }

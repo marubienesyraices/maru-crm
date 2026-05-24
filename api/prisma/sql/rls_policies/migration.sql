@@ -1,6 +1,6 @@
 -- ============================================================
 -- Row-Level Security (RLS) Policies
--- GestPro CRM — Fase 1
+-- GestProp CRM — Fase 1
 -- ============================================================
 -- Cada tabla con tenant_id recibe una política que filtra
 -- automáticamente los datos por el tenant_id activo en la sesión.
@@ -10,16 +10,16 @@
 -- 1. Crear un rol dedicado para la aplicación (no usar el superuser)
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'gestpro_app') THEN
-    CREATE ROLE gestpro_app LOGIN PASSWORD 'gestpro_app_2026';
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'gestprop_app') THEN
+    CREATE ROLE gestprop_app LOGIN PASSWORD 'gestprop_app_2026';
   END IF;
 END
 $$;
 
 -- Otorgar permisos básicos al rol de app
-GRANT USAGE ON SCHEMA public TO gestpro_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gestpro_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gestpro_app;
+GRANT USAGE ON SCHEMA public TO gestprop_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gestprop_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO gestprop_app;
 
 -- ============================================================
 -- 2. Habilitar RLS en las tablas con tenant_id
@@ -62,10 +62,10 @@ CREATE POLICY tenant_insert_config ON config_seguridad
 -- 4. Inmutabilidad de audit_logs: revocar UPDATE y DELETE
 --    para el rol de la aplicación.
 -- ============================================================
-REVOKE UPDATE, DELETE ON audit_logs FROM gestpro_app;
+REVOKE UPDATE, DELETE ON audit_logs FROM gestprop_app;
 
 -- ============================================================
--- 5. El owner del esquema (gestpro_admin, superuser de PG) bypasea
+-- 5. El owner del esquema (gestprop_admin, superuser de PG) bypasea
 --    RLS automáticamente. Para forzar RLS incluso para el owner:
 -- ============================================================
 ALTER TABLE users FORCE ROW LEVEL SECURITY;
