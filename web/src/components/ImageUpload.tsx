@@ -19,47 +19,59 @@ interface Props {
 }
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const MAX_IMAGENES = 30;
+const MAX_VIDEOS   = 3;
 
 export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) {
   const { accessToken } = useAuthStore();
   const toast = useToast();
   const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [dragOverVideo, setDragOverVideo] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
 
-  // Keyboard navigation for lightbox
+  const fotos  = imagenes.filter((i) => i.tipo !== 'video');
+  const videos = imagenes.filter((i) => i.tipo === 'video');
+
   useEffect(() => {
     if (lightboxIndex === null) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLightboxIndex(null);
-      if (e.key === 'ArrowRight') setLightboxIndex((i) => i === null ? null : (i + 1) % imagenes.length);
-      if (e.key === 'ArrowLeft') setLightboxIndex((i) => i === null ? null : (i - 1 + imagenes.length) % imagenes.length);
+      if (e.key === 'ArrowRight') setLightboxIndex((i) => i === null ? null : (i + 1) % fotos.length);
+      if (e.key === 'ArrowLeft')  setLightboxIndex((i) => i === null ? null : (i - 1 + fotos.length) % fotos.length);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [lightboxIndex, imagenes.length]);
+  }, [lightboxIndex, fotos.length]);
 
-  const uploadFiles = useCallback(async (files: FileList | File[]) => {
-    if (!files.length) return;
+  const uploadImages = useCallback(async (files: FileList | File[]) => {
+    const arr = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (!arr.length) return;
+
+    const remaining = MAX_IMAGENES - fotos.length;
+    if (remaining <= 0) {
+      toast.error(`Límite alcanzado: máximo ${MAX_IMAGENES} imágenes por propiedad.`);
+      return;
+    }
+    if (arr.length > remaining) {
+      toast.error(`Solo puedes agregar ${remaining} imagen${remaining !== 1 ? 'es' : ''} más (límite ${MAX_IMAGENES}).`);
+      return;
+    }
+
     setUploading(true);
-
     try {
       const formData = new FormData();
-      Array.from(files).forEach((f) => formData.append('files', f));
-
+      arr.forEach((f) => formData.append('files', f));
       const res = await fetch(`${API}/api/propiedades/${propiedadId}/imagenes`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Error al subir');
-      }
-
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Error al subir'); }
       toast.success('Imágenes subidas correctamente');
       onUpdate();
     } catch (err: any) {
@@ -67,13 +79,40 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
     } finally {
       setUploading(false);
     }
-  }, [propiedadId, accessToken, onUpdate, toast]);
+  }, [propiedadId, accessToken, fotos.length, onUpdate, toast]);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    uploadFiles(e.dataTransfer.files);
-  };
+  const uploadVideos = useCallback(async (files: FileList | File[]) => {
+    const arr = Array.from(files).filter((f) => f.type.startsWith('video/'));
+    if (!arr.length) return;
+
+    const remaining = MAX_VIDEOS - videos.length;
+    if (remaining <= 0) {
+      toast.error(`Límite alcanzado: máximo ${MAX_VIDEOS} videos por propiedad.`);
+      return;
+    }
+    if (arr.length > remaining) {
+      toast.error(`Solo puedes agregar ${remaining} video${remaining !== 1 ? 's' : ''} más (límite ${MAX_VIDEOS}).`);
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      arr.forEach((f) => formData.append('files', f));
+      const res = await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/videos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Error al subir'); }
+      toast.success('Video subido correctamente');
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Error al subir video');
+    } finally {
+      setUploadingVideo(false);
+    }
+  }, [propiedadId, accessToken, videos.length, onUpdate, toast]);
 
   const handleSetPortada = async (imagenId: string) => {
     await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/${imagenId}/portada`, {
@@ -83,89 +122,168 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
     onUpdate();
   };
 
-  const handleDelete = async (imagenId: string) => {
-    const ok = await confirm({ title: '¿Eliminar imagen?', confirmLabel: 'Eliminar', danger: true });
+  const handleDelete = async (imagenId: string, tipo: string) => {
+    const label = tipo === 'video' ? 'video' : 'imagen';
+    const ok = await confirm({ title: `¿Eliminar ${label}?`, confirmLabel: 'Eliminar', danger: true });
     if (!ok) return;
     setLightboxIndex(null);
     await fetch(`${API}/api/propiedades/${propiedadId}/imagenes/${imagenId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    toast.success('Imagen eliminada');
+    toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} eliminada`);
     onUpdate();
   };
 
-  const currentImage = lightboxIndex !== null && lightboxIndex < imagenes.length
-    ? imagenes[lightboxIndex]
-    : null;
+  const currentImage = lightboxIndex !== null && lightboxIndex < fotos.length ? fotos[lightboxIndex] : null;
 
   return (
     <div className="img-upload-section">
-      {/* Dropzone */}
-      <div
-        className={`img-dropzone ${dragOver ? 'img-dropzone-active' : ''} ${uploading ? 'img-dropzone-uploading' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        onClick={() => fileInput.current?.click()}
-      >
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          accept="image/jpeg,image/png,image/webp"
-          style={{ display: 'none' }}
-          onChange={(e) => e.target.files && uploadFiles(e.target.files)}
-        />
-        {uploading ? (
-          <>
-            <div className="spinner" />
-            <span>Subiendo imágenes...</span>
-          </>
-        ) : (
-          <>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <polyline points="21 15 16 10 5 21" />
-            </svg>
-            <span className="img-dropzone-text">
-              Arrastra imágenes aquí o <strong>haz clic para seleccionar</strong>
-            </span>
-            <span className="img-dropzone-hint">JPG, PNG, WebP — máx 10MB por imagen</span>
-          </>
-        )}
+
+      {/* ── Sección imágenes ─────────────────────────────── */}
+      <div className="img-section-header">
+        <span className="img-section-title">Imágenes</span>
+        <span className={`img-section-counter ${fotos.length >= MAX_IMAGENES ? 'img-counter-full' : ''}`}>
+          {fotos.length} / {MAX_IMAGENES}
+        </span>
       </div>
 
-      {/* Gallery */}
-      {imagenes.length > 0 && (
+      {fotos.length < MAX_IMAGENES && (
+        <div
+          className={`img-dropzone ${dragOver ? 'img-dropzone-active' : ''} ${uploading ? 'img-dropzone-uploading' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadImages(e.dataTransfer.files); }}
+          onClick={() => fileInput.current?.click()}
+        >
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            style={{ display: 'none' }}
+            onChange={(e) => e.target.files && uploadImages(e.target.files)}
+          />
+          {uploading ? (
+            <><div className="spinner" /><span>Subiendo imágenes...</span></>
+          ) : (
+            <>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span className="img-dropzone-text">
+                Arrastra imágenes aquí o <strong>haz clic para seleccionar</strong>
+              </span>
+              <span className="img-dropzone-hint">
+                JPG, PNG, WebP — máx 10 MB — quedan {MAX_IMAGENES - fotos.length} espacios
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {fotos.length >= MAX_IMAGENES && (
+        <div className="img-limit-banner">
+          Límite de {MAX_IMAGENES} imágenes alcanzado. Elimina alguna para agregar más.
+        </div>
+      )}
+
+      {fotos.length > 0 && (
         <div className="img-gallery">
-          {imagenes.map((img, idx) => (
+          {fotos.map((img, idx) => (
             <div key={img.id} className={`img-thumb ${img.tipo === 'portada' ? 'img-thumb-cover' : ''}`}>
               <img
                 src={`${API}${img.url}`}
                 alt={img.nombre || 'Imagen'}
                 onClick={() => setLightboxIndex(idx)}
               />
-              {img.tipo === 'portada' && (
-                <span className="img-cover-badge">★ Portada</span>
-              )}
+              {img.tipo === 'portada' && <span className="img-cover-badge">★ Portada</span>}
               <div className="img-thumb-actions">
                 {img.tipo !== 'portada' && (
-                  <button title="Marcar como portada" onClick={(e) => { e.stopPropagation(); handleSetPortada(img.id); }}>
-                    ★
-                  </button>
+                  <button title="Marcar como portada" onClick={(e) => { e.stopPropagation(); handleSetPortada(img.id); }}>★</button>
                 )}
-                <button title="Eliminar" className="img-btn-delete" onClick={(e) => { e.stopPropagation(); handleDelete(img.id); }}>
-                  ✕
-                </button>
+                <button title="Eliminar" className="img-btn-delete" onClick={(e) => { e.stopPropagation(); handleDelete(img.id, img.tipo); }}>✕</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Lightbox */}
+      {/* ── Sección videos ───────────────────────────────── */}
+      <div className="img-section-header" style={{ marginTop: '1.5rem' }}>
+        <span className="img-section-title">Videos</span>
+        <span className={`img-section-counter ${videos.length >= MAX_VIDEOS ? 'img-counter-full' : ''}`}>
+          {videos.length} / {MAX_VIDEOS}
+        </span>
+      </div>
+
+      {videos.length < MAX_VIDEOS && (
+        <div
+          className={`img-dropzone img-dropzone-video ${dragOverVideo ? 'img-dropzone-active' : ''} ${uploadingVideo ? 'img-dropzone-uploading' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOverVideo(true); }}
+          onDragLeave={() => setDragOverVideo(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOverVideo(false); uploadVideos(e.dataTransfer.files); }}
+          onClick={() => videoInput.current?.click()}
+        >
+          <input
+            ref={videoInput}
+            type="file"
+            multiple
+            accept="video/mp4,video/webm,video/quicktime"
+            style={{ display: 'none' }}
+            onChange={(e) => e.target.files && uploadVideos(e.target.files)}
+          />
+          {uploadingVideo ? (
+            <><div className="spinner" /><span>Subiendo video...</span></>
+          ) : (
+            <>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              <span className="img-dropzone-text">
+                Arrastra videos aquí o <strong>haz clic para seleccionar</strong>
+              </span>
+              <span className="img-dropzone-hint">
+                MP4, WebM, MOV — máx 200 MB — quedan {MAX_VIDEOS - videos.length} espacios
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {videos.length >= MAX_VIDEOS && (
+        <div className="img-limit-banner">
+          Límite de {MAX_VIDEOS} videos alcanzado. Elimina alguno para agregar más.
+        </div>
+      )}
+
+      {videos.length > 0 && (
+        <div className="img-video-gallery">
+          {videos.map((vid) => (
+            <div key={vid.id} className="img-video-item">
+              <video
+                src={`${API}${vid.url}`}
+                controls
+                preload="metadata"
+                className="img-video-player"
+              />
+              <div className="img-video-name">{vid.nombre || 'Video'}</div>
+              <button
+                className="img-btn-delete img-video-delete"
+                title="Eliminar video"
+                onClick={() => handleDelete(vid.id, vid.tipo)}
+              >
+                ✕ Eliminar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Lightbox imágenes ────────────────────────────── */}
       {currentImage && (
         <div className="img-lightbox" onClick={() => setLightboxIndex(null)}>
           <img
@@ -173,32 +291,12 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
             alt={currentImage.nombre || 'Vista ampliada'}
             onClick={(e) => e.stopPropagation()}
           />
-
           <button className="img-lightbox-close" onClick={() => setLightboxIndex(null)}>✕</button>
-
-          {imagenes.length > 1 && (
+          {fotos.length > 1 && (
             <>
-              <button
-                className="img-lightbox-prev"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((i) => i === null ? 0 : (i - 1 + imagenes.length) % imagenes.length);
-                }}
-              >
-                ‹
-              </button>
-              <button
-                className="img-lightbox-next"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((i) => i === null ? 0 : (i + 1) % imagenes.length);
-                }}
-              >
-                ›
-              </button>
-              <div className="img-lightbox-counter">
-                {(lightboxIndex ?? 0) + 1} / {imagenes.length}
-              </div>
+              <button className="img-lightbox-prev" onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => i === null ? 0 : (i - 1 + fotos.length) % fotos.length); }}>‹</button>
+              <button className="img-lightbox-next" onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => i === null ? 0 : (i + 1) % fotos.length); }}>›</button>
+              <div className="img-lightbox-counter">{(lightboxIndex ?? 0) + 1} / {fotos.length}</div>
             </>
           )}
         </div>

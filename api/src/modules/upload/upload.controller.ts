@@ -12,8 +12,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ImageService } from './image.service';
 
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+const ALLOWED_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const MAX_IMAGE_SIZE  = 10  * 1024 * 1024;  // 10 MB
+const MAX_VIDEO_SIZE  = 200 * 1024 * 1024;  // 200 MB
+const MAX_FILE_SIZE   = MAX_IMAGE_SIZE;       // legacy alias used by FilesInterceptor below
+const MAX_IMAGENES    = 30;
+const MAX_VIDEOS      = 3;
 
 @ApiTags('Imágenes')
 @ApiBearerAuth('JWT')
@@ -26,17 +31,27 @@ export class UploadController {
     private imageService: ImageService,
   ) {}
 
+  // ─── helpers ──────────────────────────────────────────────
+
+  private async assertPropiedad(propiedadId: string, tenantId: string) {
+    const p = await this.prisma.propiedad.findFirst({ where: { id: propiedadId, tenant_id: tenantId } });
+    if (!p) throw new BadRequestException('Propiedad no encontrada');
+    return p;
+  }
+
+  // ─── Images ───────────────────────────────────────────────
+
   @Post()
-  @ApiOperation({ summary: 'Subir imágenes a una propiedad (máx. 10 archivos)' })
+  @ApiOperation({ summary: `Subir imágenes a una propiedad (máx. ${MAX_IMAGENES} en total, 10 por petición)` })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } } } })
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: memoryStorage(),
-      limits: { fileSize: MAX_FILE_SIZE },
+      limits: { fileSize: MAX_IMAGE_SIZE },
       fileFilter: (_req, file, cb) => {
-        if (!ALLOWED_MIMES.includes(file.mimetype)) {
-          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_MIMES.join(', ')}`), false);
+        if (!ALLOWED_IMAGE_MIMES.includes(file.mimetype)) {
+          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_IMAGE_MIMES.join(', ')}`), false);
         } else {
           cb(null, true);
         }
@@ -50,12 +65,18 @@ export class UploadController {
   ) {
     if (!files?.length) throw new BadRequestException('No se enviaron archivos');
 
-    const [propiedad, tenant] = await Promise.all([
-      this.prisma.propiedad.findFirst({ where: { id: propiedadId, tenant_id: user.tenantId } }),
-      this.prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { nombre: true } }),
-    ]);
-    if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
+    await this.assertPropiedad(propiedadId, user.tenantId);
 
+    const existingCount = await this.prisma.propiedadImagen.count({
+      where: { propiedad_id: propiedadId, tipo: { in: ['portada', 'galeria'] } },
+    });
+    if (existingCount + files.length > MAX_IMAGENES) {
+      throw new BadRequestException(
+        `Límite de imágenes alcanzado. Tienes ${existingCount}/${MAX_IMAGENES}. Solo puedes agregar ${MAX_IMAGENES - existingCount} más.`,
+      );
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { nombre: true } });
     const tenantName = tenant?.nombre ?? 'GestProp';
 
     const maxOrder = await this.prisma.propiedadImagen.aggregate({
@@ -89,7 +110,77 @@ export class UploadController {
       created.push(img);
     }
 
-    return { uploaded: created.length, images: created };
+    return { uploaded: created.length, total: existingCount + created.length, limite: MAX_IMAGENES, images: created };
+  }
+
+  // ─── Videos ───────────────────────────────────────────────
+
+  @Post('videos')
+  @ApiOperation({ summary: `Subir videos a una propiedad (máx. ${MAX_VIDEOS} en total, 1 por petición)` })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } } } })
+  @UseInterceptors(
+    FilesInterceptor('files', 3, {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_VIDEO_SIZE },
+      fileFilter: (_req, file, cb) => {
+        if (!ALLOWED_VIDEO_MIMES.includes(file.mimetype)) {
+          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_VIDEO_MIMES.join(', ')}`), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  async uploadVideos(
+    @Param('propiedadId') propiedadId: string,
+    @CurrentUser() user: any,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files?.length) throw new BadRequestException('No se enviaron archivos');
+
+    await this.assertPropiedad(propiedadId, user.tenantId);
+
+    const existingCount = await this.prisma.propiedadImagen.count({
+      where: { propiedad_id: propiedadId, tipo: 'video' },
+    });
+    if (existingCount + files.length > MAX_VIDEOS) {
+      throw new BadRequestException(
+        `Límite de videos alcanzado. Tienes ${existingCount}/${MAX_VIDEOS}. Solo puedes agregar ${MAX_VIDEOS - existingCount} más.`,
+      );
+    }
+
+    const maxOrder = await this.prisma.propiedadImagen.aggregate({
+      where: { propiedad_id: propiedadId },
+      _max: { orden: true },
+    });
+    let nextOrder = (maxOrder._max.orden ?? -1) + 1;
+
+    const ext: Record<string, string> = {
+      'video/mp4': 'mp4',
+      'video/webm': 'webm',
+      'video/quicktime': 'mov',
+    };
+
+    const created = [];
+    for (const file of files) {
+      const filename = `${randomUUID()}.${ext[file.mimetype] ?? 'mp4'}`;
+      const url = await this.storage.upload(file.buffer, filename, file.mimetype);
+
+      const vid = await this.prisma.propiedadImagen.create({
+        data: {
+          propiedad_id: propiedadId,
+          url,
+          nombre: file.originalname,
+          tipo: 'video',
+          orden: nextOrder++,
+          tamano_bytes: file.size,
+        },
+      });
+      created.push(vid);
+    }
+
+    return { uploaded: created.length, total: existingCount + created.length, limite: MAX_VIDEOS, videos: created };
   }
 
   @Post(':imagenId/portada')
