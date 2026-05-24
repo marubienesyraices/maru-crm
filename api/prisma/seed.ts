@@ -50,7 +50,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000010',
       tenant_id: platformTenant.id,
-      email: 'superadmin@gestpropp.net',
+      email: 'superadmin@gestprop.net',
       password_hash: superAdminPassword,
       nombre: 'Super Administrador',
       rol: 'SUPER_ADMIN',
@@ -61,7 +61,7 @@ async function main() {
     },
   });
 
-  console.log('  ✅ Super Admin: superadmin@gestpropp.net / SuperAdmin@2026');
+  console.log('  ✅ Super Admin: superadmin@gestprop.net / SuperAdmin@2026');
 
   // ─── 2. Create demo tenant ───────────────────────────────
   const demoTenant = await prisma.tenant.upsert({
@@ -101,7 +101,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000020',
       tenant_id: demoTenant.id,
-      email: 'admin@gestpropp.net',
+      email: 'admin@gestprop.net',
       password_hash: adminPassword,
       nombre: 'María García (Admin)',
       rol: 'ADMIN',
@@ -117,7 +117,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000030',
       tenant_id: demoTenant.id,
-      email: 'carlos.senior@gestpropp.net',
+      email: 'carlos.senior@gestprop.net',
       password_hash: agentPassword,
       nombre: 'Carlos Mendoza (Senior)',
       rol: 'SENIOR',
@@ -133,7 +133,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000040',
       tenant_id: demoTenant.id,
-      email: 'ana.junior@gestpropp.net',
+      email: 'ana.junior@gestprop.net',
       password_hash: agentPassword,
       nombre: 'Ana López (Junior)',
       rol: 'JUNIOR',
@@ -150,7 +150,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000050',
       tenant_id: demoTenant.id,
-      email: 'pedro.junior@gestpropp.net',
+      email: 'pedro.junior@gestprop.net',
       password_hash: agentPassword,
       nombre: 'Pedro Ramírez (Junior)',
       rol: 'JUNIOR',
@@ -162,10 +162,10 @@ async function main() {
   });
 
   console.log('  ✅ Tenant: GestProp Demo');
-  console.log('  ✅ Admin: admin@gestpropp.net / Admin@2026');
-  console.log('  ✅ Senior: carlos.senior@gestpropp.net / Agent@2026');
-  console.log('  ✅ Junior: ana.junior@gestpropp.net / Agent@2026');
-  console.log('  ✅ Junior: pedro.junior@gestpropp.net / Agent@2026');
+  console.log('  ✅ Admin: admin@gestprop.net / Admin@2026');
+  console.log('  ✅ Senior: carlos.senior@gestprop.net / Agent@2026');
+  console.log('  ✅ Junior: ana.junior@gestprop.net / Agent@2026');
+  console.log('  ✅ Junior: pedro.junior@gestprop.net / Agent@2026');
   console.log('  📊 Jerarquía: Carlos (Senior) → Ana, Pedro (Juniors)');
   console.log('🎉 Seed completed!');
 }
