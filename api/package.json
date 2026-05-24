@@ -21,7 +21,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "npx ts-node prisma/seed.ts",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "db:migrate-data": "npx ts-node -r tsconfig-paths/register prisma/scripts/migrate-maru-data.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

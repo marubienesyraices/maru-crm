@@ -1,6 +1,6 @@
-# Estado del Proyecto — CRM GestPro
+# Estado del Proyecto — CRM GestProp
 
-> **Fecha de revisión:** 16 de mayo de 2026
+> **Fecha de revisión:** 24 de mayo de 2026
 > **Rama:** master
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
 > **Progreso global:** Fase 1 ✅ · Fase 2 ✅ 100% · Fase 3 ✅ 100% · Fase 4 ✅ 100% · Fase 5 ✅ 100% · **Sistema de Planes ✅ 100%**
@@ -342,13 +342,13 @@
 
 | Capa | Artefacto | Cantidad |
 |:-----|:----------|:--------:|
-| API — módulos NestJS | auth, users, tenants, audit, propiedades, propietarios, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal**, **config-integraciones** | 30 |
-| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), propietarios, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi, meta, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal** (privado+público), **config-integraciones** | 30 |
-| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, Propietario, PropiedadImagen, PropiedadDocumento, Cliente, ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, **CatalogoPlan** | 23 |
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal**, **config-integraciones** | 29 |
+| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi, meta, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal** (privado+público), **config-integraciones** | 29 |
+| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, PropiedadImagen, PropiedadDocumento, Cliente (`es_propietario`, `nit`, `direccion`), ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, **CatalogoPlan** | 22 |
 | BD — enums | Plan (FREE/BASIC/PRO/ENTERPRISE), EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
 | Frontend — páginas CRM | Login, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline, Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi, Campanas, Ranking, Meta, AdminTenants, AdminUsers, **AdminPlanes**, Settings (Portal, Integraciones, Perfil), Help | 26 |
 | Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + `RegistroInteresForm`), `/verificar` (activación de cuenta) | 3 |
-| Tests unitarios | 156 tests en 14 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, OWASP security 1, + 2 más) | 156 |
+| Tests unitarios | 146 tests en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, OWASP security 1, + 2 más) | 146 |
 | Tests E2E Cypress | 6 suites en `web/cypress/e2e/`: 01-auth, 02-propiedades, 03-pipeline, 04-agenda, 05-clientes, 06-busqueda-global; comandos `loginAs`/`logout`; integrado en CI | 6 |
 | Tests de carga k6 | `infra/k6/`: auth.js (50 VU), pipeline.js (50 VU), portal-publico.js (100 VU); umbrales p95 < 500ms | 3 |
 | Tests de seguridad OWASP | `api/src/__tests__/security/owasp.security.spec.ts` — A01 (acceso/JWT/IDOR), A02, A03 (SQL/proto), A05, A06 (versiones), A07 (alg:none/brute), A09 | 1 suite |
@@ -392,10 +392,16 @@
 - ~~**k6 load tests**~~ ✅ 3 escenarios
 - ~~**App móvil Expo**~~ ✅ Scaffold completo con push notifications
 
-### Pendiente (deuda menor)
-- **Migración de datos one-shot** — `ImportPage` cubre CSV/Excel manual; si hay datos legacy en otro sistema, se necesita un script de migración ad-hoc
+### Completados post-v1.0 (mayo 2026)
+- ~~**Unificación Cliente/Propietario**~~ ✅ — Tabla `propietarios` eliminada; `clientes` extendida con `es_propietario`, `nit`, `direccion`; relación `Propiedad.propietario → Cliente`; al asignar propietario en formulario de propiedad se marca automáticamente con `$transaction`; módulo `/api/propietarios` eliminado; rutas web redirigen a `/clientes?esPropietario=true`
+- ~~**Rename GestPro → GestProp**~~ ✅ — 44 archivos actualizados: UI, emails, Docker, paquetes npm (`@gestprop/`), roles DB (`gestprop_app`, `gestprop_admin`), CI, mobile
+- ~~**Throttler en desarrollo**~~ ✅ — `ThrottlerModule.forRootAsync` con `NODE_ENV`; dev=9999 req/min, prod=120; login a 20 intentos por 15 min
 
-> **Estado actual (16-may-2026):** Sistema de planes completamente implementado. 156 tests pasando. Sin deuda técnica relevante.
+### Pendiente (deuda menor)
+- ~~**Migración de datos one-shot**~~ ✅ — Script `api/prisma/scripts/migrate-maru-data.ts`; ejecutar con `npm run db:migrate-data` desde `api/`; 15 propiedades importadas (CASA-0016…LOCA-0030); clientes ya existían en el tenant demo
+- **Rename rol DB en producción** — ejecutar `ALTER ROLE gestpro_app RENAME TO gestprop_app` en la BD de prod
+
+> **Estado actual (24-may-2026):** Sistema completo. Unificación cliente/propietario aplicada. Nombre de sistema corregido a GestProp. 146 tests pasando.
 
 ### Completado en sesión 9-may-2026 (continuación)
 - ~~**RLS policies para nuevas tablas**~~ ✅ Completado — `migration_v2.sql` creado y aplicado en BD; 22 tablas con RLS activo (13 con `tenant_id` directo + 5 hijas vía subquery + 4 de Fase 1); migraciones Prisma pendientes aplicadas (`whatsapp_envios`, `meta_publicaciones`, `sindicacion_publicaciones`, `firma_solicitudes`, BI indexes); migration file faltante `20260503100000_add_reporte_visita` restaurado
