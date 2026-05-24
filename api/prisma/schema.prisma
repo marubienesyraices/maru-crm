@@ -82,7 +82,6 @@ model Tenant {
   config_portal        ConfigPortal?
   audit_logs       AuditLog[]
   propiedades      Propiedad[]
-  propietarios     Propietario[]
   clientes         Cliente[]
   notificaciones      Notificacion[]
   meta_publicaciones  MetaPublicacion[]
@@ -312,27 +311,6 @@ enum TipoDocumento {
 
 // ─── Fase 2: Models ─────────────────────────────────────────
 
-model Propietario {
-  id            String   @id @default(uuid())
-  tenant_id     String
-  nombre        String
-  telefono      String?
-  email         String?
-  dpi           String?
-  nit           String?
-  direccion     String?
-  notas         String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-
-  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
-  propiedades Propiedad[]
-
-  @@unique([tenant_id, dpi])
-  @@index([tenant_id])
-  @@map("propietarios")
-}
-
 model Propiedad {
   id                String          @id @default(uuid())
   tenant_id         String
@@ -376,7 +354,7 @@ model Propiedad {
   updated_at        DateTime        @updatedAt
 
   tenant      Tenant              @relation(fields: [tenant_id], references: [id])
-  propietario Propietario?        @relation(fields: [propietario_id], references: [id])
+  propietario Cliente?            @relation("PropietarioPropiedad", fields: [propietario_id], references: [id])
   agente      User?               @relation("PropiedadAgente", fields: [agente_id], references: [id])
   imagenes              PropiedadImagen[]
   documentos            PropiedadDocumento[]
@@ -517,9 +495,14 @@ model Cliente {
   email            String?
   telefono         String?
   dpi              String?
+  nit              String?
+  direccion        String?
   origen           OrigenCliente   @default(OTRO)
   notas            String?
   agente_id        String?
+
+  // Rol: puede ser propietario, cliente o ambos
+  es_propietario   Boolean         @default(false)
 
   // Preferencias de búsqueda (para matching)
   tipo_interes     TipoPropiedad?
@@ -536,13 +519,15 @@ model Cliente {
   created_at       DateTime        @default(now())
   updated_at       DateTime        @updatedAt
 
-  tenant    Tenant             @relation(fields: [tenant_id], references: [id])
-  agente    User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
-  intereses ClientePropiedad[]
+  tenant      Tenant             @relation(fields: [tenant_id], references: [id])
+  agente      User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
+  intereses   ClientePropiedad[]
+  propiedades Propiedad[]        @relation("PropietarioPropiedad")
 
   @@unique([tenant_id, email])
   @@index([tenant_id])
   @@index([tenant_id, origen])
+  @@index([tenant_id, es_propietario])
   @@map("clientes")
 }
 

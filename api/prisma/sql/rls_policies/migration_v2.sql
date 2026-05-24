@@ -11,16 +11,6 @@
 -- Patrón estándar: política USING + INSERT WITH CHECK + bypass
 -- ============================================================
 
--- ── propietarios ────────────────────────────────────────────
-ALTER TABLE propietarios ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_propietarios ON propietarios
-  USING (tenant_id = current_setting('app.tenant_id', true)::text);
-CREATE POLICY tenant_insert_propietarios ON propietarios
-  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::text);
-CREATE POLICY superadmin_bypass_propietarios ON propietarios
-  USING (current_setting('app.bypass_rls', true)::text = 'true');
-ALTER TABLE propietarios FORCE ROW LEVEL SECURITY;
-
 -- ── propiedades ─────────────────────────────────────────────
 ALTER TABLE propiedades ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_propiedades ON propiedades
@@ -284,7 +274,6 @@ ALTER TABLE visitas FORCE ROW LEVEL SECURITY;
 -- ============================================================
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON
-  propietarios,
   propiedades,
   propiedad_imagenes,
   propiedad_documentos,

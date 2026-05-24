@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 interface ClientesFiltros {
   busqueda?: string;
   origen?: string;
+  esPropietario?: boolean;
   page?: number;
   limit?: number;
 }
@@ -26,6 +27,7 @@ export function useClientes(filtros: ClientesFiltros = {}) {
       const params = new URLSearchParams();
       if (filtros.busqueda) params.set('busqueda', filtros.busqueda);
       if (filtros.origen) params.set('origen', filtros.origen);
+      if (filtros.esPropietario !== undefined) params.set('esPropietario', String(filtros.esPropietario));
       params.set('page', String(filtros.page ?? 1));
       params.set('limit', String(filtros.limit ?? 20));
       return apiRequest(`/api/clientes?${params}`, { token: accessToken! });

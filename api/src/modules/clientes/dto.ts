@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsEnum, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsInt, IsNumber, Min } from 'class-validator';
 
@@ -11,9 +11,12 @@ export class CreateClienteDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() telefono?: string;
   @IsOptional() @IsString() dpi?: string;
+  @IsOptional() @IsString() nit?: string;
+  @IsOptional() @IsString() direccion?: string;
   @IsOptional() @IsEnum(ORIGENES) origen?: string;
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsString() agenteId?: string;
+  @IsOptional() @IsBoolean() esPropietario?: boolean;
 
   // Preferencias de búsqueda
   @IsOptional() @IsEnum(TIPOS) tipoInteres?: string;
@@ -28,9 +31,12 @@ export class UpdateClienteDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() telefono?: string;
   @IsOptional() @IsString() dpi?: string;
+  @IsOptional() @IsString() nit?: string;
+  @IsOptional() @IsString() direccion?: string;
   @IsOptional() @IsEnum(ORIGENES) origen?: string;
   @IsOptional() @IsString() notas?: string;
   @IsOptional() @IsString() agenteId?: string;
+  @IsOptional() @IsBoolean() esPropietario?: boolean;
 
   // Preferencias de búsqueda
   @IsOptional() @IsEnum(TIPOS) tipoInteres?: string;
@@ -44,6 +50,7 @@ export class FiltrosClienteDto {
   @IsOptional() @IsString() origen?: string;
   @IsOptional() @IsString() busqueda?: string;
   @IsOptional() @IsString() agenteId?: string;
+  @IsOptional() @IsBoolean() esPropietario?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) limit?: number;
 }

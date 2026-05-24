@@ -11,7 +11,6 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { PropiedadesModule } from './modules/propiedades/propiedades.module';
-import { PropietariosModule } from './modules/propietarios/propietarios.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
 import { PipelineModule } from './modules/pipeline/pipeline.module';
@@ -42,7 +41,13 @@ import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../.env' }),
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 120 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const isDev = config.get('NODE_ENV') !== 'production';
+        return [{ name: 'default', ttl: 60000, limit: isDev ? 9999 : 120 }];
+      },
+    }),
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
@@ -61,7 +66,6 @@ import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.
     UsersModule,
     AuditModule,
     PropiedadesModule,
-    PropietariosModule,
     UploadModule,
     ClientesModule,
     PipelineModule,

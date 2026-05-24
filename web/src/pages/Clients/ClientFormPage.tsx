@@ -36,7 +36,8 @@ const GESTIONES = [
 ];
 
 const EMPTY_FORM = {
-  nombre: '', email: '', telefono: '', dpi: '', origen: 'OTRO', notas: '',
+  nombre: '', email: '', telefono: '', dpi: '', nit: '', direccion: '',
+  origen: 'OTRO', notas: '', esPropietario: false,
   tipoInteres: '', gestionInteres: '', presupuestoMax: '', zonaInteres: '', habitacionesMin: '',
 };
 
@@ -52,7 +53,7 @@ export default function ClientFormPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const set = (f: string, v: string) => {
+  const set = (f: string, v: string | boolean) => {
     setForm((p) => ({ ...p, [f]: v }));
     if (fieldErrors[f]) setFieldErrors((p) => ({ ...p, [f]: '' }));
   };
@@ -66,8 +67,11 @@ export default function ClientFormPage() {
           email: c.email || '',
           telefono: c.telefono || '',
           dpi: c.dpi || '',
+          nit: c.nit || '',
+          direccion: c.direccion || '',
           origen: c.origen || 'OTRO',
           notas: c.notas || '',
+          esPropietario: c.es_propietario ?? false,
           tipoInteres: c.tipo_interes || '',
           gestionInteres: c.gestion_interes || '',
           presupuestoMax: c.presupuesto_max ? String(c.presupuesto_max) : '',
@@ -75,7 +79,7 @@ export default function ClientFormPage() {
           habitacionesMin: c.habitaciones_min != null ? String(c.habitaciones_min) : '',
         });
       })
-      .catch(() => setError('No se pudo cargar el cliente'))
+      .catch(() => setError('No se pudo cargar el contacto'))
       .finally(() => setLoading(false));
   }, [id, isEdit, accessToken]);
 
@@ -92,8 +96,11 @@ export default function ClientFormPage() {
         email: form.email || undefined,
         telefono: form.telefono || undefined,
         dpi: form.dpi || undefined,
+        nit: form.nit || undefined,
+        direccion: form.direccion || undefined,
         origen: form.origen,
         notas: form.notas || undefined,
+        esPropietario: form.esPropietario,
         tipoInteres: form.tipoInteres || undefined,
         gestionInteres: form.gestionInteres || undefined,
         presupuestoMax: form.presupuestoMax ? parseFloat(form.presupuestoMax) : undefined,
@@ -102,11 +109,11 @@ export default function ClientFormPage() {
       };
       if (isEdit) {
         await apiRequest(`/api/clientes/${id}`, { method: 'PUT', body, token: accessToken! });
-        toast.success('Cliente actualizado correctamente');
+        toast.success('Contacto actualizado correctamente');
         navigate(`/clientes/${id}`);
       } else {
         await apiRequest('/api/clientes', { method: 'POST', body, token: accessToken! });
-        toast.success('Cliente creado correctamente');
+        toast.success('Contacto creado correctamente');
         navigate('/clientes');
       }
     } catch (err: any) { setError(err.message); } finally { setSaving(false); }
@@ -119,9 +126,23 @@ export default function ClientFormPage() {
       <button className="btn btn-ghost" onClick={() => navigate(isEdit ? `/clientes/${id}` : '/clientes')} style={{ marginBottom: 8 }}>
         ← Volver
       </button>
-      <h1>{isEdit ? 'Editar Cliente' : 'Nuevo Cliente'}</h1>
+      <h1>{isEdit ? 'Editar Contacto' : 'Nuevo Contacto'}</h1>
       <form onSubmit={handleSubmit}>
         <div className="client-form-grid">
+
+          {/* ─── Rol ─── */}
+          <div className="form-group">
+            <label className="form-label">Rol</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              <input
+                type="checkbox"
+                checked={form.esPropietario}
+                onChange={(e) => set('esPropietario', e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--accent-blue)' }}
+              />
+              <span style={{ fontWeight: 500 }}>🏠 Es propietario de inmueble</span>
+            </label>
+          </div>
 
           {/* ─── Datos personales ─── */}
           <div className="form-group">
@@ -153,9 +174,19 @@ export default function ClientFormPage() {
               <input className="form-input" value={form.telefono} onChange={(e) => set('telefono', e.target.value)} placeholder="+502 5555-1234" />
             </div>
           </div>
+          <div className="client-form-row">
+            <div className="form-group">
+              <label className="form-label">DPI</label>
+              <input className="form-input" value={form.dpi} onChange={(e) => set('dpi', e.target.value)} placeholder="Número de DPI" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">NIT</label>
+              <input className="form-input" value={form.nit} onChange={(e) => set('nit', e.target.value)} placeholder="NIT (propietarios)" />
+            </div>
+          </div>
           <div className="form-group">
-            <label className="form-label">DPI</label>
-            <input className="form-input" value={form.dpi} onChange={(e) => set('dpi', e.target.value)} placeholder="Número de DPI" />
+            <label className="form-label">Dirección</label>
+            <input className="form-input" value={form.direccion} onChange={(e) => set('direccion', e.target.value)} placeholder="Dirección del contacto" />
           </div>
           <div className="form-group">
             <label className="form-label">Origen</label>
@@ -211,7 +242,7 @@ export default function ClientFormPage() {
 
           {error && <div className="form-error">{error}</div>}
           <button type="submit" className="btn btn-primary" disabled={saving} style={{ marginTop: 8 }}>
-            {saving ? 'Guardando...' : (isEdit ? 'Actualizar Cliente' : 'Guardar Cliente')}
+            {saving ? 'Guardando...' : (isEdit ? 'Actualizar Contacto' : 'Guardar Contacto')}
           </button>
         </div>
       </form>

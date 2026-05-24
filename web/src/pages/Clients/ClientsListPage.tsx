@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useClientes, useClientesStats } from '../../hooks/useClientes';
 import ImportModal from '../../components/ImportModal';
 import './Clients.css';
@@ -14,30 +14,48 @@ const ORIGEN_COLORS: Record<string, string> = {
   WHATSAPP: '#25D366', REDES_SOCIALES: '#8b5cf6', FERIA: '#ef4444', OTRO: '#64748b',
 };
 
+type RolFiltro = '' | 'propietarios' | 'clientes';
+
 export default function ClientsListPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [busqueda, setBusqueda] = useState('');
   const [origen, setOrigen] = useState('');
+  const [rolFiltro, setRolFiltro] = useState<RolFiltro>(
+    searchParams.get('esPropietario') === 'true' ? 'propietarios' : ''
+  );
   const [page, setPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
 
-  const { data: result, isLoading: loading, isError } = useClientes({ busqueda, origen, page });
+  const esPropietarioFilter = rolFiltro === 'propietarios' ? true : rolFiltro === 'clientes' ? false : undefined;
+
+  const { data: result, isLoading: loading, isError } = useClientes({
+    busqueda,
+    origen,
+    esPropietario: esPropietarioFilter,
+    page,
+  });
   const { data: stats } = useClientesStats();
 
   const clientes: any[] = result?.data ?? [];
   const meta = result?.meta ?? { total: 0, totalPages: 1 };
 
+  const handleRolChange = (val: RolFiltro) => { setRolFiltro(val); setPage(1); };
+
   return (
     <div className="clients-page">
       <div className="clients-header">
         <div>
-          <h1>Clientes</h1>
-          <p>{meta.total} clientes registrados</p>
+          <h1>Contactos</h1>
+          <p>
+            {meta.total} contactos
+            {stats && ` · ${stats.propietarios ?? 0} propietarios`}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-ghost" onClick={() => navigate('/pipeline')}>📊 Pipeline</button>
           <button className="btn btn-ghost" onClick={() => setShowImport(true)}>⬆ Importar CSV</button>
-          <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Cliente</button>
+          <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Contacto</button>
         </div>
       </div>
 
@@ -60,11 +78,16 @@ export default function ClientsListPage() {
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
           </svg>
           <input
-            placeholder="Buscar por nombre, email o teléfono..."
+            placeholder="Buscar por nombre, email, teléfono o DPI..."
             value={busqueda}
             onChange={(e) => { setBusqueda(e.target.value); setPage(1); }}
           />
         </div>
+        <select value={rolFiltro} onChange={(e) => handleRolChange(e.target.value as RolFiltro)}>
+          <option value="">Todos los contactos</option>
+          <option value="propietarios">Solo propietarios</option>
+          <option value="clientes">Solo compradores/arrendatarios</option>
+        </select>
         <select value={origen} onChange={(e) => { setOrigen(e.target.value); setPage(1); }}>
           <option value="">Todos los orígenes</option>
           {Object.entries(ORIGEN_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -73,7 +96,7 @@ export default function ClientsListPage() {
 
       {/* List */}
       {loading ? (
-        <div className="page-loading"><div className="spinner" /><span>Cargando clientes...</span></div>
+        <div className="page-loading"><div className="spinner" /><span>Cargando contactos...</span></div>
       ) : isError ? (
         <div className="page-error-state">
           <div className="page-error-icon">
@@ -81,7 +104,7 @@ export default function ClientsListPage() {
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <h3>Error al cargar clientes</h3>
+          <h3>Error al cargar contactos</h3>
           <p>No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.</p>
           <button className="btn btn-primary" onClick={() => window.location.reload()}>Reintentar</button>
         </div>
@@ -93,14 +116,14 @@ export default function ClientsListPage() {
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
-          <h3>{busqueda || origen ? 'Sin resultados' : 'Sin clientes'}</h3>
+          <h3>{busqueda || origen || rolFiltro ? 'Sin resultados' : 'Sin contactos'}</h3>
           <p>
-            {busqueda || origen
-              ? 'Ningún cliente coincide con los filtros aplicados.'
-              : 'Agrega tu primer cliente para iniciar el pipeline.'}
+            {busqueda || origen || rolFiltro
+              ? 'Ningún contacto coincide con los filtros aplicados.'
+              : 'Agrega tu primer contacto para iniciar el pipeline.'}
           </p>
-          {!busqueda && !origen && (
-            <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Cliente</button>
+          {!busqueda && !origen && !rolFiltro && (
+            <button className="btn btn-primary" onClick={() => navigate('/clientes/nuevo')}>+ Nuevo Contacto</button>
           )}
         </div>
       ) : (
@@ -110,7 +133,12 @@ export default function ClientsListPage() {
               <div className="client-card-header">
                 <div className="client-avatar">{c.nombre[0]}</div>
                 <div>
-                  <div className="client-name">{c.nombre}</div>
+                  <div className="client-name">
+                    {c.nombre}
+                    {c.es_propietario && (
+                      <span className="client-badge-propietario" title="Propietario">🏠</span>
+                    )}
+                  </div>
                   {c.email && <div className="client-contact">{c.email}</div>}
                   {c.telefono && <div className="client-contact">📞 {c.telefono}</div>}
                 </div>
@@ -119,7 +147,14 @@ export default function ClientsListPage() {
                 <span className="client-origen-chip" style={{ color: ORIGEN_COLORS[c.origen] }}>
                   {ORIGEN_LABELS[c.origen] || c.origen}
                 </span>
-                <span className="client-intereses-count">{c._count?.intereses || 0} propiedades</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {c._count?.propiedades > 0 && (
+                    <span className="client-intereses-count">🏠 {c._count.propiedades}</span>
+                  )}
+                  {c._count?.intereses > 0 && (
+                    <span className="client-intereses-count">👁 {c._count.intereses}</span>
+                  )}
+                </div>
               </div>
               {c.agente && (
                 <div className="client-agent">

@@ -10,8 +10,6 @@ import PropertyDetailPage from './pages/Properties/PropertyDetailPage';
 import ClientsListPage from './pages/Clients/ClientsListPage';
 import ClientFormPage from './pages/Clients/ClientFormPage';
 import ClientDetailPage from './pages/Clients/ClientDetailPage';
-import PropietariosListPage from './pages/Propietarios/PropietariosListPage';
-import PropietarioFormPage from './pages/Propietarios/PropietarioFormPage';
 import PipelinePage from './pages/Pipeline/PipelinePage';
 import AgendaPage from './pages/Agenda/AgendaPage';
 import PortalPage from './pages/Portal/PortalPage';
@@ -91,9 +89,9 @@ export default function App() {
           <Route path="/clientes/nuevo" element={<ClientFormPage />} />
           <Route path="/clientes/:id" element={<ClientDetailPage />} />
           <Route path="/clientes/:id/editar" element={<ClientFormPage />} />
-          <Route path="/propietarios" element={<PropietariosListPage />} />
-          <Route path="/propietarios/nuevo" element={<PropietarioFormPage />} />
-          <Route path="/propietarios/:id/editar" element={<PropietarioFormPage />} />
+          <Route path="/propietarios" element={<Navigate to="/clientes?esPropietario=true" replace />} />
+          <Route path="/propietarios/nuevo" element={<Navigate to="/clientes/nuevo" replace />} />
+          <Route path="/propietarios/:id/editar" element={<Navigate to="/clientes" replace />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/import" element={<ImportPage />} />

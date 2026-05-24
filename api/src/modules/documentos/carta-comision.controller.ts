@@ -4,6 +4,8 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { randomUUID } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
@@ -34,7 +36,10 @@ function darken(hex: string, amount = 0.15): string {
 @Controller('api/propiedades/:propiedadId/carta-comision')
 @UseGuards(JwtAuthGuard)
 export class CartaComisionController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Generar carta de compromiso de comisión en PDF' })
@@ -71,9 +76,8 @@ export class CartaComisionController {
     const currency = propiedad.tenant.moneda || 'GTQ';
 
     const doc = new PDFDocument({ size: 'LETTER', margin: 0 });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="carta-comision-${propiedad.codigo}.pdf"`);
-    doc.pipe(res);
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     // ─── Background ──────────────────────────────────────────────
     doc.rect(0, 0, W, H).fill('#ffffff');
@@ -260,6 +264,27 @@ export class CartaComisionController {
     doc.rect(0, H - 3, W, 3).fill(primaryDark);
     doc.rect(0, H - 3, W, 1).fill(primary);
 
-    doc.end();
+    await new Promise<void>((resolve) => { doc.on('end', resolve); doc.end(); });
+
+    const buffer = Buffer.concat(chunks);
+    const filename = `carta-comision-${propiedad.codigo}-${randomUUID()}.pdf`;
+    const url = await this.storage.upload(buffer, filename, 'application/pdf');
+
+    // Register in Expediente Legal automatically (fire-and-forget on failure)
+    this.prisma.propiedadDocumento.create({
+      data: {
+        propiedad_id: propiedadId,
+        tipo: 'OTRO',
+        nombre: `Carta de Comisión - ${propiedad.codigo}`,
+        url,
+        tamano_bytes: buffer.length,
+        notas: `Generado automáticamente`,
+      },
+    }).catch(() => {});
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="carta-comision-${propiedad.codigo}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
   }
 }

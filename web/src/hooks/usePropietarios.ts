@@ -2,14 +2,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
+// All contacts can be assigned as property owners.
+// When assigned, the backend automatically sets es_propietario=true on that contact.
+
 export function usePropietarios(busqueda?: string) {
   const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: ['propietarios', 'list', busqueda],
     queryFn: () => {
       const params = new URLSearchParams();
+      params.set('limit', '100');
       if (busqueda) params.set('busqueda', busqueda);
-      return apiRequest(`/api/propietarios?${params}`, { token: accessToken! });
+      return apiRequest(`/api/clientes?${params}`, { token: accessToken! }).then((r: any) => r.data ?? r);
     },
     enabled: !!accessToken,
   });
@@ -19,7 +23,7 @@ export function usePropietario(id: string | undefined) {
   const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: ['propietarios', id],
-    queryFn: () => apiRequest(`/api/propietarios/${id}`, { token: accessToken! }),
+    queryFn: () => apiRequest(`/api/clientes/${id}`, { token: accessToken! }),
     enabled: !!accessToken && !!id,
   });
 }
@@ -29,8 +33,11 @@ export function useCreatePropietario() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: Record<string, any>) =>
-      apiRequest('/api/propietarios', { method: 'POST', body, token: accessToken! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['propietarios'] }),
+      apiRequest('/api/clientes', { method: 'POST', body: { ...body, esPropietario: true }, token: accessToken! }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propietarios'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
   });
 }
 
@@ -39,7 +46,10 @@ export function useUpdatePropietario(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: Record<string, any>) =>
-      apiRequest(`/api/propietarios/${id}`, { method: 'PUT', body, token: accessToken! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['propietarios'] }),
+      apiRequest(`/api/clientes/${id}`, { method: 'PUT', body, token: accessToken! }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propietarios'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+    },
   });
 }

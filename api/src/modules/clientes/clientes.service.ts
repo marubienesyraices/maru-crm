@@ -13,7 +13,7 @@ export class ClientesService {
         where: { tenant_id: tenantId, email: dto.email },
       });
       if (existing) {
-        throw new ConflictException(`Ya existe un cliente con email ${dto.email}: ${existing.nombre}`);
+        throw new ConflictException(`Ya existe un contacto con email ${dto.email}: ${existing.nombre}`);
       }
     }
 
@@ -24,9 +24,12 @@ export class ClientesService {
         email: dto.email,
         telefono: dto.telefono,
         dpi: dto.dpi,
+        nit: dto.nit,
+        direccion: dto.direccion,
         origen: (dto.origen as OrigenCliente) || 'OTRO',
         notas: dto.notas,
         agente_id: dto.agenteId || userId,
+        es_propietario: dto.esPropietario ?? false,
         tipo_interes: dto.tipoInteres as TipoPropiedad | undefined,
         gestion_interes: dto.gestionInteres as TipoGestion | undefined,
         presupuesto_max: dto.presupuestoMax,
@@ -35,7 +38,7 @@ export class ClientesService {
       },
       include: {
         agente: { select: { id: true, nombre: true } },
-        _count: { select: { intereses: true } },
+        _count: { select: { intereses: true, propiedades: true } },
       },
     });
   }
@@ -48,12 +51,14 @@ export class ClientesService {
     const where: any = { tenant_id: tenantId };
     if (filtros.origen) where.origen = filtros.origen;
     if (filtros.agenteId) where.agente_id = filtros.agenteId;
+    if (filtros.esPropietario !== undefined) where.es_propietario = filtros.esPropietario;
 
     if (filtros.busqueda) {
       where.OR = [
         { nombre: { contains: filtros.busqueda, mode: 'insensitive' } },
         { email: { contains: filtros.busqueda, mode: 'insensitive' } },
         { telefono: { contains: filtros.busqueda, mode: 'insensitive' } },
+        { dpi: { contains: filtros.busqueda, mode: 'insensitive' } },
       ];
     }
 
@@ -62,7 +67,7 @@ export class ClientesService {
         where,
         include: {
           agente: { select: { id: true, nombre: true } },
-          _count: { select: { intereses: true } },
+          _count: { select: { intereses: true, propiedades: true } },
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -85,9 +90,13 @@ export class ClientesService {
           },
           orderBy: { created_at: 'desc' },
         },
+        propiedades: {
+          select: { id: true, titulo: true, codigo: true, tipo: true, estado: true, precio_venta: true, precio_renta: true },
+          orderBy: { created_at: 'desc' },
+        },
       },
     });
-    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+    if (!cliente) throw new NotFoundException('Contacto no encontrado');
     return cliente;
   }
 
@@ -108,26 +117,34 @@ export class ClientesService {
         email: dto.email,
         telefono: dto.telefono,
         dpi: dto.dpi,
+        nit: dto.nit,
+        direccion: dto.direccion,
         origen: dto.origen as OrigenCliente | undefined,
         notas: dto.notas,
         agente_id: dto.agenteId,
+        es_propietario: dto.esPropietario,
         tipo_interes: dto.tipoInteres as TipoPropiedad | undefined,
         gestion_interes: dto.gestionInteres as TipoGestion | undefined,
         presupuesto_max: dto.presupuestoMax,
         zona_interes: dto.zonaInteres,
         habitaciones_min: dto.habitacionesMin,
       },
-      include: { agente: { select: { id: true, nombre: true } } },
+      include: {
+        agente: { select: { id: true, nombre: true } },
+        _count: { select: { intereses: true, propiedades: true } },
+      },
     });
   }
 
   async getStats(tenantId: string) {
-    const [total, porOrigenRaw] = await Promise.all([
+    const [total, propietarios, porOrigenRaw] = await Promise.all([
       this.prisma.cliente.count({ where: { tenant_id: tenantId } }),
+      this.prisma.cliente.count({ where: { tenant_id: tenantId, es_propietario: true } }),
       this.prisma.cliente.groupBy({ by: ['origen'], where: { tenant_id: tenantId }, _count: true }),
     ]);
     return {
       total,
+      propietarios,
       porOrigen: porOrigenRaw.map((r) => ({ origen: r.origen, _count: (r._count as any)._all ?? r._count })),
     };
   }
@@ -136,9 +153,8 @@ export class ClientesService {
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: clienteId, tenant_id: tenantId },
     });
-    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+    if (!cliente) throw new NotFoundException('Contacto no encontrado');
 
-    // No preferences set → no matches
     if (!cliente.tipo_interes && !cliente.gestion_interes && !cliente.presupuesto_max &&
         !cliente.zona_interes && !cliente.habitaciones_min) {
       return [];
@@ -146,9 +162,7 @@ export class ClientesService {
 
     const andConditions: any[] = [];
 
-    if (cliente.tipo_interes) {
-      andConditions.push({ tipo: cliente.tipo_interes });
-    }
+    if (cliente.tipo_interes) andConditions.push({ tipo: cliente.tipo_interes });
 
     if (cliente.gestion_interes && cliente.gestion_interes !== 'AMBAS') {
       andConditions.push({ gestion: { in: [cliente.gestion_interes, 'AMBAS'] } });

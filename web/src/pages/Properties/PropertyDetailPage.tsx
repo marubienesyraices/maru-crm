@@ -305,6 +305,7 @@ export default function PropertyDetailPage() {
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
+  const [cartaState, setCartaState] = useState<'idle' | 'generating' | 'error'>('idle');
 
   // WhatsApp modal
   const [waOpen, setWaOpen] = useState(false);
@@ -397,6 +398,7 @@ export default function PropertyDetailPage() {
           const pdfUrl = dl.url.startsWith('http') ? dl.url : `${API}${dl.url}`;
           window.open(pdfUrl, '_blank');
           setBrochureState('idle');
+          fetchProperty();
           return;
         }
         if (job.status === 'ERROR') throw new Error('La generación del brochure falló');
@@ -406,6 +408,30 @@ export default function PropertyDetailPage() {
       toast.error(err.message ?? 'Error generando brochure');
       setBrochureState('error');
       setTimeout(() => setBrochureState('idle'), 3000);
+    }
+  };
+
+  const handleCartaComision = async () => {
+    if (cartaState === 'generating') return;
+    setCartaState('generating');
+    try {
+      const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const res = await fetch(`${API}/api/propiedades/${id}/carta-comision`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al generar carta');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setCartaState('idle');
+      fetchProperty();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Error al generar carta de comisión');
+      setCartaState('error');
+      setTimeout(() => setCartaState('idle'), 3000);
     }
   };
 
@@ -655,50 +681,96 @@ export default function PropertyDetailPage() {
         <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
       )}
 
-      {/* Expediente Legal */}
+      {/* Generación de Documentos */}
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3>Expediente Legal ({propiedad.documentos?.length || 0})</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <h3 style={{ marginBottom: 16 }}>Generación de Documentos</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+
+          {/* Brochure PDF */}
+          <div className="doc-gen-card">
+            <div className="doc-gen-card-header">
+              <span className="doc-gen-icon">🏷️</span>
+              <div>
+                <div className="doc-gen-title">Brochure PDF</div>
+                <div className="doc-gen-desc">Ficha de la propiedad con fotos, descripción y datos de contacto</div>
+              </div>
+            </div>
+            {brochureState === 'generating' && (
+              <div className="doc-gen-status doc-gen-status-pending">
+                <span className="doc-gen-spinner" /> Generando…
+              </div>
+            )}
+            {brochureState === 'error' && (
+              <div className="doc-gen-status doc-gen-status-error">Error en la generación</div>
+            )}
             <button
               onClick={handleBrochure}
               disabled={brochureState === 'generating'}
               className="btn btn-ghost"
-              style={{ fontSize: '0.8125rem' }}
+              style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
             >
-              {brochureState === 'generating' ? '⏳ Generando…' : brochureState === 'error' ? '❌ Error' : '🏷️ Brochure PDF'}
-            </button>
-            <button
-              onClick={openWaModal}
-              className="btn btn-ghost"
-              style={{ fontSize: '0.8125rem' }}
-            >
-              📲 WhatsApp
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/propiedades/${propiedad.id}/carta-comision`, {
-                    headers: { Authorization: `Bearer ${accessToken}` }
-                  });
-                  if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.message || 'Error al generar carta');
-                  }
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, '_blank');
-                } catch (err: any) {
-                  toast.error(err.message ?? 'Error al generar carta');
-                }
-              }}
-              className="btn btn-ghost"
-              style={{ fontSize: '0.8125rem' }}
-            >
-              📄 Carta de Comisión
+              {brochureState === 'generating' ? 'Generando…' : 'Generar y descargar'}
             </button>
           </div>
+
+          {/* Carta de Comisión */}
+          <div className={`doc-gen-card${!propiedad.comision_porcentaje ? ' doc-gen-card-disabled' : ''}`}>
+            <div className="doc-gen-card-header">
+              <span className="doc-gen-icon">📄</span>
+              <div>
+                <div className="doc-gen-title">Carta de Comisión</div>
+                <div className="doc-gen-desc">
+                  {propiedad.comision_porcentaje
+                    ? `Comisión: ${propiedad.comision_porcentaje}%`
+                    : 'Requiere ingresar el porcentaje de comisión en los datos de la propiedad'}
+                </div>
+              </div>
+            </div>
+            {cartaState === 'generating' && (
+              <div className="doc-gen-status doc-gen-status-pending">
+                <span className="doc-gen-spinner" /> Generando…
+              </div>
+            )}
+            {cartaState === 'error' && (
+              <div className="doc-gen-status doc-gen-status-error">Error en la generación</div>
+            )}
+            <button
+              onClick={handleCartaComision}
+              disabled={!propiedad.comision_porcentaje || cartaState === 'generating'}
+              className="btn btn-ghost"
+              style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
+              title={!propiedad.comision_porcentaje ? 'Ingresa el % de comisión en los datos de la propiedad' : undefined}
+            >
+              {cartaState === 'generating' ? 'Generando…' : 'Generar y descargar'}
+            </button>
+          </div>
+
+          {/* WhatsApp — solo con plan integraciones */}
+          {planFeatures?.tiene_integraciones && (
+            <div className="doc-gen-card">
+              <div className="doc-gen-card-header">
+                <span className="doc-gen-icon">📲</span>
+                <div>
+                  <div className="doc-gen-title">Compartir por WhatsApp</div>
+                  <div className="doc-gen-desc">Envía el brochure de la propiedad directamente al cliente por WhatsApp</div>
+                </div>
+              </div>
+              <button
+                onClick={openWaModal}
+                className="btn btn-ghost"
+                style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
+              >
+                Enviar por WhatsApp
+              </button>
+            </div>
+          )}
+
         </div>
+      </div>
+
+      {/* Expediente Legal */}
+      <div className="prop-detail-section" style={{ marginTop: 8 }}>
+        <h3 style={{ marginBottom: 16 }}>Expediente Legal ({propiedad.documentos?.length || 0})</h3>
         <DocumentUpload
           propiedadId={propiedad.id}
           documentos={propiedad.documentos || []}

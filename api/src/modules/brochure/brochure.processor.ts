@@ -40,6 +40,18 @@ export class BrochureProcessor extends WorkerHost {
         data: { status: 'LISTO', url },
       });
 
+      // Register in Expediente Legal automatically
+      await this.prisma.propiedadDocumento.create({
+        data: {
+          propiedad_id: propiedadId,
+          tipo: 'OTRO',
+          nombre: `Brochure PDF - ${codigo}`,
+          url,
+          tamano_bytes: buffer.length,
+          notas: `Generado automáticamente`,
+        },
+      });
+
       this.logger.log(`Brochure ready: ${url}`);
     } catch (err: any) {
       this.logger.error(`Brochure job ${jobDbId} failed: ${err?.message}`);

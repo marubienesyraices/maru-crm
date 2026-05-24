@@ -63,38 +63,47 @@ export class PropiedadesService {
       if (coords) { latitud = coords.lat; longitud = coords.lng; }
     }
 
-    return this.prisma.propiedad.create({
-      data: {
-        tenant_id: tenantId,
-        codigo,
-        titulo: dto.titulo,
-        descripcion: dto.descripcion,
-        tipo: dto.tipo as TipoPropiedad,
-        gestion: dto.gestion as TipoGestion,
-        precio_venta: dto.precioVenta,
-        precio_renta: dto.precioRenta,
-        moneda: dto.moneda || 'GTQ',
-        comision_porcentaje: dto.comisionPorcentaje,
-        pais: dto.pais,
-        departamento: dto.departamento,
-        municipio: dto.municipio,
-        zona: dto.zona,
-        direccion: dto.direccion,
-        latitud,
-        longitud,
-        area_terreno_m2: dto.areaTerrenoM2,
-        area_construccion_m2: dto.areaConstruccionM2,
-        habitaciones: dto.habitaciones,
-        banos: dto.banos,
-        parqueos: dto.parqueos,
-        niveles: dto.niveles,
-        ano_construccion: dto.anoConstruccion,
-        amenidades: dto.amenidades || [],
-        propietario_id: dto.propietarioId,
-        agente_id: dto.agenteId || userId,
-      },
-      include: { propietario: true, agente: { select: { id: true, nombre: true, email: true } } },
-    });
+    const [propiedad] = await this.prisma.$transaction([
+      this.prisma.propiedad.create({
+        data: {
+          tenant_id: tenantId,
+          codigo,
+          titulo: dto.titulo,
+          descripcion: dto.descripcion,
+          tipo: dto.tipo as TipoPropiedad,
+          gestion: dto.gestion as TipoGestion,
+          precio_venta: dto.precioVenta,
+          precio_renta: dto.precioRenta,
+          moneda: dto.moneda || 'GTQ',
+          comision_porcentaje: dto.comisionPorcentaje,
+          pais: dto.pais,
+          departamento: dto.departamento,
+          municipio: dto.municipio,
+          zona: dto.zona,
+          direccion: dto.direccion,
+          latitud,
+          longitud,
+          area_terreno_m2: dto.areaTerrenoM2,
+          area_construccion_m2: dto.areaConstruccionM2,
+          habitaciones: dto.habitaciones,
+          banos: dto.banos,
+          parqueos: dto.parqueos,
+          niveles: dto.niveles,
+          ano_construccion: dto.anoConstruccion,
+          amenidades: dto.amenidades || [],
+          propietario_id: dto.propietarioId,
+          agente_id: dto.agenteId || userId,
+        },
+        include: { propietario: true, agente: { select: { id: true, nombre: true, email: true } } },
+      }),
+      ...(dto.propietarioId
+        ? [this.prisma.cliente.update({
+            where: { id: dto.propietarioId },
+            data: { es_propietario: true },
+          })]
+        : []),
+    ]);
+    return propiedad;
   }
 
   // ─── FIND ALL (with filters) ────────────────────────────────
@@ -197,40 +206,55 @@ export class PropiedadesService {
       if (coords) { latitud = coords.lat; longitud = coords.lng; }
     }
 
-    return this.prisma.propiedad.update({
-      where: { id },
-      data: {
-        titulo: dto.titulo,
-        descripcion: dto.descripcion,
-        tipo: dto.tipo as TipoPropiedad | undefined,
-        gestion: dto.gestion as TipoGestion | undefined,
-        precio_venta: dto.precioVenta,
-        precio_renta: dto.precioRenta,
-        moneda: dto.moneda,
-        comision_porcentaje: dto.comisionPorcentaje,
-        pais: dto.pais,
-        departamento: dto.departamento,
-        municipio: dto.municipio,
-        zona: dto.zona,
-        direccion: dto.direccion,
-        latitud,
-        longitud,
-        area_terreno_m2: dto.areaTerrenoM2,
-        area_construccion_m2: dto.areaConstruccionM2,
-        habitaciones: dto.habitaciones,
-        banos: dto.banos,
-        parqueos: dto.parqueos,
-        niveles: dto.niveles,
-        ano_construccion: dto.anoConstruccion,
-        amenidades: dto.amenidades,
-        propietario_id: dto.propietarioId,
-        agente_id: dto.agenteId,
-      },
-      include: {
-        propietario: true,
-        agente: { select: { id: true, nombre: true, email: true } },
-      },
-    });
+    const ops: any[] = [
+      this.prisma.propiedad.update({
+        where: { id },
+        data: {
+          titulo: dto.titulo,
+          descripcion: dto.descripcion,
+          tipo: dto.tipo as TipoPropiedad | undefined,
+          gestion: dto.gestion as TipoGestion | undefined,
+          precio_venta: dto.precioVenta,
+          precio_renta: dto.precioRenta,
+          moneda: dto.moneda,
+          comision_porcentaje: dto.comisionPorcentaje,
+          pais: dto.pais,
+          departamento: dto.departamento,
+          municipio: dto.municipio,
+          zona: dto.zona,
+          direccion: dto.direccion,
+          latitud,
+          longitud,
+          area_terreno_m2: dto.areaTerrenoM2,
+          area_construccion_m2: dto.areaConstruccionM2,
+          habitaciones: dto.habitaciones,
+          banos: dto.banos,
+          parqueos: dto.parqueos,
+          niveles: dto.niveles,
+          ano_construccion: dto.anoConstruccion,
+          amenidades: dto.amenidades,
+          propietario_id: dto.propietarioId,
+          agente_id: dto.agenteId,
+        },
+        include: {
+          propietario: true,
+          agente: { select: { id: true, nombre: true, email: true } },
+        },
+      }),
+    ];
+
+    // When a new propietario is assigned, mark them as es_propietario
+    if (dto.propietarioId && dto.propietarioId !== existing.propietario_id) {
+      ops.push(
+        this.prisma.cliente.update({
+          where: { id: dto.propietarioId },
+          data: { es_propietario: true },
+        }),
+      );
+    }
+
+    const [propiedad] = await this.prisma.$transaction(ops);
+    return propiedad;
   }
 
   // ─── CAMBIAR ESTADO (State Machine) ────────────────────────

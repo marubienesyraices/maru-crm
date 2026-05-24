@@ -19,8 +19,12 @@ export class ClientesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar clientes con filtros' })
+  @ApiOperation({ summary: 'Listar contactos (clientes y/o propietarios) con filtros' })
   findAll(@CurrentUser() user: any, @Query() filtros: FiltrosClienteDto) {
+    // Transform string 'true'/'false' from query params to boolean
+    if (filtros.esPropietario !== undefined) {
+      filtros.esPropietario = (filtros.esPropietario as any) === 'true' || filtros.esPropietario === true;
+    }
     return this.service.findAll(user.tenantId, filtros);
   }
 

@@ -238,7 +238,7 @@ export default function ClientDetailPage() {
   }, [hasPreferences, fetchMatching]);
 
   if (loading) return <div className="clients-loading"><div className="spinner" /><span>Cargando...</span></div>;
-  if (!cliente) return <div className="clients-empty"><h3>Cliente no encontrado</h3></div>;
+  if (!cliente) return <div className="clients-empty"><h3>Contacto no encontrado</h3></div>;
 
   return (
     <div className="clients-page" style={{ maxWidth: 860 }}>
@@ -247,7 +247,14 @@ export default function ClientDetailPage() {
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <div className="client-avatar" style={{ width: 48, height: 48, fontSize: '1.25rem' }}>{cliente.nombre[0]}</div>
           <div>
-            <h1>{cliente.nombre}</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {cliente.nombre}
+              {cliente.es_propietario && (
+                <span style={{ fontSize: '0.75rem', padding: '2px 10px', borderRadius: 100, background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>
+                  🏠 Propietario
+                </span>
+              )}
+            </h1>
             <p>{cliente.email || 'Sin email'} · {cliente.telefono || 'Sin teléfono'}</p>
           </div>
         </div>
@@ -271,6 +278,8 @@ export default function ClientDetailPage() {
           <h3>Información</h3>
           <div className="prop-detail-row"><span>Origen</span><strong>{cliente.origen}</strong></div>
           {cliente.dpi && <div className="prop-detail-row"><span>DPI</span><strong>{cliente.dpi}</strong></div>}
+          {cliente.nit && <div className="prop-detail-row"><span>NIT</span><strong>{cliente.nit}</strong></div>}
+          {cliente.direccion && <div className="prop-detail-row"><span>Dirección</span><strong>{cliente.direccion}</strong></div>}
           {cliente.agente && <div className="prop-detail-row"><span>Agente</span><strong>{cliente.agente.nombre}</strong></div>}
           {cliente.notas && <div className="prop-detail-row"><span>Notas</span><strong>{cliente.notas}</strong></div>}
         </div>
@@ -287,6 +296,33 @@ export default function ClientDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Propiedades en posesión (como propietario) */}
+      {cliente.es_propietario && (
+        <div className="prop-detail-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3>🏠 Propiedades en Posesión ({cliente.propiedades?.length || 0})</h3>
+            <button className="btn btn-ghost" style={{ fontSize: '0.8125rem' }} onClick={() => navigate('/propiedades/nueva')}>
+              + Nueva propiedad
+            </button>
+          </div>
+          {cliente.propiedades?.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {cliente.propiedades.map((p: any) => (
+                <div key={p.id} className="pipeline-card" onClick={() => navigate(`/propiedades/${p.id}`)}>
+                  <div className="pipeline-card-client">{p.codigo} — {p.titulo}</div>
+                  <div className="pipeline-card-footer">
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{p.tipo.replace('_', ' ')}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{p.estado}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Sin propiedades registradas como propietario</p>
+          )}
+        </div>
+      )}
 
       {/* Propiedades de interés (pipeline) */}
       <div className="prop-detail-section">
