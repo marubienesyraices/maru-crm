@@ -152,7 +152,7 @@ export default function TareasPage() {
             {vencidas > 0 && <span className="tareas-stat overdue">{vencidas} vencida{vencidas !== 1 ? 's' : ''}</span>}
           </div>
         </div>
-        <button className="btn-primary" onClick={openNew}>+ Nueva tarea</button>
+        <button className="btn btn-primary" onClick={openNew}>+ Nueva tarea</button>
       </div>
 
       <div className="tareas-filters">
@@ -224,51 +224,53 @@ export default function TareasPage() {
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h2>{editingId ? 'Editar tarea' : 'Nueva tarea'}</h2>
-            <form onSubmit={handleSubmit} className="tarea-form">
-              <label>
-                Título <span className="required">*</span>
-                <input
-                  value={titulo}
-                  onChange={e => setTitulo(e.target.value)}
-                  placeholder="¿Qué necesitas hacer?"
-                  maxLength={200}
-                  autoFocus
-                />
-              </label>
-              <label>
-                Descripción
-                <textarea
-                  value={descripcion}
-                  onChange={e => setDescripcion(e.target.value)}
-                  placeholder="Detalles opcionales..."
-                  rows={3}
-                  maxLength={1000}
-                />
-              </label>
-              <div className="form-row">
+          <div className="modal-card tarea-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-body">
+              <h2>{editingId ? 'Editar tarea' : 'Nueva tarea'}</h2>
+              <form onSubmit={handleSubmit} className="tarea-form">
                 <label>
-                  Prioridad
-                  <select value={prioridad} onChange={e => setPrioridad(e.target.value as PrioridadTarea)}>
-                    <option value="ALTA">Alta</option>
-                    <option value="MEDIA">Media</option>
-                    <option value="BAJA">Baja</option>
-                  </select>
+                  Título <span className="required">*</span>
+                  <input
+                    value={titulo}
+                    onChange={e => setTitulo(e.target.value)}
+                    placeholder="¿Qué necesitas hacer?"
+                    maxLength={200}
+                    autoFocus
+                  />
                 </label>
                 <label>
-                  Fecha límite
-                  <input type="date" value={fechaLimite} onChange={e => setFechaLimite(e.target.value)} />
+                  Descripción
+                  <textarea
+                    value={descripcion}
+                    onChange={e => setDescripcion(e.target.value)}
+                    placeholder="Detalles opcionales..."
+                    rows={3}
+                    maxLength={1000}
+                  />
                 </label>
-              </div>
-              {error && <p className="form-error">{error}</p>}
-              <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? 'Guardando...' : editingId ? 'Guardar' : 'Crear'}
-                </button>
-              </div>
-            </form>
+                <div className="tarea-form-row">
+                  <label>
+                    Prioridad
+                    <select value={prioridad} onChange={e => setPrioridad(e.target.value as PrioridadTarea)}>
+                      <option value="ALTA">Alta</option>
+                      <option value="MEDIA">Media</option>
+                      <option value="BAJA">Baja</option>
+                    </select>
+                  </label>
+                  <label>
+                    Fecha límite
+                    <input type="date" value={fechaLimite} onChange={e => setFechaLimite(e.target.value)} />
+                  </label>
+                </div>
+                {error && <p className="form-error">{error}</p>}
+                <div className="tarea-modal-actions">
+                  <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Guardando...' : editingId ? 'Guardar' : 'Crear tarea'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

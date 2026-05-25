@@ -4,6 +4,8 @@
   padding: 24px 16px;
 }
 
+/* ─── Header ──────────────────────────────────────────────── */
+
 .tareas-header {
   display: flex;
   align-items: flex-start;
@@ -30,9 +32,11 @@
 }
 
 .tareas-stat.overdue {
-  color: #ef4444;
+  color: var(--danger);
   font-weight: 600;
 }
+
+/* ─── Filtros ─────────────────────────────────────────────── */
 
 .tareas-filters {
   display: flex;
@@ -44,8 +48,8 @@
 .filter-btn {
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
   color: var(--text-secondary);
   font-size: 0.82rem;
   cursor: pointer;
@@ -53,18 +57,20 @@
 }
 
 .filter-btn:hover {
-  border-color: var(--accent-color);
-  color: var(--accent-color);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 .filter-btn.active {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
   color: #fff;
 }
 
+/* ─── Estados vacíos / errores ────────────────────────────── */
+
 .tareas-error {
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.85rem;
   margin-bottom: 12px;
 }
@@ -74,7 +80,12 @@
   color: var(--text-muted);
   padding: 48px 16px;
   font-size: 0.95rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 12px;
 }
+
+/* ─── Lista de tareas ─────────────────────────────────────── */
 
 .tareas-list {
   list-style: none;
@@ -82,32 +93,34 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tarea-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 14px 16px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .tarea-card:hover {
-  border-color: var(--accent-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-color: var(--accent-blue);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .tarea-card.completed {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .tarea-card.overdue {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid var(--danger);
 }
+
+/* ─── Check button ────────────────────────────────────────── */
 
 .tarea-check {
   padding-top: 2px;
@@ -118,7 +131,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-subtle);
   background: transparent;
   cursor: pointer;
   display: flex;
@@ -130,14 +143,16 @@
 }
 
 .check-btn:hover {
-  border-color: #22c55e;
-  background: rgba(34,197,94,0.1);
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .check-btn.checked {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: var(--success);
+  border-color: var(--success);
 }
+
+/* ─── Cuerpo de la tarea ──────────────────────────────────── */
 
 .tarea-body {
   flex: 1;
@@ -159,20 +174,21 @@
 
 .tarea-card.completed .tarea-titulo {
   text-decoration: line-through;
+  color: var(--text-muted);
 }
 
 .tarea-prioridad {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .tarea-desc {
   font-size: 0.82rem;
   color: var(--text-secondary);
   margin: 4px 0 6px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .tarea-meta {
@@ -183,27 +199,31 @@
   margin-top: 6px;
 }
 
+/* ─── Badges de estado ────────────────────────────────────── */
+
 .tarea-estado-badge {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 600;
 }
 
 .tarea-estado-badge.estado-PENDIENTE {
-  background: rgba(107,114,128,0.15);
-  color: #6b7280;
+  background: rgba(107, 114, 128, 0.15);
+  color: var(--text-muted);
 }
 
 .tarea-estado-badge.estado-EN_PROGRESO {
-  background: rgba(59,130,246,0.15);
-  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
 }
 
 .tarea-estado-badge.estado-COMPLETADA {
-  background: rgba(34,197,94,0.15);
-  color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
 }
+
+/* ─── Fecha ───────────────────────────────────────────────── */
 
 .tarea-fecha {
   font-size: 0.78rem;
@@ -211,9 +231,11 @@
 }
 
 .tarea-fecha.overdue {
-  color: #ef4444;
+  color: var(--danger);
   font-weight: 600;
 }
+
+/* ─── Acciones ────────────────────────────────────────────── */
 
 .tarea-actions {
   display: flex;
@@ -231,70 +253,113 @@
 .btn-sm {
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 12px;
+  line-height: 1;
   transition: all 0.15s;
 }
 
 .btn-sm:hover {
-  border-color: var(--accent-color);
-  color: var(--accent-color);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--bg-card-hover);
 }
 
 .btn-sm.danger:hover {
-  border-color: #ef4444;
-  color: #ef4444;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-/* Form */
+/* ─── Modal: form de tarea ────────────────────────────────── */
+
+.tarea-modal {
+  max-width: 480px;
+  width: 100%;
+}
+
+.tarea-modal h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 18px;
+}
+
 .tarea-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 16px;
 }
 
 .tarea-form label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
+  gap: 5px;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .tarea-form input,
 .tarea-form textarea,
 .tarea-form select {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  padding: 9px 12px;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--bg-color);
+  background: var(--bg-input);
   color: var(--text-primary);
   font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s;
 }
 
 .tarea-form input:focus,
 .tarea-form textarea:focus,
 .tarea-form select:focus {
   outline: none;
-  border-color: var(--accent-color);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
-.form-row {
+.tarea-form input::placeholder,
+.tarea-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.tarea-form select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.tarea-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
 .form-error {
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.82rem;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+}
+
+.tarea-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .required {
-  color: #ef4444;
+  color: var(--danger);
+  font-weight: 400;
 }
