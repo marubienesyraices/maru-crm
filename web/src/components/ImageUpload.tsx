@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter,
-} from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext, arrayMove, useSortable, rectSortingStrategy,
 } from '@dnd-kit/sortable';

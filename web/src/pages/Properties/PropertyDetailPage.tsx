@@ -301,7 +301,6 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate();
   const { accessToken, user, planFeatures } = useAuthStore();
   const toast = useToast();
-  const confirm = useConfirm();
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
