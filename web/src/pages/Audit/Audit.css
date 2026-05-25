@@ -1,7 +1,57 @@
-.audit-page { padding: 24px; max-width: 1400px; }
-.audit-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.audit-header h1 { margin: 0; font-size: 1.5rem; }
-.audit-header p  { margin: 4px 0 0; font-size: 0.875rem; color: var(--text-muted); }
+.audit-page {
+  padding: 24px;
+  max-width: 1400px;
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+
+.audit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.audit-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.audit-header p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ─── Botón exportar ──────────────────────────────────────── */
+
+.audit-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.audit-export-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--bg-card-hover);
+}
+
+/* ─── Filtros ─────────────────────────────────────────────── */
 
 .audit-filters {
   display: flex;
@@ -9,6 +59,7 @@
   flex-wrap: wrap;
   margin-bottom: 12px;
 }
+
 .audit-filters input,
 .audit-filters select {
   flex: 1 1 160px;
@@ -20,12 +71,26 @@
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.8125rem;
+  transition: border-color 0.15s;
 }
+
 .audit-filters input:focus,
 .audit-filters select:focus {
   outline: none;
   border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+
+.audit-filters input::placeholder {
+  color: var(--text-muted);
+}
+
+.audit-filters select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* ─── Meta contador ───────────────────────────────────────── */
 
 .audit-meta {
   font-size: 0.8125rem;
@@ -33,17 +98,21 @@
   margin: 0 0 12px;
 }
 
-/* Table */
+/* ─── Tabla ───────────────────────────────────────────────── */
+
 .audit-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
+
 .audit-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
+
 .audit-table th {
   text-align: left;
   padding: 10px 12px;
@@ -55,26 +124,53 @@
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border-subtle);
 }
+
 .audit-row td {
   padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
+  background: var(--bg-card);
 }
-.audit-row:last-child td { border-bottom: none; }
-.audit-row:hover { background: var(--bg-secondary); }
 
-.audit-date  { white-space: nowrap; color: var(--text-muted); }
-.audit-user  { font-weight: 500; }
-.audit-ip    { font-family: monospace; font-size: 0.75rem; color: var(--text-muted); }
+.audit-row:last-child td {
+  border-bottom: none;
+}
+
+.audit-row:hover td {
+  background: var(--bg-card-hover);
+}
+
+/* ─── Celdas específicas ──────────────────────────────────── */
+
+.audit-date {
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.audit-user {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.audit-ip {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .audit-module {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  color: var(--text-primary);
 }
+
 .audit-entity {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* ─── Badge acción ────────────────────────────────────────── */
 
 .audit-badge {
   display: inline-block;
@@ -85,6 +181,8 @@
   letter-spacing: 0.04em;
 }
 
+/* ─── Botón expandir ──────────────────────────────────────── */
+
 .audit-expand-btn {
   background: none;
   border: 1px solid var(--border-subtle);
@@ -93,10 +191,21 @@
   cursor: pointer;
   font-size: 0.75rem;
   color: var(--text-muted);
+  transition: all 0.15s;
 }
-.audit-expand-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
-.audit-detail-row td { background: var(--bg-secondary); }
+.audit-expand-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* ─── Fila de detalle (payload JSON) ──────────────────────── */
+
+.audit-detail-row td {
+  background: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .audit-payload {
   margin: 0;
   padding: 12px;
@@ -110,17 +219,29 @@
   overflow-y: auto;
 }
 
-/* Skeleton */
-.audit-skeleton { display: flex; flex-direction: column; gap: 6px; }
+/* ─── Skeleton loader ─────────────────────────────────────── */
+
+.audit-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .audit-skeleton-row {
   height: 40px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-card) 50%, var(--bg-secondary) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-card) 50%,
+    var(--bg-secondary) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }
 
-/* Pagination */
+/* ─── Paginación ──────────────────────────────────────────── */
+
 .audit-pagination {
   display: flex;
   align-items: center;
@@ -130,6 +251,7 @@
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
+
 .audit-pagination button {
   padding: 6px 14px;
   background: var(--bg-card);
@@ -141,16 +263,30 @@
   cursor: pointer;
   transition: all var(--transition);
 }
-.audit-pagination button:hover:not(:disabled) { border-color: var(--accent-blue); color: var(--accent-blue); }
-.audit-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Empty */
+.audit-pagination button:hover:not(:disabled) {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.audit-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Vacío ───────────────────────────────────────────────── */
+
 .audit-empty {
   padding: 48px 0;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.875rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
 }
+
+/* ─── Animaciones ─────────────────────────────────────────── */
 
 @keyframes shimmer {
   0%   { background-position: 200% 0; }

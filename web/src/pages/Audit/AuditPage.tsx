@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
@@ -130,8 +130,8 @@ export default function AuditPage() {
           <h1>Auditoría</h1>
           <p>Registro inmutable de todas las acciones del sistema</p>
         </div>
-        <button className="btn btn-secondary" onClick={exportCSV}>
-          Exportar CSV
+        <button className="audit-export-btn" onClick={exportCSV}>
+          ↓ Exportar CSV
         </button>
       </div>
 
@@ -181,8 +181,8 @@ export default function AuditPage() {
             </thead>
             <tbody>
               {logs.map((log) => (
-                <>
-                  <tr key={log.id} className="audit-row">
+                <Fragment key={log.id}>
+                  <tr className="audit-row">
                     <td className="audit-date">{fmt(log.created_at)}</td>
                     <td className="audit-user">{log.nombre_usuario}</td>
                     <td>
@@ -214,13 +214,13 @@ export default function AuditPage() {
                     </td>
                   </tr>
                   {expanded === log.id && log.payload_cambio && (
-                    <tr key={`${log.id}-d`} className="audit-detail-row">
+                    <tr className="audit-detail-row">
                       <td colSpan={6}>
                         <pre className="audit-payload">{JSON.stringify(log.payload_cambio, null, 2)}</pre>
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
