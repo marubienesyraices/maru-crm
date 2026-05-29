@@ -1,8 +1,9 @@
 # Faltantes — Requerimientos vs. Implementación
 
 > **Fecha de revisión:** 28 de mayo de 2026
-> **Base:** `Requerimientos.md` v2.0 vs. código en rama `master` (commit `b60a6fa`)
-> **Estado final:** ✅ **Sin brechas abiertas — todos los requerimientos implementados**
+> **Base:** `Requerimientos.md` v2.0 vs. código en rama `master` (commit `ebbbc32`)
+> **Método:** Lectura completa de `Requerimientos.md` + exploración directa del código fuente
+> **Criterio:** Funcionalidades definidas en los requerimientos que están ausentes, incompletas o difieren de lo implementado.
 
 ---
 
@@ -10,93 +11,182 @@
 
 | Categoría | Cantidad |
 |:----------|:--------:|
-| No implementado (ausente por completo) | **0** |
-| Implementación parcial o discrepancia | **0** |
-| **Total de brechas pendientes** | **0** |
-
-El análisis inicial (24-may-2026) identificó **37 brechas** entre los requerimientos y la implementación. A lo largo de las sesiones del 24 al 28 de mayo de 2026, **todas fueron cerradas** en tres tandas de trabajo organizadas por prioridad.
+| No implementado (ausente por completo) | 5 |
+| Implementación parcial o discrepancia | 8 |
+| **Total de brechas** | **13** |
 
 ---
 
-## Historial de cierre por tanda
+## 1. No implementado — Ausente por completo
 
-### Tanda 1 — Sesión 24-may-2026 (commits `85ac691`, `67613dc`, `9ad6e00`)
+### 1.1 Oferta competitiva en pipeline (§11 CA-2)
 
-| Ítem | Descripción | Commit |
-|:-----|:-----------|:-------|
-| F-03 | Panel de auditoría en frontend (filtros por módulo/acción/entidad/fecha, JSON diff expandible, export CSV, paginación) | `85ac691` |
-| F-04 | Exportación de logs de auditoría a CSV desde `AuditPage` | `85ac691` |
-| F-06 | Organigrama visual interactivo con expand/collapse por nodo y colores por rol (`OrgChartPage`) | `85ac691` |
-| F-07 | Transferencia de propiedades y clientes al desactivar usuario (`POST /api/users/:id/transferir` + modal en AdminUsersPage) | `85ac691` |
-| F-09 | Reordenamiento drag & drop de imágenes en galería con `@dnd-kit/sortable`, persiste en endpoint reorder | `85ac691` |
-| F-13 | Panel "Mi cuenta" del cliente en portal (trámites activos, favoritos, visitas próximas con Zoom link, historial) | `9ad6e00` |
-| F-14 | Favoritos de propiedades: `FavoriteButton` en portal, tabla `favoritos`, endpoint toggle | `9ad6e00` |
-| F-15 | Estado CIERRE en pipeline: columna Kanban + transición EN_NEGOCIACION→CIERRE→GANADO | `9ad6e00` |
-| F-17 | Alerta de timeout en negociación 30 días: `checkNegociacionTimeout` cron en `PipelineScheduler` | `9ad6e00` |
-| F-19 | Panel de Tareas (To-Do): `TareasModule` CRUD completo, prioridades, estados, filtros, `TareasPage` | `67613dc` |
-| F-20 | Horarios laborales del agente: `HorariosModule` con CRUD por franja horaria, `HorariosPage` | `9ad6e00` |
-| F-23 | Sugerencias automatizadas por propiedad estancada: `PropiedadesScheduler` con umbrales 30/45/60 días | `9ad6e00` |
-| F-02 (parcial→completo) | `ForgotPasswordPage` + `ResetPasswordPage` implementados (enlace por email funcional) | `9ad6e00` |
+El requerimiento define que cuando un Agente Senior presenta una oferta sobre una propiedad en negociación, se crea un trámite paralelo en sub-estado **"Negociación (Competitiva)"**, con un máximo de 1 oferta competitiva activa a la vez. Solo el rol `SENIOR` puede registrar este tipo de oferta; el botón debe bloquearse para `JUNIOR`.
 
-### Tanda 2 — Sesión 28-may-2026 alta prioridad (commit `b60a6fa` parcial)
-
-| Ítem | Descripción | Implementación |
-|:-----|:-----------|:---------------|
-| P-01 | Desbloqueo manual por Admin — 9+ intentos: `bloqueado_hasta = 2099`; `POST /api/users/:id/desbloquear`; badge 🔒 + botón "🔓 Desbloquear" en AdminUsersPage | Migración `idx_users_bloqueado_hasta` + endpoint + UI |
-| P-07 | Carta de Comisión configurable — `carta_logo_url` + `carta_clausulas_custom` en `config_integraciones`; PDF usa logo y cláusulas del tenant | Migración + DTO + service + UI en Settings |
-| P-14 | Comisiones proyectadas vs realizadas — `GET /api/bi/comisiones`; tab "💰 Comisiones" en BiPage con barra proporcional y detalle de trámites en proceso | Nuevo endpoint + nuevo tab BiPage |
-| P-15 | Paleta de colores por empresa — campos `color_primario/secundario/acento` en `tenants`; CSS vars `--brand-primary/secondary/accent` en AppLayout; pickers en Settings | Migración + schema + branding endpoint + authStore + AppLayout |
-| F-16 | Documentos obligatorios en CIERRE — `cierre_documentos Json` en `ClientePropiedad`; validación backend; `CierreModal` en PipelinePage | Migración + pipeline.service + dto + PipelinePage modal + usePipeline hook |
-
-### Tanda 3 — Sesión 28-may-2026 media prioridad (commit `b60a6fa` parcial)
-
-| Ítem | Descripción | Implementación |
-|:-----|:-----------|:---------------|
-| F-08 | Reasignación masiva de subordinados — `POST /api/users/:id/reasignar-subordinados`; modal "🔀 Reasignar" para Seniors con subordinados | users.service + controller + AdminUsersPage modal |
-| F-12 | Google OAuth en portal — `POST /api/public/cliente/google-auth` (verifica con tokeninfo de Google); botón GSI en `MiCuentaClient` si `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | portal.service + portal.controller + MiCuentaClient.tsx |
-| F-02 (completo) | 2do factor TOTP en reset — si `totp_habilitado`, backend exige `totpCode`; `ResetPasswordPage` muestra campo TOTP dinámicamente | auth.service (resetPassword) + dto + ResetPasswordPage |
-| P-09 | Brochure con colores del tenant — `BrochureService` lee `tenant.color_primario` y `tenant.logo_url`; PDF adaptado al branding | brochure.service (include + color/logo) |
-| P-10 | Resumen de visita al propietario — `POST /api/visitas/:id/resumen-propietario`; email HTML sin datos del cliente; botón "📧 Enviar al propietario" en ReporteModal (post-guardado) | visitas.service + visitas.controller + AgendaPage |
-| P-12 | Round Robin / Menos Carga en chatbot — `modo_asignacion_leads` en `ConfigSeguridad`; chatbot asigna agente según modo | Migración + schema + portal.service lógica de asignación |
-| P-13 | Exportar BI a PDF — botón 🖨️ PDF en header de BiPage + `@media print` CSS en Bi.css | BiPage + Bi.css |
-
-### Tanda 4 — Sesión 28-may-2026 baja prioridad (commit `b60a6fa` parcial)
-
-| Ítem | Descripción | Implementación |
-|:-----|:-----------|:---------------|
-| P-02 | Alerta expiración contraseña 90 días — `PasswordExpiryScheduler` (cron 8am, aviso 7 días antes); login devuelve `passwordExpiresIn`; banner naranja/rojo en AppLayout | Scheduler + auth.service + authStore + AppLayout banner |
-| P-03 | Reset 2FA por Admin — `POST /api/users/:id/reset-2fa`; limpia `totp_secret/habilitado`; botón "🔄 Resetear 2FA" en modal de edición | users.service + controller + AdminUsersPage |
-| P-04 | Inactividad 30 min — hook `useInactivityLogout()` en AppLayout; `forceLogout()` tras 30 min sin mouse/teclado/scroll | AppLayout (hook + useEffect + eventos DOM) |
-| P-05 | Thumbnail 300×200 — `ImageService.processImageFull()` genera thumbnail con Sharp; guardado en `propiedad_imagenes.thumbnail_url` | Migración + image.service + upload.controller |
-| P-06 | Imagen original intacta — buffer original subido con sufijo `_original`; URL en `propiedad_imagenes.original_url` | Migración + image.service + upload.controller |
-| P-08 | Historial de versiones carta comisión — nombre del documento incluye fecha; cada generación crea un nuevo `PropiedadDocumento` (historial natural en expediente) | carta-comision.controller (nombre con fecha) |
-| P-11 | Versionado de plantillas email — `version Int` se incrementa al editar `cuerpo_html`; versión anterior guardada en `historial Json[]` (máx. últimas 10) | Migración + campanas.service (updatePlantilla) |
-| P-16 | Auditoría de importaciones — `importPropiedades()` crea `AuditLog` con `payload_cambio.origen = "Importación masiva"` y nombre del archivo | import.service (fire-and-forget AuditLog) |
-| F-01 | Alertas de acceso sospechoso — implementado como parte del bloqueo progresivo (3/6/9 intentos se registran en AuditLog con `resultado: FALLIDO`); banner de cuentas bloqueadas visible al Admin | auth.service auditLog en cada intento fallido |
-| F-05 | Archivado de audit_logs — `AuditArchiveScheduler` (cron 1° de cada mes 2am); exporta lote de hasta 5000 registros >12 meses a JSON en storage; marca `archivado=true/archivado_url/archivado_at` | Migración + audit-archive.scheduler + audit.module |
-| F-10 | Street View en portal — iframe embed Google Maps en `PortalDetailPage` CRM web; visible si `VITE_GOOGLE_MAPS_KEY` configurado | PortalDetailPage.tsx (iframe condicional) |
-| F-11 | Puntos de interés cercanos — `NearbyPlaces.tsx` en portal Next.js; Overpass API sin API key; escuelas, hospitales, supermercados, farmacias, bancos en 1.2 km | portal/components/NearbyPlaces.tsx + portal/propiedades/[id]/page.tsx |
-| F-18 | @Menciones en notas — sintaxis `@[Nombre Apellido]`; `InteraccionesService` parsea menciones, busca usuarios activos del tenant, crea notificación tipo `MENCION` | Migración (menciones Json) + interacciones.service + interacciones.module + TimelineModal hint |
-| F-21 | Fotos en reporte de visita — campo `fotos_visita Json` en `Visita`; `ReporteVisitaDto` acepta `fotosVisita: string[]`; input URL + preview thumbnails en ReporteModal | Migración + visitas/dto + visitas.service + AgendaPage |
-| F-22 | Mapa de calor — `GET /api/bi/heatmap` devuelve coordenadas + peso (leads/propiedad); tab "🗺️ Mapa de calor" en BiPage con Mapbox GL heatmap layer | bi.service + bi.controller + BiPage (HeatmapTab) |
+**Estado actual:** No existe el concepto de oferta competitiva. El sistema tiene un guard que bloquea al JUNIOR de mover un trámite a GANADO, pero no hay restricción específica para "ofertar en propiedad en negociación" ni lógica de trámites paralelos competitivos. | §11 CA-2
 
 ---
 
-## Migraciones aplicadas (28-may-2026)
+### 1.2 Disparadores de email automáticos configurables (§14 CA-2)
 
-| Migración | Cambios |
-|:----------|:--------|
-| `20260528100000_alta_prioridad` | `tenants`: `color_primario/secundario/acento`; `cliente_propiedades`: `cierre_documentos`; `config_integraciones`: `carta_logo_url`, `carta_clausulas_custom`; índice `idx_users_bloqueado_hasta` |
-| `20260528200000_media_prioridad` | `config_seguridad`: `modo_asignacion_leads VARCHAR(20) DEFAULT 'Manual'` |
-| `20260528300000_baja_prioridad` | `visitas`: `fotos_visita`; `interacciones`: `menciones`; `propiedad_imagenes`: `thumbnail_url`, `original_url`; `email_plantillas`: `version`, `historial`; `audit_logs`: `archivado`, `archivado_url`, `archivado_at`; `users`: `password_expiry_warned` |
-| `20260528310000_add_mencion_enum` | `TipoNotificacion` enum: valor `MENCION` agregado |
+El requerimiento pide que los agentes puedan configurar disparadores de correo según eventos del sistema:
+
+- `on_nuevo_interesado` → Envía bienvenida al cliente
+- `on_cambio_estado` → Notifica al cliente sobre cambio de estado del trámite
+- `on_propiedad_nueva_match` → Alerta a clientes con preferencias coincidentes
+- `on_cita_agendada` → Confirmación + enlace de reprogramación
+- `on_inactividad` → Email de re-engagement al lead inactivo
+
+**Estado actual:** Los emails hardcoded existen (EN_NEGOCIACION, GANADO, PERDIDO al cliente; matching al publicar propiedad; confirmación de visita). Sin embargo **no hay módulo de automatización configurable** donde el agente/Admin pueda activar/desactivar o personalizar triggers por empresa. Son comportamientos fijos en el código. | §14 CA-2
 
 ---
 
-## Notas de cierre
+### 1.3 Preferencias de notificación por usuario y canal (§17.1 CA-5 / §16 CA-4)
 
-### F-01 — Alertas de acceso sospechoso
-El requerimiento original pedía notificación proactiva por email ante intentos fallidos. La implementación actual registra cada intento fallido en `audit_logs` (con IP, user-agent y resultado `FALLIDO`) y el panel de auditoría del Admin es consultable. El bloqueo progresivo (3/6/9 intentos) es la mitigación principal. La notificación por email ante acceso desde nueva IP/dispositivo no fue implementada como correo proactivo al usuario, pero el Admin puede detectarlo en el log de auditoría y en la pantalla de usuarios bloqueados. Se considera aceptado con el nivel de seguridad actual.
+El requerimiento exige que cada usuario pueda configurar individualmente qué notificaciones recibe y por qué canal: **Push, Email, Solo in-app, Desactivada**. Esto aplica también en la app móvil.
 
-### Estado `BORRADOR` vs. `Nuevo` (RN-06)
-El requerimiento define que el estado inicial `Nuevo` debe transitar automáticamente a `Disponible` a los 7 días. La implementación usa `BORRADOR` como estado inicial (sin cron de transición automática). Esta divergencia de nomenclatura no fue corregida ya que requeriría migrar datos existentes y cambiar la lógica de publicación en el portal. Se documenta como decisión de diseño intencional: `BORRADOR` es el equivalente funcional de `Nuevo` en el sistema implementado.
+**Estado actual:** No existe tabla de preferencias de notificación. Todas las notificaciones se crean siempre como in-app. No hay pantalla de configuración de alertas ni en el CRM web ni en la app móvil. | §17.1 CA-5 / §16 CA-4
+
+---
+
+### 1.4 Zillow como portal de sindicación (§16 CA-1)
+
+El requerimiento menciona tres portales: **Zillow, MercadoLibre, Encuentra24**.
+
+**Estado actual:** Solo están implementados MercadoLibre y Encuentra24. Zillow no tiene integración. | §16 CA-1
+
+---
+
+### 1.5 Frecuencia de sincronización configurable por portal (§16 CA-1)
+
+El req pide que el Admin pueda configurar la frecuencia de sincronización por portal: **Tiempo real, cada hora, diario**.
+
+**Estado actual:** No hay scheduler de sincronización periódica. La sindicación es 100% manual: el agente publica o retira desde la UI. No existe cron ni configuración de intervalo. | §16 CA-1
+
+---
+
+## 2. Implementación parcial o discrepancia
+
+### 2.1 Alertas de acceso sospechoso por email (§3 CA-4)
+
+**Requerimiento:** El sistema debe enviar un correo automático al usuario cuando haya intentos de login fallidos o acceso desde dispositivos/ubicaciones nuevas.
+
+**Implementado:** Los intentos fallidos se registran en `audit_logs` con IP y user-agent. El Admin puede verlos en `AuditPage`. El bloqueo progresivo (3/6/9 intentos) está activo.
+
+**Brecha:** No se envía ningún email proactivo al usuario afectado. Solo el Admin puede detectar el evento leyendo los logs. | §3 CA-4
+
+---
+
+### 2.2 Segundo factor real en reset de contraseña (§3 Épica 2 CA-4)
+
+**Requerimiento:** Para restablecer contraseña, el usuario debe confirmar su email Y pasar una verificación adicional (pregunta de seguridad o código SMS).
+
+**Implementado:** El flujo de reset usa enlace por email (30 min, un solo uso). Si el usuario tiene 2FA activo, `ResetPasswordPage` solicita el código TOTP como segundo factor.
+
+**Brecha:** El TOTP como segundo factor solo aplica a usuarios con 2FA ya configurado. No existe pregunta de seguridad ni envío de código por SMS como factores alternativos para usuarios sin 2FA. | §3 Épica 2 CA-4
+
+---
+
+### 2.3 Auto-transición BORRADOR → DISPONIBLE a los 7 días (§6 CA-3 / RN-06)
+
+**Requerimiento:** El estado inicial `Nuevo` dura 7 días y luego transita automáticamente a `Disponible`.
+
+**Implementado:** El estado inicial es `BORRADOR` (equivalente funcional a "Nuevo"). No existe cron que transite de `BORRADOR` a `DISPONIBLE` automáticamente tras 7 días.
+
+**Brecha:** Divergencia de nomenclatura (BORRADOR vs. Nuevo) y ausencia del scheduler de transición automática. La propiedad permanece en BORRADOR indefinidamente hasta que el agente la cambia manualmente. | §6 CA-3 / RN-06
+
+---
+
+### 2.4 Tipos automáticos en timeline de interacciones (§12 CA-1)
+
+**Requerimiento:** La línea de tiempo debe incluir entradas automáticas de tipo: `Cambio de estado`, `Cita agendada`, `Documento adjunto`, `Acción del sistema`.
+
+**Implementado:** El timeline muestra interacciones manuales registradas por el agente (llamadas, emails, notas, WhatsApp). El pipeline sí registra cambios de estado como notificaciones, pero no como entradas del timeline/interacción vinculadas al trámite.
+
+**Brecha:** Los cambios de estado del pipeline, las citas agendadas y los documentos adjuntos no generan automáticamente una entrada en la tabla `interacciones` del trámite. El agente debe registrar todo manualmente. | §12 CA-1
+
+---
+
+### 2.5 Score de interacción incompleto (§15 CA-2)
+
+**Requerimiento:** Algoritmo exacto: `Vistas web (1pt) + Favoritos (2pts) + Correos abiertos (2pts) + Llamadas registradas (3pts) + Citas agendadas (5pts) + Ofertas recibidas (10pts)`.
+
+**Implementado:** El ranking de agentes usa: `ganados×100 + visitas×15 + interacciones×5 + bonus_conversión`. El tab "Top Propiedades" cuenta `leads + visitas + interacciones + descargas brochure`.
+
+**Brecha:** Ningún score incluye **Favoritos (2pts)** ni **Correos abiertos (2pts)**. La fórmula del ranking de agentes no coincide con la especificada. Los favoritos existen en BD pero no se contabilizan en ningún score de BI. | §15 CA-2
+
+---
+
+### 2.6 Panel "Mis búsquedas guardadas" en portal cliente (§10 CA-2)
+
+**Requerimiento:** El panel "Mi cuenta" del cliente debe incluir: Mis trámites, **Mis favoritos, Mis búsquedas guardadas**, Mis citas.
+
+**Implementado:** `MiCuentaClient.tsx` muestra: trámites activos, favoritos e historial de visitas. No existe una sección de "Mis búsquedas guardadas" donde el cliente pueda ver y gestionar búsquedas de filtros que guardó previamente.
+
+**Brecha:** La funcionalidad de guardar búsquedas/filtros como entidad separada no existe. Las preferencias generales (tipo, zona, presupuesto) sí se almacenan en el modelo `Cliente`, pero el cliente no puede guardar/nombrar/eliminar búsquedas específicas desde el portal. | §10 CA-2
+
+---
+
+### 2.7 Campo `superficie_min_m2` en preferencias del cliente (§10 tabla preferencias)
+
+**Requerimiento:** El modelo de preferencias del cliente incluye `superficie_min_m2 (Decimal, Metros cuadrados mínimos)`.
+
+**Implementado:** El modelo `Cliente` tiene: `tipo_interes`, `gestion_interes`, `presupuesto_max`, `zona_interes`, `habitaciones_min`. No tiene `superficie_min_m2`.
+
+**Brecha:** El campo de metros cuadrados mínimos como preferencia de búsqueda no está en el schema ni en los formularios. | §10 tabla
+
+---
+
+### 2.8 Historial de versiones de plantillas sin autoría (§14 CA-3)
+
+**Requerimiento:** "Las plantillas deben tener un historial de versiones (quién cambió qué y cuándo)."
+
+**Implementado:** Al editar `cuerpo_html`, `campanas.service.ts` guarda la versión anterior en `historial Json[]` con: `{ version, asunto, cuerpo_html, guardado_at }`.
+
+**Brecha:** El historial **no registra quién hizo el cambio** (`changed_by` / `usuario_id` del editor). Solo guarda el contenido anterior y la fecha, no la identidad del modificador. | §14 CA-3
+
+---
+
+### 2.9 Límite de importación de propiedades: 200 vs. 500 (§17.3 CA-5)
+
+**Requerimiento:** "Máximo 500 registros por archivo de importación."
+
+**Implementado:** `import.service.ts` tiene `MAX_CLIENTES = 500` pero `MAX_PROPIEDADES = 200`.
+
+**Brecha:** El límite para importación de propiedades es 200, no 500 como especifica el requerimiento. | §17.3 CA-5
+
+---
+
+## 3. Observaciones adicionales
+
+### Estado BORRADOR vs. Nuevo (decisión de diseño)
+
+El sistema implementa `BORRADOR` como estado inicial en lugar de `Nuevo`. Esto es una decisión de diseño intencional que afecta también la lógica de publicación en el portal: el portal solo muestra propiedades en `DISPONIBLE`. Si se implementara la auto-transición BORRADOR→DISPONIBLE (brecha 2.3), la nomenclatura divergente quedaría resuelta funcionalmente aunque no semánticamente.
+
+### Contadores de visitas web en portal
+
+El score de interacción incluye `visitas_web (1pt)` pero el portal Next.js no registra un contador de vistas por propiedad al cargar el detalle. Solo se almacenan leads, visitas de agenda y descargas de brochures.
+
+---
+
+## 4. Priorización sugerida
+
+### Alta (impacto en lógica de negocio crítica)
+- **§11 CA-2** — Oferta competitiva: lógica de concurrencia de negociaciones no implementada
+- **§14 CA-2** — Disparadores de email configurables: sin módulo de automatización de marketing
+
+### Media (mejoran experiencia y conformidad con req)
+- **§6 CA-3** — Auto-transición BORRADOR→DISPONIBLE (scheduler de 7 días)
+- **§12 CA-1** — Entradas automáticas en timeline (cambios de estado, citas, documentos)
+- **§15 CA-2** — Score de interacción completo (sumar favoritos y correos abiertos)
+- **§17.1 CA-5** — Preferencias de notificación por usuario y canal
+
+### Baja (detalles o integraciones opcionales)
+- **§3 CA-4** — Email de alerta por acceso sospechoso
+- **§3 Épica 2 CA-4** — Segundo factor real en reset (SMS o pregunta de seguridad)
+- **§10 CA-2** — "Mis búsquedas guardadas" + `superficie_min_m2` en preferencias
+- **§14 CA-3** — Registrar quién modificó la plantilla en el historial de versiones
+- **§16 CA-1** — Zillow como portal de sindicación
+- **§16 CA-1** — Frecuencia de sincronización configurable por portal
+- **§16 CA-4** — Centro de notificaciones configurable en app móvil
+- **§17.3 CA-5** — Límite importación propiedades: subir de 200 a 500
