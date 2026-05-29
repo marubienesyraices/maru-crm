@@ -1,9 +1,9 @@
 # Estado del Proyecto — CRM GestProp
 
-> **Fecha de revisión:** 24 de mayo de 2026
+> **Fecha de revisión:** 28 de mayo de 2026
 > **Rama:** master
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
-> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ 100% · Fase 3 ✅ 100% · Fase 4 ✅ 100% · Fase 5 ✅ 100% · **Sistema de Planes ✅ 100%**
+> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ · Fase 3 ✅ · Fase 4 ✅ · Fase 5 ✅ · Planes ✅ · **Cierre de Brechas ✅ 100%**
 
 ---
 
@@ -35,7 +35,7 @@
 | Autenticación email/password + JWT (HU-02.01) | ✅ Completo | Access 15 min + refresh 7 d; máx. 2 sesiones concurrentes |
 | 2FA con TOTP (HU-02.01) | ✅ Completo | Setup + confirm + verify; QR OTPAuth; validado en login |
 | Geocerca y whitelist IP/país (HU-02.01) | ✅ Completo | `validateGeofence()` con geoip-lite; configurable por tenant |
-| Bloqueo progresivo de intentos fallidos (HU-02.01) | ✅ Completo | 5 intentos → bloqueo escalable |
+| Bloqueo progresivo de intentos fallidos (HU-02.01) | ✅ Completo | 3→15 min, 6→1 h, 9+→bloqueo permanente hasta desbloqueo manual Admin (`POST /api/users/:id/desbloquear`) |
 
 ### Sprint 2 — Seguridad y Estructura
 
@@ -47,7 +47,7 @@
 | Jerarquía organizacional árbol auto-referencial (HU-04.01) | ✅ Completo | CTEs recursivos; endpoints `downline` y `upline` |
 | RBAC con guards por ruta (HU-04.01) | ✅ Completo | `JwtAuthGuard`, `RolesGuard`, `VisibilityGuard` |
 | Visibilidad recursiva JUNIOR/SENIOR/ADMIN (HU-04.01) | ✅ Completo | Filtrado automático por posición en el árbol |
-| Tests unitarios ≥ 70% cobertura | ✅ Completo | **144 tests** en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, audit 4, tenants 3, roles.guard 3, interacciones 8, visitas 15 + 2 más) |
+| Tests unitarios ≥ 70% cobertura | ✅ Completo | **146 tests** en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, propietarios 10, audit 4, tenants 3, roles.guard 3, interacciones 8, visitas 15 + 2 más) |
 | CI/CD pipeline GitHub Actions | ✅ Completo | generate Prisma → lint → build API+web → test con coverage; artefacto 7 días |
 
 **✅ Fase 1 completa al 100%.**
@@ -65,7 +65,7 @@
 | CRUD de propiedades (tipo, gestión, precios, estados) (HU-05.01) | ✅ Completo | Código auto-generado; 9 tipos, 3 gestiones; `GET /api/propiedades/stats` |
 | Ciclo de vida / máquina de estados (HU-05.01) | ✅ Completo | `TRANSICIONES_VALIDAS`; 7 estados; validación estricta |
 | **Motor de precios sugerido con PostGIS (HU-05.01)** | ✅ **Completo** | Migración `enable_postgis` + índice GIST parcial; `GET /api/propiedades/precio-sugerido`; IDW por distancia inversa; fallback por departamento; confianza ALTA/MEDIA/BAJA; card en `PropertyFormPage` Step 2 con botón "Aplicar" |
-| Carga multimedia — upload a R2/local (HU-05.02) | ✅ Completo | Hasta 10 archivos; `StorageService` (local o R2); memoryStorage |
+| Carga multimedia — upload a R2/local (HU-05.02) | ✅ Completo | Hasta 30 imágenes / 3 videos; `StorageService` (local o R2); genera thumbnail 300×200 (`thumbnail_url`) + conserva original (`original_url`) vía `processImageFull()` |
 | **Geolocalización con Mapbox / Google Geocoding (HU-05.02)** | ✅ **Completo** | Frontend: `PropertyFormPage` — inputs lat/lng + botón "🎯 Geocodificar" (Mapbox v5) + preview mapa estático. Backend: `PropiedadesService.geocodeFromDto()` auto-geocodifica en create/update si no hay coords; requiere `MAPBOX_TOKEN` (servidor) y `VITE_MAPBOX_TOKEN` (browser) |
 | Galería interactiva con lightbox (HU-05.02) | ✅ Completo | `ImageUpload.tsx`; teclado ←→Esc; drag & drop; set portada |
 | **Compresión de imágenes y marca de agua (HU-05.02)** | ✅ **Completo** | `ImageService` + `sharp`; redimensiona a máx. 2 000 px; JPEG calidad 82 progresivo; superpone nombre del tenant (SVG) en esquina inferior-derecha; fallback silencioso si sharp falla |
@@ -77,7 +77,7 @@
 | CRUD de propietarios (HU-05.03) | ✅ Completo | DPI único por tenant; búsqueda case-insensitive |
 | Expediente legal — upload tipificado (HU-05.03) | ✅ Completo | 7 tipos de documento; fecha emisión/vencimiento; max 20 MB |
 | Alertas de vencimiento de documentos (HU-05.03) | ✅ Completo | Cron diario 8 am; `DOCUMENTO_POR_VENCER` y `DOCUMENTO_VENCIDO`; deduplicación |
-| Carta de comisión PDF server-side (HU-05.03) | ✅ Completo | pdfkit; datos propietario, agente, tenant, comisión, vigencia 6 meses |
+| Carta de comisión PDF server-side (HU-05.03) | ✅ Completo | pdfkit; color, logo, cláusulas y tagline configurables por tenant; nombre incluye fecha para historial de versiones natural |
 | Brochure de propiedad PDF (HU-05.04) | ✅ Completo | pdfkit; lógica extraída a `BrochureService.generateBuffer()` |
 | **Generación de brochure vía BullMQ worker (HU-05.04)** | ✅ **Completo** | `BrochureProcessor` (BullMQ); `POST /brochure` encola → worker genera PDF → sube a Storage → actualiza `brochure_jobs`; frontend muestra spinner y descarga automáticamente; tracking en `brochure_descargas`; 3 reintentos con backoff exponencial |
 | **Distribución multicanal — WhatsApp API, tracking (HU-05.04)** | ✅ **Completo** | `WhatsappModule`; Cloud API (upload media → send document) si `WHATSAPP_API_TOKEN`+`WHATSAPP_PHONE_NUMBER_ID`; fallback `wa.me` link; tabla `whatsapp_envios` (status ENVIADO/FALLIDO/LINK); botón "📲 WhatsApp" en `PropertyDetailPage` con modal: teléfono, mensaje opcional, resultado, historial de 8 envíos |
@@ -195,6 +195,8 @@
 | Pantalla / Componente | Estado | Notas |
 |:----------------------|:-------|:------|
 | LoginPage | ✅ Funcional | Email + password; manejo de `requires2FA` |
+| ForgotPasswordPage | ✅ Funcional | Solicitud de reset por email; ruta `/forgot-password` |
+| ResetPasswordPage | ✅ Funcional | Nueva contraseña; step TOTP dinámico si usuario tiene 2FA activo |
 | Verify2FAPage | ✅ Funcional | TOTP de 6 dígitos; usa `tempToken` |
 | DashboardPage | ✅ Funcional | KPIs + 4 gráficas; skeleton loaders |
 | PropertiesListPage | ✅ Funcional | Filtros por estado/tipo/zona; paginación |
@@ -203,19 +205,24 @@
 | ClientsListPage | ✅ Funcional | Grid de tarjetas; filtros; paginación |
 | ClientFormPage | ✅ Funcional | Crear y editar; preferencias de búsqueda |
 | ClientDetailPage | ✅ Funcional | Preferencias; matching de propiedades; botón "+ Nuevo Trámite" con modal |
-| PipelinePage | ✅ Funcional | Kanban D&D; modal PERDIDO; colores de columna |
-| AgendaPage | ✅ Funcional | Vista semanal 7 columnas; crear/editar visita; descarga .ics |
-| TimelineModal | ✅ Funcional | Drawer con tabs: Interacciones (formulario + lista) y Visitas (formulario inline + lista + ICS) |
+| PipelinePage | ✅ Funcional | Kanban D&D; modal PERDIDO; modal CIERRE (documentos obligatorios); colores de columna; 7 estados incl. CIERRE |
+| AgendaPage | ✅ Funcional | Vista semanal 7 columnas; crear/editar visita; descarga .ics; ReporteModal con fotos (URLs) + botón "Enviar al propietario" |
+| TimelineModal | ✅ Funcional | Drawer con tabs: Interacciones (formulario + lista, hint @[Nombre] para menciones) y Visitas (formulario inline + lista + ICS) |
 | AdminTenantsPage | ✅ Funcional | Solo SUPER_ADMIN; CRUD de empresas |
-| AdminUsersPage | ✅ Funcional | Crear/editar; selector de supervisor |
-| ImageUpload | ✅ Funcional | Multi-upload; lightbox; reorder; set portada; marca de agua y compresión server-side via `ImageService` |
+| AdminUsersPage | ✅ Funcional | Crear/editar; selector supervisor; modal reasignación masiva 🔀; botón desbloqueo 🔓; reset 2FA 🔄; badge 🔒 cuentas bloqueadas |
+| OrgChartPage | ✅ Funcional | Organigrama visual interactivo con expand/collapse por nodo, colores por rol; ruta `/admin/organigrama` |
+| AuditPage | ✅ Funcional | Logs filtrados por módulo/acción/entidad/fecha; filas expandibles con JSON diff; export CSV; paginación; ruta `/admin/auditoria` |
+| HorariosPage | ✅ Funcional | CRUD de horarios laborales del agente por franja horaria; ruta `/horarios` |
+| TareasPage | ✅ Funcional | Panel To-Do con CRUD completo, prioridades, estados, filtros; ruta `/tareas` |
+| ImageUpload | ✅ Funcional | Multi-upload; lightbox; reorder D&D; set portada; thumbnail + original generados server-side |
 | DocumentUpload | ✅ Funcional | Upload tipificado; fechas; notas |
-| NotificationBell | ✅ Funcional | Badge 99+; dropdown; polling 60 s; 5 tipos |
-| BiPage (Reportes) | ✅ Funcional | 4 tabs: Resumen (KPIs + embudo), Agentes (tabla sortable + XLSX), Top Propiedades, Productividad (contador por tipo + sparkline SVG); date picker de período |
+| NotificationBell | ✅ Funcional | Badge 99+; dropdown; polling 60 s; tipos incl. MENCION y PROPIEDAD_ESTANCADA |
+| BiPage (Reportes) | ✅ Funcional | 6 tabs: Resumen, Agentes (XLSX), Top Propiedades, Productividad, 💰 Comisiones (proyectadas vs realizadas), 🗺️ Mapa de calor (Mapbox GL heatmap); botón 🖨️ PDF; date picker |
 | RankingPage | ✅ Funcional | Podio top-3 (oro/plata/bronce), leaderboard completo, 7 badges gamificados, vista anónima para JUNIOR/SENIOR |
-| CampanasPage | ✅ Funcional | 2 tabs: Plantillas (CRUD + preview HTML en iframe) y Campañas (crear, filtrar por rol, enviar, stats apertura); solo ADMIN/SUPER_ADMIN |
-| MetaPage | ✅ Funcional | Publicar en Meta; 2 tabs: Listado (badge estado, publicar/eliminar) y Nueva publicación (plataforma, propiedad, ✨ auto-texto, preview live, borrador/programar/publicar inmediato); aviso si Meta no configurado; solo ADMIN/SUPER_ADMIN |
-| AppLayout / ProtectedRoute | ✅ Funcional | Sidebar; rutas protegidas por JWT; "Campañas" ✉️ y "Publicar en Meta" 📢 en sección admin; "Reportes" + "Ranking" ⭐ |
+| CampanasPage | ✅ Funcional | 2 tabs: Plantillas (CRUD + preview + versionado: campo `version` + `historial`) y Campañas; solo ADMIN/SUPER_ADMIN |
+| MetaPage | ✅ Funcional | Publicar en Meta; 2 tabs; aviso si Meta no configurado; solo ADMIN/SUPER_ADMIN |
+| SettingsPortalPage | ✅ Funcional | Apariencia (identidad visual + **pickers de color** primario/secundario/acento + logo); carta de comisión (color, tagline, **logo URL**, **cláusulas personalizadas**); portal; chatbot; SEO |
+| AppLayout / ProtectedRoute | ✅ Funcional | Sidebar; JWT; **inactividad 30 min** (`useInactivityLogout`); **banner de expiración de contraseña** (P-02); colores de marca del tenant aplicados como CSS vars `--brand-primary/secondary/accent` |
 
 ### Portal Público (`portal/` — Next.js 14, paquete workspace `@gestprop/portal`)
 
@@ -232,16 +239,18 @@
 | **Registro de cuenta de cliente (HU-06.02)** | ✅ **Completo** | `RegistroInteresForm` en contact card de `/propiedades/[id]`; formulario 'use client' con nombre/email/teléfono/mensaje; `POST /api/public/registro` con `propiedad_id`; página `/verificar` (shell SSR + `VerificarClient` con `useSearchParams`); email apunta a `PORTAL_URL/verificar?token=` si se configura `PORTAL_URL` |
 | **Alertas de matching por email al cliente (HU-06.02)** | ✅ **Completo** | Email automático al cliente al publicar propiedad compatible |
 | **Verificación de email (HU-06.02)** | ✅ **Completo** | `/verificar?token=` — `VerificarClient` auto-llama `POST /api/public/verificar-email`; estados: cargando / éxito (con nombre) / error / token ausente |
-| **Chatbot de captura de leads (HU-10.03)** | ✅ **Completo** | `ChatbotWidget` en `layout.tsx`; árbol de decisión 10 pasos; `POST /api/public/chatbot-lead` |
+| **Chatbot de captura de leads (HU-10.03)** | ✅ **Completo** | `ChatbotWidget` en `layout.tsx`; árbol de decisión 10 pasos; `POST /api/public/chatbot-lead`; asignación RoundRobin/MenosCarga/Manual según `modo_asignacion_leads` |
 | **Registro de interés — componente (HU-06.02)** | ✅ **Completo** | `RegistroInteresForm` — formulario colapsable 'use client'; nombre/email/teléfono/mensaje; estados idle/loading/done/error |
 | **Verificación de cuenta — página (HU-06.02)** | ✅ **Completo** | `app/verificar/page.tsx` (SSR + Suspense) + `VerificarClient.tsx` ('use client'); auto-llama `POST /api/public/verificar-email` al montar |
+| **Mi Cuenta del cliente (HU-06.02)** | ✅ **Completo** | `MiCuentaClient.tsx` — magic link + **Google OAuth** (GSI script, botón Sign in with Google si `NEXT_PUBLIC_GOOGLE_CLIENT_ID`); dashboard con trámites activos, favoritos ♥, visitas próximas (Zoom link), historial |
+| **Puntos de interés cercanos (F-11)** | ✅ **Completo** | `NearbyPlaces.tsx` — Overpass API (sin API key); escuelas, hospitales, supermercados, farmacias, bancos en 1.2 km; agrupados por categoría |
 
 ### Páginas Públicas en CRM web (`web/` — React, rutas `/portal/*`)
 
 | Página | Ruta | Estado | Notas |
 |:-------|:-----|:-------|:------|
 | PortalPage | `/portal` | ✅ Funcional | Catálogo público; filtros; mapa Mapbox |
-| PortalDetailPage | `/portal/:id` | ✅ Funcional | Detalle de propiedad; modal "Registrar interés" |
+| PortalDetailPage | `/portal/:id` | ✅ Funcional | Detalle de propiedad; modal "Registrar interés"; Street View embed (requiere `VITE_GOOGLE_MAPS_KEY`) |
 | PortalVerifyPage | `/portal/verificar` | ✅ Funcional | Verifica token de email; activa `ClientePropiedad` |
 | PortalReprogramarPage | `/portal/reprogramar/:token` | ✅ Funcional | Confirmar / proponer nueva fecha / cancelar visita |
 
@@ -338,23 +347,25 @@
 
 ---
 
-## Inventario Técnico (estado 8-may-2026)
+## Inventario Técnico (estado 28-may-2026)
 
 | Capa | Artefacto | Cantidad |
 |:-----|:----------|:--------:|
-| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal**, **config-integraciones** | 29 |
-| API — controladores | auth, users, tenants, audit, propiedades (+precio-sugerido), upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal, import, campanas (plantillas + campanas), email-tracking, bi, meta, sindicacion, firma-digital, videollamadas, **catalogo-planes**, **config-portal** (privado+público), **config-integraciones** | 29 |
-| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad, AuditLog, Propiedad, PropiedadImagen, PropiedadDocumento, Cliente (`es_propietario`, `nit`, `direccion`), ClientePropiedad, Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, **CatalogoPlan** | 22 |
-| BD — enums | Plan (FREE/BASIC/PRO/ENTERPRISE), EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
-| Frontend — páginas CRM | Login, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline, Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi, Campanas, Ranking, Meta, AdminTenants, AdminUsers, **AdminPlanes**, Settings (Portal, Integraciones, Perfil), Help | 26 |
-| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + `RegistroInteresForm`), `/verificar` (activación de cuenta) | 3 |
-| Tests unitarios | 146 tests en 13 suites (auth 17, propiedades 20, pipeline 16, clientes 11, users 11, interacciones 8, visitas 15, audit 4, tenants 3, roles.guard 3, OWASP security 1, + 2 más) | 146 |
-| Tests E2E Cypress | 6 suites en `web/cypress/e2e/`: 01-auth, 02-propiedades, 03-pipeline, 04-agenda, 05-clientes, 06-busqueda-global; comandos `loginAs`/`logout`; integrado en CI | 6 |
-| Tests de carga k6 | `infra/k6/`: auth.js (50 VU), pipeline.js (50 VU), portal-publico.js (100 VU); umbrales p95 < 500ms | 3 |
-| Tests de seguridad OWASP | `api/src/__tests__/security/owasp.security.spec.ts` — A01 (acceso/JWT/IDOR), A02, A03 (SQL/proto), A05, A06 (versiones), A07 (alg:none/brute), A09 | 1 suite |
-| Infraestructura Docker | `api/Dockerfile`, `web/Dockerfile`, `portal/Dockerfile` multi-stage; `docker-compose.prod.yml` (7 servicios); `infra/nginx/nginx.conf`; `infra/backup/backup.sh` | — |
-| App móvil | `mobile/` — Expo Router; 5 pantallas (Login, Verify2FA, Dashboard, Propiedades, Agenda); push service FCM/APNs; offline cache AsyncStorage (`cacheStore.ts`) con stale-while-revalidate | — |
-| PostGIS / Spatial | Migración `20260507100000_enable_postgis`; extensión `postgis`; índice GIST parcial `idx_propiedades_geom`; endpoint `GET /api/propiedades/precio-sugerido`; IDW por distancia inversa; fallback por departamento | — |
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones, **tareas**, **horarios** | 31 |
+| API — controladores | auth, users, tenants, audit, propiedades, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal (`google-auth`, magic link, favoritos, horarios cliente), import, campanas, email-tracking, bi (+heatmap, +comisiones), meta, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones | 31 |
+| API — schedulers | VisitasScheduler, PipelineScheduler (inactividad + timeout 30d), DocumentosScheduler, PropiedadesScheduler (estancadas 30/45/60d), **PasswordExpiryScheduler** (aviso 90d), **AuditArchiveScheduler** (mensual) | 6 |
+| BD — modelos Prisma | Tenant (`color_primario/secundario/acento`), User (`password_expiry_warned`), Session, ConfigSeguridad (`modo_asignacion_leads`), AuditLog (`archivado/archivado_url`), Propiedad, PropiedadImagen (`thumbnail_url`, `original_url`), PropiedadDocumento, Cliente, ClientePropiedad (`cierre_documentos`), Interaccion (`menciones`), Visita (`fotos_visita`), Notificacion, EmailPlantilla (`version`, `historial`), EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, CatalogoPlan, **Tarea**, **HorarioLaboral**, **Favorito** | 25 |
+| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion (**+MENCION**, +PROPIEDAD_ESTANCADA, +NEGOCIACION_TIMEOUT), OrigenCliente, EstadoInteres (+CIERRE), NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
+| BD — migraciones nuevas (28-may) | `20260528100000_alta_prioridad` (colores tenant, cierre_documentos, carta logo/clausulas, idx_users_bloqueado), `20260528200000_media_prioridad` (modo_asignacion_leads), `20260528300000_baja_prioridad` (fotos_visita, menciones, thumbnail/original_url, version+historial plantillas, archivado audit, password_expiry_warned), `20260528310000_add_mencion_enum` | 4 |
+| Frontend — páginas CRM | Login, **ForgotPassword**, **ResetPassword**, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline (+CierreModal), Agenda (+fotos+envío propietario), Portal, PortalDetail (+Street View), PortalVerify, PortalReprogramar, Import, Bi (6 tabs), Campanas, Ranking, Meta, AdminTenants, AdminUsers (+unlock+reset2FA+reasignar), **OrgChart**, **Audit**, **Horarios**, **Tareas**, AdminPlanes, Settings (Portal, Integraciones+carta custom, Perfil), Help | 33 |
+| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + NearbyPlaces + RegistroInteresForm), `/verificar`, `/mi-cuenta` (MiCuentaClient + Google OAuth) | 4 |
+| Tests unitarios | 146 tests en 13 suites | 146 |
+| Tests E2E Cypress | 6 suites integradas en CI | 6 |
+| Tests de carga k6 | 3 scripts (auth, pipeline, portal-publico); p95 < 500ms | 3 |
+| Tests de seguridad OWASP | A01/A02/A03/A05/A06/A07/A09 | 1 suite |
+| Infraestructura Docker | Dockerfiles multi-stage; `docker-compose.prod.yml`; nginx; backup.sh | — |
+| App móvil | `mobile/` — Expo Router; 5 pantallas; push FCM/APNs; offline AsyncStorage | — |
+| PostGIS / Spatial | Extensión + índice GIST + precio sugerido IDW + heatmap `/api/bi/heatmap` | — |
 
 ---
 
@@ -401,7 +412,7 @@
 - ~~**Migración de datos one-shot**~~ ✅ — Script `api/prisma/scripts/migrate-maru-data.ts`; ejecutar con `npm run db:migrate-data` desde `api/`; 15 propiedades importadas (CASA-0016…LOCA-0030); clientes ya existían en el tenant demo
 - **Rename rol DB en producción** — ejecutar `ALTER ROLE gestprop_app RENAME TO gestprop_app` en la BD de prod
 
-> **Estado actual (24-may-2026):** Sistema completo. Unificación cliente/propietario aplicada. Nombre de sistema corregido a GestProp. 146 tests pasando.
+> **Estado actual (28-may-2026):** Sistema completo. Todas las brechas de requerimientos cerradas (27 → 0). 146 tests pasando. Ver `faltantes.md` para detalle.
 
 ### Completado en sesión 9-may-2026 (continuación)
 - ~~**RLS policies para nuevas tablas**~~ ✅ Completado — `migration_v2.sql` creado y aplicado en BD; 22 tablas con RLS activo (13 con `tenant_id` directo + 5 hijas vía subquery + 4 de Fase 1); migraciones Prisma pendientes aplicadas (`whatsapp_envios`, `meta_publicaciones`, `sindicacion_publicaciones`, `firma_solicitudes`, BI indexes); migration file faltante `20260503100000_add_reporte_visita` restaurado
@@ -441,3 +452,45 @@
 - ~~**`users.service.ts`: tenantId en activation emails**~~ ✅ — `create()` pasa `tenantId`; `createAdmin()` pasa `dto.tenantId`
 - ~~**`visitas.service.ts`: tenantId en email de confirmación de visita**~~ ✅ — `sendVisitaEmail()` acepta `tenantId` en `info`; pasa a `sendHtml()`
 - ~~**`portal.service.ts`: tenantId en email de verificación**~~ ✅ — `sendVerificationEmail()` acepta `tenantId?` y lo pasa a `sendHtml()`; callers ya tenían `tenantId` en scope
+
+---
+
+## Cierre de Brechas vs. Requerimientos — sesión 28-may-2026
+
+> **Commit:** `b60a6fa` · 51 archivos · 4 migraciones · 27 brechas cerradas (37 → 0 pendientes)
+> Ver `faltantes.md` para el detalle completo de cada ítem.
+
+### Alta prioridad (5 ítems)
+
+- ~~**P-01 Desbloqueo manual Admin**~~ ✅ — 9+ intentos → `bloqueado_hasta = 2099`; `POST /api/users/:id/desbloquear`; badge 🔒 + botón "🔓 Desbloquear" en AdminUsersPage
+- ~~**P-07 Carta de comisión configurable**~~ ✅ — `carta_logo_url` + `carta_clausulas_custom` en `config_integraciones`; campos en Settings > Carta de Comisión; PDF usa logo y cláusulas del tenant
+- ~~**P-14 Comisiones proyectadas vs realizadas**~~ ✅ — `GET /api/bi/comisiones`; tab "💰 Comisiones" en BiPage con barra proporcional y tabla de detalle de trámites en proceso
+- ~~**P-15 Paleta de colores por empresa**~~ ✅ — Campos `color_primario/secundario/acento` en `Tenant`; CSS vars `--brand-primary/secondary/accent` aplicadas al login; pickers en Settings > Identidad Visual
+- ~~**F-16 Documentos obligatorios en CIERRE**~~ ✅ — `cierre_documentos Json` en `ClientePropiedad`; validación backend; `CierreModal` en PipelinePage exige al menos un documento
+
+### Media prioridad (7 ítems)
+
+- ~~**F-08 Reasignación masiva de subordinados**~~ ✅ — `POST /api/users/:id/reasignar-subordinados`; modal "🔀 Reasignar" en AdminUsersPage para Seniors con subordinados
+- ~~**P-09 Brochure con colores del tenant**~~ ✅ — `BrochureService` lee `tenant.color_primario` y `tenant.logo_url`; PDF adaptado al branding de la empresa
+- ~~**P-10 Resumen de visita al propietario**~~ ✅ — `POST /api/visitas/:id/resumen-propietario`; email HTML sin datos del cliente; botón "📧 Enviar al propietario" en ReporteModal (post-guardado)
+- ~~**P-12 Round Robin / Menos Carga**~~ ✅ — `modo_asignacion_leads` en `ConfigSeguridad`; chatbot asigna agente por RoundRobin (menos leads totales), MenosCarga (menos trámites activos) o Manual (notifica admins)
+- ~~**P-13 Exportar BI a PDF**~~ ✅ — Botón 🖨️ PDF en header de BiPage + `@media print` CSS oculta sidebar/tabs, muestra contenido limpio
+- ~~**F-02 2do factor en reset de contraseña**~~ ✅ — Si `totp_habilitado`, backend exige `totpCode`; retorna `{ requiresTOTP: true }`; ResetPasswordPage muestra campo TOTP dinámicamente
+- ~~**F-12 Google OAuth en portal**~~ ✅ — `POST /api/public/cliente/google-auth` verifica token con tokeninfo de Google; `MiCuentaClient` carga GSI script + botón "Sign in with Google" si `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+
+### Baja prioridad (14 ítems → 15 con split P-05+P-06)
+
+- ~~**P-02 Expiración de contraseña 90 días**~~ ✅ — `PasswordExpiryScheduler` (cron 8am, aviso 7 días antes); login devuelve `passwordExpiresIn`; banner naranja/rojo en AppLayout
+- ~~**P-03 Reset 2FA por Admin**~~ ✅ — `POST /api/users/:id/reset-2fa`; limpia `totp_secret` + `totp_habilitado=false`; botón "🔄 Resetear 2FA" en modal de edición
+- ~~**P-04 Inactividad 30 min**~~ ✅ — Hook `useInactivityLogout()` en AppLayout; `forceLogout()` tras 30 min sin `mousemove/keydown/click/scroll/touchstart`
+- ~~**P-05 Thumbnail 300×200**~~ ✅ — `ImageService.processImageFull()` genera thumbnail con Sharp (`fit: cover`); guardado en `propiedad_imagenes.thumbnail_url`
+- ~~**P-06 Imagen original intacta**~~ ✅ — Buffer original subido a storage con sufijo `_original`; URL en `propiedad_imagenes.original_url`
+- ~~**P-08 Historial de versiones carta comisión**~~ ✅ — Nombre incluye fecha del día (`— 2026-05-28`); cada generación crea un PropiedadDocumento nuevo → historial natural en expediente
+- ~~**P-11 Versionado de plantillas email**~~ ✅ — `version Int` se incrementa en cada edición de `cuerpo_html`; versión anterior guardada en `historial Json[]` (máx. últimas 10)
+- ~~**P-16 Auditoría de importaciones**~~ ✅ — `importPropiedades()` crea `AuditLog` con `payload_cambio.origen = "Importación masiva"` y nombre del archivo
+- ~~**F-05 Archivado de audit_logs**~~ ✅ — `AuditArchiveScheduler` (1° de cada mes 2am); exporta logs >12 meses a JSON en storage; marca `archivado=true/archivado_url/archivado_at`
+- ~~**F-10 Street View**~~ ✅ — Iframe embed Google Maps en `PortalDetailPage` CRM; visible si `VITE_GOOGLE_MAPS_KEY` está configurado
+- ~~**F-11 Puntos de interés cercanos**~~ ✅ — `NearbyPlaces.tsx` en portal Next.js usa Overpass API (sin API key); escuelas, hospitales, supermercados, farmacias en 1.2 km; agrupados por categoría
+- ~~**F-18 @Menciones en notas**~~ ✅ — Sintaxis `@[Nombre]`; `InteraccionesService` parsea menciones, busca usuarios activos, crea notificación tipo `MENCION`; hint en TimelineModal
+- ~~**F-21 Fotos en reporte de visita**~~ ✅ — Campo `fotos_visita Json` en `Visita`; input URL + preview thumbnails + botón eliminar en ReporteModal de AgendaPage
+- ~~**F-22 Mapa de calor**~~ ✅ — `GET /api/bi/heatmap` retorna coordenadas + peso (leads/propiedad); tab "🗺️ Mapa de calor" en BiPage con Mapbox GL heatmap layer; KPIs de propiedades y leads
