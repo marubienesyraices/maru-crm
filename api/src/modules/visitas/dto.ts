@@ -65,6 +65,9 @@ export class ReporteVisitaDto {
   @IsOptional()
   @IsString()
   siguientePaso?: string;
+
+  @IsOptional()
+  fotosVisita?: string[]; // F-21: URLs of visit photos
 }
 
 export class AccionReprogramarDto {

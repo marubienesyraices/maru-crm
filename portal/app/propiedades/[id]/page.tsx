@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import ImageGallery from '@/components/ImageGallery';
 import PropertyCard from '@/components/PropertyCard';
 import RegistroInteresForm from '@/components/RegistroInteresForm';
+import NearbyPlaces from '@/components/NearbyPlaces';
 
 const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
 const EMAIL   = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
@@ -152,6 +153,11 @@ export default async function PropiedadDetailPage({ params }: { params: { id: st
                 {prop.amenidades.map((a) => <span key={a} className="amenidad-chip">{a}</span>)}
               </div>
             </div>
+          )}
+
+          {/* F-11: Puntos de interés cercanos (Overpass API, sin API key) */}
+          {(prop as any).latitud && (prop as any).longitud && (
+            <NearbyPlaces lat={Number((prop as any).latitud)} lng={Number((prop as any).longitud)} />
           )}
 
           {/* JSON-LD structured data */}

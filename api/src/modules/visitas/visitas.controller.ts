@@ -61,6 +61,12 @@ export class VisitasController {
     return this.service.submitReporte(req.user.tenantId, id, dto);
   }
 
+  @Post(':id/resumen-propietario')
+  @ApiOperation({ summary: 'Enviar resumen de la visita (sin datos del cliente) al propietario por email' })
+  enviarResumenPropietario(@Req() req: any, @Param('id') id: string) {
+    return this.service.enviarResumenPropietario(req.user.tenantId, id);
+  }
+
   @Get(':id/ics')
   @SkipAudit()
   @ApiOperation({ summary: 'Descargar archivo .ics para agregar al calendario' })

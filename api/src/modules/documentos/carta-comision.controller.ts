@@ -59,7 +59,7 @@ export class CartaComisionController {
       }),
       this.prisma.configIntegraciones.findUnique({
         where: { tenant_id: user.tenantId },
-        select: { carta_color_primario: true, carta_tagline: true },
+        select: { carta_color_primario: true, carta_tagline: true, carta_logo_url: true, carta_clausulas_custom: true },
       }),
     ]);
 
@@ -209,13 +209,12 @@ export class CartaComisionController {
     y = doc.y + 14;
 
     // ─── Validity & terms ─────────────────────────────────────────
+    const clausulasTexto = configIntegraciones?.carta_clausulas_custom ||
+      `La vigencia del presente compromiso es de seis (6) meses a partir de la fecha de suscripción, ` +
+      `renovable de común acuerdo entre las partes. El presente acuerdo es exclusivo para la propiedad ` +
+      `identificada y no implica obligación de exclusividad por parte del propietario(a), salvo pacto expreso en contrario.`;
     doc.fillColor('#1e293b').font('Helvetica').fontSize(10.5).lineGap(3)
-      .text(
-        `La vigencia del presente compromiso es de seis (6) meses a partir de la fecha de suscripción, ` +
-        `renovable de común acuerdo entre las partes. El presente acuerdo es exclusivo para la propiedad ` +
-        `identificada y no implica obligación de exclusividad por parte del propietario(a), salvo pacto expreso en contrario.`,
-        MARGIN_L, y, { width: CONTENT_W, align: 'justify', lineGap: 3 },
-      );
+      .text(clausulasTexto, MARGIN_L, y, { width: CONTENT_W, align: 'justify', lineGap: 3 });
     y = doc.y + 24;
 
     // ─── Signatures ───────────────────────────────────────────────
@@ -274,18 +273,19 @@ export class CartaComisionController {
     await new Promise<void>((resolve) => { doc.on('end', resolve); doc.end(); });
 
     const buffer = Buffer.concat(chunks);
+    const fechaStr = new Date().toISOString().slice(0, 10);
     const filename = `carta-comision-${propiedad.codigo}-${randomUUID()}.pdf`;
     const url = await this.storage.upload(buffer, filename, 'application/pdf');
 
-    // Register in Expediente Legal automatically (fire-and-forget on failure)
+    // P-08: Register each generation as a new versioned document (historial preserved)
     this.prisma.propiedadDocumento.create({
       data: {
         propiedad_id: propiedadId,
         tipo: 'OTRO',
-        nombre: `Carta de Comisión - ${propiedad.codigo}`,
+        nombre: `Carta de Comisión — ${propiedad.codigo} — ${fechaStr}`,
         url,
         tamano_bytes: buffer.length,
-        notas: `Generado automáticamente`,
+        notas: `Generado automáticamente el ${fechaStr}`,
       },
     }).catch(() => {});
 

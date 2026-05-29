@@ -92,15 +92,21 @@ export class UploadController {
     const created = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const processed = await this.imageService.processImage(file.buffer, tenantName);
-      const filename = `${randomUUID()}.jpg`;
-      const url = await this.storage.upload(processed, filename, 'image/jpeg');
+      const { processed, thumbnail, original } = await this.imageService.processImageFull(file.buffer, tenantName);
+      const base = randomUUID();
+      const [url, thumbnailUrl, originalUrl] = await Promise.all([
+        this.storage.upload(processed, `${base}.jpg`, 'image/jpeg'),
+        this.storage.upload(thumbnail, `${base}_thumb.jpg`, 'image/jpeg'),
+        this.storage.upload(original, `${base}_original${this.ext(file.mimetype)}`, file.mimetype),
+      ]);
       const isPortada = !hasCover && i === 0;
 
       const img = await this.prisma.propiedadImagen.create({
         data: {
           propiedad_id: propiedadId,
           url,
+          thumbnail_url: thumbnailUrl,
+          original_url: originalUrl,
           nombre: file.originalname,
           tipo: isPortada ? 'portada' : 'galeria',
           orden: nextOrder++,
@@ -111,6 +117,11 @@ export class UploadController {
     }
 
     return { uploaded: created.length, total: existingCount + created.length, limite: MAX_IMAGENES, images: created };
+  }
+
+  private ext(mime: string): string {
+    const map: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+    return map[mime] ?? '.bin';
   }
 
   // ─── Videos ───────────────────────────────────────────────

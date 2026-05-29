@@ -9,6 +9,9 @@ import './Settings.css';
 interface TenantBranding {
   nombre: string;
   logo_url: string | null;
+  color_primario?: string | null;
+  color_secundario?: string | null;
+  color_acento?: string | null;
 }
 
 interface ConfigPortal {
@@ -91,7 +94,7 @@ export default function SettingsPortalPage() {
   const [savedMsg, setSavedMsg] = useState('');
 
   const [branding, setBranding] = useState<TenantBranding>({ nombre: '', logo_url: null });
-  const [carta, setCarta]   = useState({ carta_color_primario: '', carta_tagline: '' });
+  const [carta, setCarta]   = useState({ carta_color_primario: '', carta_tagline: '', carta_logo_url: '', carta_clausulas_custom: '' });
 
   const [portal, setPortal] = useState<ConfigPortal>({
     nombre_empresa: null, slogan: null, email_contacto: null, telefono: null,
@@ -110,13 +113,13 @@ export default function SettingsPortalPage() {
       const [b, p, c] = await Promise.all([
         apiRequest<TenantBranding>('/api/tenants/branding', { token: accessToken! }),
         apiRequest<ConfigPortal>('/api/tenants/mi-tenant/portal', { token: accessToken! }),
-        apiRequest<{ carta_color_primario: string | null; carta_tagline: string | null }>(
+        apiRequest<{ carta_color_primario: string | null; carta_tagline: string | null; carta_logo_url: string | null; carta_clausulas_custom: string | null }>(
           '/api/tenants/mi-tenant/carta-config', { token: accessToken! }
-        ).catch(() => ({ carta_color_primario: null, carta_tagline: null })),
+        ).catch(() => ({ carta_color_primario: null, carta_tagline: null, carta_logo_url: null, carta_clausulas_custom: null })),
       ]);
       setBranding(b);
       setPortal(p);
-      setCarta({ carta_color_primario: c.carta_color_primario ?? '', carta_tagline: c.carta_tagline ?? '' });
+      setCarta({ carta_color_primario: c.carta_color_primario ?? '', carta_tagline: c.carta_tagline ?? '', carta_logo_url: c.carta_logo_url ?? '', carta_clausulas_custom: c.carta_clausulas_custom ?? '' });
     } catch { /* noop */ }
     finally { setLoading(false); }
   }, [accessToken]);
@@ -128,7 +131,13 @@ export default function SettingsPortalPage() {
     try {
       await apiRequest('/api/tenants/mi-tenant', {
         method: 'PATCH', token: accessToken!,
-        body: { nombre: branding.nombre, logoUrl: branding.logo_url },
+        body: {
+          nombre: branding.nombre,
+          logoUrl: branding.logo_url,
+          colorPrimario:   branding.color_primario   || undefined,
+          colorSecundario: branding.color_secundario || undefined,
+          colorAcento:     branding.color_acento     || undefined,
+        },
       });
       showSaved();
     } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
@@ -157,8 +166,10 @@ export default function SettingsPortalPage() {
       await apiRequest('/api/tenants/mi-tenant/carta-config', {
         method: 'PATCH', token: accessToken!,
         body: {
-          carta_color_primario: carta.carta_color_primario || null,
-          carta_tagline: carta.carta_tagline || null,
+          carta_color_primario:   carta.carta_color_primario   || null,
+          carta_tagline:          carta.carta_tagline          || null,
+          carta_logo_url:         carta.carta_logo_url         || null,
+          carta_clausulas_custom: carta.carta_clausulas_custom || null,
         },
       });
       showSaved();
@@ -305,6 +316,24 @@ export default function SettingsPortalPage() {
               <Field label="URL del logotipo" hint="URL pública de la imagen (PNG/SVG recomendado)">
                 <input value={branding.logo_url ?? ''} onChange={(e) => setBranding((b) => ({ ...b, logo_url: e.target.value || null }))} placeholder="https://..." />
               </Field>
+              <Field label="Color primario" hint="Color principal de la marca (botones, acentos). Ej: #1E3A5F">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input type="color" value={branding.color_primario || '#1E3A5F'} onChange={(e) => setBranding((b) => ({ ...b, color_primario: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
+                  <input value={branding.color_primario ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_primario: e.target.value || null }))} placeholder="#1E3A5F" style={{ flex: 1 }} />
+                </div>
+              </Field>
+              <Field label="Color secundario" hint="Color complementario. Ej: #F5A623">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input type="color" value={branding.color_secundario || '#F5A623'} onChange={(e) => setBranding((b) => ({ ...b, color_secundario: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
+                  <input value={branding.color_secundario ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_secundario: e.target.value || null }))} placeholder="#F5A623" style={{ flex: 1 }} />
+                </div>
+              </Field>
+              <Field label="Color de acento" hint="Color para destacar elementos activos. Ej: #10B981">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input type="color" value={branding.color_acento || '#10B981'} onChange={(e) => setBranding((b) => ({ ...b, color_acento: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
+                  <input value={branding.color_acento ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_acento: e.target.value || null }))} placeholder="#10B981" style={{ flex: 1 }} />
+                </div>
+              </Field>
             </div>
             <SaveBar saving={saving} msg={savedMsg} onSave={saveBranding} />
           </div>
@@ -437,7 +466,7 @@ export default function SettingsPortalPage() {
               <div className="settings-card-icon">📄</div>
               <div>
                 <h2>Carta de Comisión</h2>
-                <p>Personaliza el color y tagline que aparecen en el PDF de la carta de compromiso de comisión.</p>
+                <p>Personaliza el aspecto y las cláusulas del PDF de la carta de compromiso de comisión.</p>
               </div>
             </div>
           </div>
@@ -463,6 +492,22 @@ export default function SettingsPortalPage() {
                 value={carta.carta_tagline}
                 onChange={(e) => setCarta((prev) => ({ ...prev, carta_tagline: e.target.value }))}
                 placeholder="Bienes y Raíces · CRM"
+              />
+            </Field>
+            <Field label="URL de logo para la carta" hint="URL pública de la imagen del logo que aparece en el PDF. Déjalo vacío para usar solo el nombre de empresa.">
+              <input
+                value={carta.carta_logo_url}
+                onChange={(e) => setCarta((prev) => ({ ...prev, carta_logo_url: e.target.value }))}
+                placeholder="https://cdn.empresa.com/logo.png"
+              />
+            </Field>
+            <Field label="Cláusulas personalizadas" hint="Texto de los términos y condiciones de vigencia. Si se deja vacío se usan las cláusulas predeterminadas.">
+              <textarea
+                value={carta.carta_clausulas_custom}
+                onChange={(e) => setCarta((prev) => ({ ...prev, carta_clausulas_custom: e.target.value }))}
+                placeholder="La vigencia del presente compromiso es de..."
+                rows={5}
+                style={{ width: '100%', resize: 'vertical' }}
               />
             </Field>
           </div>

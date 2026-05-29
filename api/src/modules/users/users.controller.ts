@@ -112,6 +112,40 @@ export class UsersController {
     return this.usersService.update(tenantId, id, dto);
   }
 
+  @Post(':id/reset-2fa')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desactivar y resetear el 2FA de un usuario (Admin puede forzar re-configuración)' })
+  resetTotp(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.resetTotp(tenantId, id);
+  }
+
+  @Post(':id/reasignar-subordinados')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reasignar todos los subordinados de un Senior a otro supervisor' })
+  reasignarSubordinados(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('toSupervisorId', ParseUUIDPipe) toSupervisorId: string,
+  ) {
+    return this.usersService.reasignarSubordinados(tenantId, id, toSupervisorId);
+  }
+
+  @Post(':id/desbloquear')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desbloquear cuenta de usuario bloqueada por demasiados intentos fallidos' })
+  desbloquear(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.desbloquear(tenantId, id);
+  }
+
   @Post(':id/transferir')
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Transferir propiedades y trámites a otro agente y desactivar usuario' })

@@ -60,13 +60,23 @@ export class CampanasService {
   }
 
   async updatePlantilla(tenantId: string, id: string, dto: UpdatePlantillaDto) {
-    await this.getPlantilla(tenantId, id);
+    const current = await this.getPlantilla(tenantId, id);
     const data: Record<string, unknown> = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre;
     if (dto.asunto !== undefined) data.asunto = dto.asunto;
     if (dto.cuerpo_html !== undefined) {
+      // P-11: Save current version to historial before overwriting
+      const historial: any[] = (current as any).historial ?? [];
+      historial.push({
+        version: (current as any).version ?? 1,
+        asunto: current.asunto,
+        cuerpo_html: current.cuerpo_html,
+        guardado_at: new Date().toISOString(),
+      });
       data.cuerpo_html = dto.cuerpo_html;
       data.variables = extractVariables((dto.asunto ?? '') + ' ' + dto.cuerpo_html);
+      data.version = ((current as any).version ?? 1) + 1;
+      data.historial = historial.slice(-10); // keep last 10 versions
     }
     return this.prisma.emailPlantilla.update({ where: { id }, data });
   }

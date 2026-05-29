@@ -89,10 +89,40 @@ function UserMenu({ email, rol, onLogout }: { email: string; rol: string; onLogo
   );
 }
 
+const INACTIVITY_MS = 30 * 60 * 1000; // P-04: 30 minutes
+
+function useInactivityLogout() {
+  const { forceLogout, accessToken } = useAuthStore();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const reset = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        forceLogout();
+        navigate('/login');
+      }, INACTIVITY_MS);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset(); // start timer
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, reset));
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [accessToken, forceLogout, navigate]);
+}
+
 export default function AppLayout() {
-  const { user, logout, accessToken, plan, planFeatures } = useAuthStore();
+  const { user, logout, accessToken, plan, planFeatures, passwordExpiresIn } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  useInactivityLogout(); // P-04
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -281,6 +311,27 @@ export default function AppLayout() {
             <UserMenu email={user.email} rol={user.rol} onLogout={handleLogout} />
           )}
         </div>
+        {/* P-02: Password expiry warning banner */}
+        {passwordExpiresIn !== null && (
+          <div style={{
+            margin: '0 24px 0', padding: '10px 16px',
+            background: passwordExpiresIn === 0 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+            border: `1px solid ${passwordExpiresIn === 0 ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`,
+            borderRadius: 8, fontSize: '0.875rem',
+            color: passwordExpiresIn === 0 ? '#dc2626' : '#d97706',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <span>🔑</span>
+            <span>
+              {passwordExpiresIn === 0
+                ? 'Tu contraseña ha expirado. '
+                : `Tu contraseña expira en ${passwordExpiresIn} día(s). `}
+              <a href="/settings/perfil" style={{ fontWeight: 600, textDecoration: 'underline' }}>
+                Cámbiala ahora →
+              </a>
+            </span>
+          </div>
+        )}
         <Outlet />
       </main>
 

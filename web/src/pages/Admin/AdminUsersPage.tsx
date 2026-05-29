@@ -14,6 +14,8 @@ interface UserItem {
   created_at: string;
   last_login_at: string | null;
   ultimo_login?: string | null;
+  intentos_login?: number;
+  bloqueado_hasta?: string | null;
   _count?: { subordinados: number };
   // Solo para vista SUPER_ADMIN
   tenant?: { id: string; nombre: string; plan: string; estado: string };
@@ -60,10 +62,15 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [unlocking, setUnlocking] = useState<string | null>(null);
   const [transferModal, setTransferModal] = useState<UserItem | null>(null);
   const [targetUserId, setTargetUserId] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState('');
+  const [reasignarModal, setReasignarModal] = useState<UserItem | null>(null);
+  const [reasignarTargetId, setReasignarTargetId] = useState('');
+  const [reasignando, setReasignando] = useState(false);
+  const [reasignarError, setReasignarError] = useState('');
 
   const fetchUsers = useCallback(async () => {
     setIsError(false);
@@ -165,6 +172,47 @@ export default function AdminUsersPage() {
 
   const updateField = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isBloqueado = (u: UserItem) =>
+    u.bloqueado_hasta && new Date(u.bloqueado_hasta) > new Date();
+
+  const handleDesbloquear = async (u: UserItem) => {
+    setUnlocking(u.id);
+    try {
+      await apiRequest(`/api/users/${u.id}/desbloquear`, { method: 'POST', token: accessToken! });
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.message ?? 'Error al desbloquear');
+    } finally {
+      setUnlocking(null);
+    }
+  };
+
+  const openReasignarModal = (u: UserItem) => {
+    setReasignarModal(u);
+    setReasignarTargetId('');
+    setReasignarError('');
+  };
+
+  const handleReasignar = async () => {
+    if (!reasignarModal || !reasignarTargetId) return;
+    setReasignando(true);
+    setReasignarError('');
+    try {
+      const res = await apiRequest<{ reasignados: number; message: string }>(`/api/users/${reasignarModal.id}/reasignar-subordinados`, {
+        method: 'POST',
+        body: { toSupervisorId: reasignarTargetId },
+        token: accessToken!,
+      });
+      setReasignarModal(null);
+      alert(res.message);
+      fetchUsers();
+    } catch (err: any) {
+      setReasignarError(err.message ?? 'Error al reasignar');
+    } finally {
+      setReasignando(false);
+    }
   };
 
   const openTransferModal = (u: UserItem) => {
@@ -336,10 +384,17 @@ export default function AdminUsersPage() {
                     </>
                   )}
                   <td>
-                    <span className={`admin-badge ${statusClass(u.estado)}`}>
-                      <span className="admin-badge-dot" />
-                      {u.estado}
-                    </span>
+                    {isBloqueado(u) ? (
+                      <span className="admin-badge admin-badge-suspended" title={`Bloqueado por demasiados intentos fallidos. ${(u.intentos_login ?? 0) >= 9 ? 'Requiere desbloqueo manual.' : ''}`}>
+                        <span className="admin-badge-dot" />
+                        🔒 BLOQUEADO
+                      </span>
+                    ) : (
+                      <span className={`admin-badge ${statusClass(u.estado)}`}>
+                        <span className="admin-badge-dot" />
+                        {u.estado}
+                      </span>
+                    )}
                   </td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                     {(u.ultimo_login || u.last_login_at) ? new Date((u.ultimo_login || u.last_login_at)!).toLocaleString() : 'Nunca'}
@@ -347,13 +402,33 @@ export default function AdminUsersPage() {
                   <td>
                     <div className="admin-table-actions">
                       <button onClick={() => openEdit(u)}>Editar</button>
-                      {!isSuperAdmin && u.estado === 'ACTIVO' && u.id !== user?.sub && (
+                      {!isSuperAdmin && isBloqueado(u) && (
+                        <button
+                          className="btn-primary"
+                          style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                          disabled={unlocking === u.id}
+                          title="Desbloquear cuenta (solo Admin)"
+                          onClick={() => handleDesbloquear(u)}
+                        >
+                          {unlocking === u.id ? '...' : '🔓 Desbloquear'}
+                        </button>
+                      )}
+                      {!isSuperAdmin && u.estado === 'ACTIVO' && !isBloqueado(u) && u.id !== user?.sub && (
                         <button
                           className="btn-danger-outline"
                           title="Desactivar y transferir propiedades/trámites"
                           onClick={() => openTransferModal(u)}
                         >
                           Desactivar
+                        </button>
+                      )}
+                      {!isSuperAdmin && (u.rol === 'SENIOR' || u.rol === 'ADMIN') && (u._count?.subordinados ?? 0) > 0 && (
+                        <button
+                          style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                          title={`Reasignar los ${u._count?.subordinados} subordinados de ${u.nombre} a otro supervisor`}
+                          onClick={() => openReasignarModal(u)}
+                        >
+                          🔀 Reasignar
                         </button>
                       )}
                     </div>
@@ -442,6 +517,28 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {/* P-03: Reset 2FA button (only when editing an existing user) */}
+            {editing && !isSuperAdmin && (
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(245,158,11,0.06)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                  🔒 Si el usuario perdió acceso a su app autenticadora, puedes resetear su 2FA.
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap', color: 'var(--accent-amber, #f59e0b)' }}
+                  onClick={async () => {
+                    if (!confirm(`¿Resetear el 2FA de ${editing.nombre}? Deberá configurarlo nuevamente.`)) return;
+                    try {
+                      await apiRequest(`/api/users/${editing.id}/reset-2fa`, { method: 'POST', token: accessToken! });
+                      alert('2FA reseteado. El usuario podrá configurarlo de nuevo en su próximo acceso.');
+                    } catch (err: any) { alert(err.message); }
+                  }}
+                >
+                  🔄 Resetear 2FA
+                </button>
+              </div>
+            )}
+
             <div className="admin-modal-actions">
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn btn-primary" disabled={saving || !form.nombre || !form.email} onClick={handleSave}>
@@ -493,6 +590,39 @@ export default function AdminUsersPage() {
                 onClick={handleTransfer}
               >
                 {transferring ? 'Transfiriendo…' : 'Transferir y Desactivar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reasignarModal && (
+        <div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setReasignarModal(null); }}>
+          <div className="admin-modal">
+            <h2>Reasignar subordinados de {reasignarModal.nombre}</h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+              Los <strong>{reasignarModal._count?.subordinados}</strong> subordinado(s) actuales de {reasignarModal.nombre} serán asignados al supervisor seleccionado. El usuario origen no se desactiva.
+            </p>
+            {reasignarError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{reasignarError}</div>}
+            <div className="input-group" style={{ marginBottom: 20 }}>
+              <label>Nuevo supervisor</label>
+              <select
+                className="input-field"
+                value={reasignarTargetId}
+                onChange={(e) => setReasignarTargetId(e.target.value)}
+              >
+                <option value="">— Seleccionar supervisor —</option>
+                {users
+                  .filter((u) => u.id !== reasignarModal.id && u.estado === 'ACTIVO' && (u.rol === 'SENIOR' || u.rol === 'ADMIN'))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({rolLabels[u.rol] || u.rol})</option>
+                  ))}
+              </select>
+            </div>
+            <div className="admin-modal-footer">
+              <button className="btn btn-ghost" onClick={() => setReasignarModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" disabled={!reasignarTargetId || reasignando} onClick={handleReasignar}>
+                {reasignando ? 'Reasignando…' : '🔀 Confirmar reasignación'}
               </button>
             </div>
           </div>

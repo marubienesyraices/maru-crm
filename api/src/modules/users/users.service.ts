@@ -81,6 +81,7 @@ export class UsersService {
       select: {
         id: true, email: true, nombre: true, rol: true, estado: true,
         id_supervisor: true, ultimo_login: true, created_at: true,
+        intentos_login: true, bloqueado_hasta: true,
         supervisor: { select: { id: true, nombre: true } },
         _count: { select: { subordinados: true } },
       },
@@ -359,6 +360,52 @@ export class UsersService {
     }).catch(() => {});
 
     return { message: 'Correo de activación reenviado' };
+  }
+
+  // ─── P-01: Admin manual unlock ───────────────────────────
+
+  async desbloquear(tenantId: string, id: string) {
+    const user = await this.prisma.user.findFirst({ where: { id, tenant_id: tenantId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { intentos_login: 0, bloqueado_hasta: null },
+    });
+    return { message: 'Cuenta desbloqueada correctamente' };
+  }
+
+  // ─── P-03: Reset 2FA por Administrador ──────────────────
+
+  async resetTotp(tenantId: string, id: string) {
+    const user = await this.prisma.user.findFirst({ where: { id, tenant_id: tenantId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { totp_secret: null, totp_habilitado: false },
+    });
+    return { message: '2FA desactivado. El usuario deberá configurarlo nuevamente en su próximo login.' };
+  }
+
+  // ─── F-08: Reasignación masiva de subordinados ──────────
+
+  async reasignarSubordinados(tenantId: string, fromUserId: string, toSupervisorId: string) {
+    const [fromUser, toUser] = await Promise.all([
+      this.prisma.user.findFirst({ where: { id: fromUserId, tenant_id: tenantId } }),
+      this.prisma.user.findFirst({ where: { id: toSupervisorId, tenant_id: tenantId } }),
+    ]);
+    if (!fromUser) throw new NotFoundException('Usuario origen no encontrado');
+    if (!toUser)   throw new NotFoundException('Usuario destino no encontrado');
+    if (toUser.rol === 'JUNIOR') throw new BadRequestException('El destino no puede ser un Agente Junior');
+    if (fromUserId === toSupervisorId) throw new BadRequestException('El origen y el destino no pueden ser el mismo usuario');
+
+    const count = await this.prisma.user.updateMany({
+      where: { tenant_id: tenantId, id_supervisor: fromUserId },
+      data: { id_supervisor: toSupervisorId },
+    });
+
+    return { reasignados: count.count, message: `${count.count} subordinado(s) reasignado(s) a ${toUser.nombre}` };
   }
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────

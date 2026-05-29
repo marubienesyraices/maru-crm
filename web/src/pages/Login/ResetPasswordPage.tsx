@@ -14,6 +14,8 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [requiresTOTP, setRequiresTOTP] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
 
   if (!token) {
     return (
@@ -43,12 +45,16 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setError('');
     try {
-      await apiRequest('/api/auth/reset-password', {
-        method: 'POST',
-        body: { token, newPassword: password },
-      });
+      const body: any = { token, newPassword: password };
+      if (requiresTOTP && totpCode) body.totpCode = totpCode;
+      await apiRequest('/api/auth/reset-password', { method: 'POST', body });
       setDone(true);
     } catch (err: any) {
+      // Check if backend requires TOTP
+      try {
+        const parsed = JSON.parse(err.message ?? '{}');
+        if (parsed.requiresTOTP) { setRequiresTOTP(true); setError(parsed.message ?? 'Ingresa el código de tu app autenticadora'); return; }
+      } catch { /* not JSON */ }
       setError(err.message ?? 'Error al restablecer la contraseña');
     } finally {
       setLoading(false);
@@ -152,8 +158,29 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
-              <button type="submit" className="btn btn-primary btn-full btn-login" disabled={loading || !password || !confirm}>
-                {loading ? <><div className="spinner" />Guardando...</> : 'Restablecer contraseña'}
+              {requiresTOTP && (
+                <div className="input-group">
+                  <label htmlFor="totp">Código de autenticación (2FA)</label>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Tu cuenta tiene verificación en 2 pasos. Ingresa el código de tu app autenticadora.
+                  </p>
+                  <input
+                    id="totp"
+                    type="text"
+                    inputMode="numeric"
+                    className="input-field"
+                    placeholder="000000"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-primary btn-full btn-login" disabled={loading || !password || !confirm || (requiresTOTP && totpCode.length < 6)}>
+                {loading ? <><div className="spinner" />Guardando...</> : requiresTOTP ? 'Verificar y restablecer' : 'Restablecer contraseña'}
               </button>
             </form>
           </>

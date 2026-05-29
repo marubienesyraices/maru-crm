@@ -68,7 +68,7 @@ export class BrochureService {
         propietario: { select: { nombre: true, telefono: true } },
         agente: { select: { nombre: true, email: true } },
         imagenes: { orderBy: { orden: 'asc' }, take: 20 },
-        tenant: { select: { nombre: true, moneda: true } },
+        tenant: { select: { nombre: true, moneda: true, color_primario: true, logo_url: true } },
       },
     });
 
@@ -79,7 +79,7 @@ export class BrochureService {
     const MARGIN = 40;
     const CONTENT_W = W - MARGIN * 2;
 
-    const primary = '#2563eb';
+    const primary = (propiedad.tenant as any).color_primario || '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';
@@ -108,8 +108,20 @@ export class BrochureService {
     doc.rect(0, 0, W, 90).fill(primary);
     doc.rect(0, 0, W, 4).fill(primaryDark);
 
-    doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(20)
-      .text(propiedad.tenant.nombre, MARGIN, 18, { width: CONTENT_W - 110, lineBreak: false });
+    // Try to draw tenant logo; fall back to text name
+    const tenantLogoUrl = (propiedad.tenant as any).logo_url as string | null;
+    const logoPath = tenantLogoUrl ? this.storage.localPath(tenantLogoUrl) : null;
+    let drewLogo = false;
+    if (logoPath && existsSync(logoPath)) {
+      try {
+        doc.image(logoPath, MARGIN, 12, { height: 56, fit: [160, 56] });
+        drewLogo = true;
+      } catch { /* fall back to text */ }
+    }
+    if (!drewLogo) {
+      doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(20)
+        .text(propiedad.tenant.nombre, MARGIN, 18, { width: CONTENT_W - 110, lineBreak: false });
+    }
 
     const badgeW = 100;
     const badgeX = W - MARGIN - badgeW;

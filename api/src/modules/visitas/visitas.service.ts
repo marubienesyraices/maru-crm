@@ -236,6 +236,7 @@ export class VisitasService {
         reporte_siguiente_paso: dto.siguientePaso ?? null,
         reporte_fecha: new Date(),
         estado: 'REALIZADA',
+        ...(dto.fotosVisita !== undefined ? { fotos_visita: dto.fotosVisita } : {}),
       },
       include: VISITA_INCLUDE,
     });
@@ -383,6 +384,72 @@ export class VisitasService {
       select: { tenant_id: true },
     });
     return prop!.tenant_id;
+  }
+
+  // ─── P-10: Enviar resumen de visita al propietario ───────────
+
+  async enviarResumenPropietario(tenantId: string, id: string) {
+    const visita = await this.prisma.visita.findFirst({
+      where: { id, interes: { cliente: { tenant_id: tenantId } } },
+      include: {
+        agente: { select: { nombre: true, email: true } },
+        interes: {
+          include: {
+            propiedad: {
+              include: {
+                propietario: { select: { nombre: true, email: true, telefono: true } },
+                tenant: { select: { nombre: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!visita) throw new NotFoundException('Visita no encontrada');
+
+    const propietario = visita.interes.propiedad.propietario;
+    if (!propietario?.email) {
+      return { sent: false, reason: 'El propietario no tiene email registrado' };
+    }
+
+    const propiedad  = visita.interes.propiedad;
+    const tenantName = propiedad.tenant.nombre;
+    const fechaStr   = fmtFecha(visita.fecha_inicio);
+    const nivelMap: Record<string, string> = { 1: '1 — Muy bajo', 2: '2 — Bajo', 3: '3 — Medio', 4: '4 — Alto', 5: '5 — Muy alto' };
+    const nivelTexto = visita.reporte_nivel_interes ? nivelMap[visita.reporte_nivel_interes] ?? String(visita.reporte_nivel_interes) : 'No registrado';
+
+    await this.email.sendHtml({
+      to: propietario.email,
+      subject: `Informe de visita — ${propiedad.codigo} — ${tenantName}`,
+      html: `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <tr><td style="padding:28px 32px;background:#1e3a5f;">
+        <h2 style="margin:0;color:#fff;font-size:1.25rem;">${tenantName}</h2>
+        <p style="margin:6px 0 0;color:#93c5fd;font-size:.875rem;">Informe de visita</p>
+      </td></tr>
+      <tr><td style="padding:24px 32px;">
+        <p style="margin:0 0 16px;color:#0f172a;">Estimado/a <strong>${propietario.nombre}</strong>,</p>
+        <p style="margin:0 0 20px;color:#475569;">Se realizó una visita a su propiedad <strong>${propiedad.codigo} — ${propiedad.titulo}</strong>. A continuación el resumen del agente:</p>
+        <table width="100%" cellpadding="10" cellspacing="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+          <tr><td style="font-size:.8125rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;" colspan="2">Detalles</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="color:#64748b;font-size:.875rem;">Fecha</td><td style="color:#0f172a;font-size:.875rem;font-weight:600;">${fechaStr}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="color:#64748b;font-size:.875rem;">Agente</td><td style="color:#0f172a;font-size:.875rem;font-weight:600;">${visita.agente?.nombre ?? '—'}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="color:#64748b;font-size:.875rem;">Nivel de interés</td><td style="color:#0f172a;font-size:.875rem;font-weight:600;">${nivelTexto}</td></tr>
+          ${visita.reporte_reaccion ? `<tr style="border-bottom:1px solid #f1f5f9;"><td style="color:#64748b;font-size:.875rem;">Reacción</td><td style="color:#0f172a;font-size:.875rem;font-weight:600;">${visita.reporte_reaccion}</td></tr>` : ''}
+          ${visita.reporte_siguiente_paso ? `<tr><td style="color:#64748b;font-size:.875rem;">Próximo paso</td><td style="color:#0f172a;font-size:.875rem;font-weight:600;">${visita.reporte_siguiente_paso}</td></tr>` : ''}
+        </table>
+        ${visita.reporte_notas ? `<div style="margin-top:20px;padding:16px;background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;"><p style="margin:0;font-size:.875rem;color:#1e40af;font-weight:600;">Observaciones del agente</p><p style="margin:8px 0 0;color:#1e3a5f;font-size:.9375rem;">${visita.reporte_notas}</p></div>` : ''}
+        <p style="margin:24px 0 0;font-size:.8125rem;color:#94a3b8;">Este resumen fue generado automáticamente por ${tenantName} CRM. No incluye datos personales del visitante.</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`,
+    });
+
+    return { sent: true };
   }
 
   private async findOneWithTenantCheck(tenantId: string, id: string) {

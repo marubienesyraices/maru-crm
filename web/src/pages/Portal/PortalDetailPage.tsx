@@ -5,6 +5,7 @@ import './Portal.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 
 const TIPO_LABELS: Record<string, string> = {
   CASA: 'Casa', APARTAMENTO: 'Apartamento', TERRENO: 'Terreno',
@@ -287,7 +288,24 @@ export default function PortalDetailPage() {
           )}
 
           {prop.latitud && prop.longitud && (
-            <PropertyMap lat={Number(prop.latitud)} lng={Number(prop.longitud)} />
+            <>
+              <PropertyMap lat={Number(prop.latitud)} lng={Number(prop.longitud)} />
+              {/* F-10: Street View embed (requires VITE_GOOGLE_MAPS_KEY) */}
+              {GOOGLE_MAPS_KEY && (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>Vista de calle (Google Street View)</p>
+                  <iframe
+                    title="Street View"
+                    width="100%"
+                    height="220"
+                    style={{ border: 0, borderRadius: 8 }}
+                    loading="lazy"
+                    allowFullScreen
+                    src={`https://www.google.com/maps/embed/v1/streetview?key=${GOOGLE_MAPS_KEY}&location=${prop.latitud},${prop.longitud}&heading=0&pitch=0&fov=90`}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
 

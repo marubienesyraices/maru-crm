@@ -65,7 +65,7 @@ export class TenantsService {
   async getBranding(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { nombre: true, logo_url: true, plan: true, limite_usuarios: true, limite_propiedades: true },
+      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, plan: true, limite_usuarios: true, limite_propiedades: true },
     });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
 
@@ -136,6 +136,9 @@ export class TenantsService {
       data: {
         nombre: dto.nombre,
         logo_url: dto.logoUrl,
+        color_primario: dto.colorPrimario,
+        color_secundario: dto.colorSecundario,
+        color_acento: dto.colorAcento,
         plan: dto.plan as Plan | undefined,
         moneda: dto.moneda,
         zona_horaria: dto.zonaHoraria,

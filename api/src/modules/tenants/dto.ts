@@ -44,6 +44,15 @@ export class UpdateTenantDto {
   logoUrl?: string;
 
   @IsOptional() @IsString()
+  colorPrimario?: string;
+
+  @IsOptional() @IsString()
+  colorSecundario?: string;
+
+  @IsOptional() @IsString()
+  colorAcento?: string;
+
+  @IsOptional() @IsString()
   plan?: string;
 
   @IsOptional() @IsString()

@@ -65,6 +65,24 @@
 /* Export button */
 .bi-export-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
+/* ─── Print / PDF export ─────────────────────────────────────────────────── */
+@media print {
+  /* Hide navigation, tabs, filters and print button */
+  .app-sidebar, .app-topbar, .bi-tabs, .bi-filters button,
+  .bi-loading, .page-loading, .spinner,
+  button[onclick], .btn-ghost, .btn-primary { display: none !important; }
+
+  /* Full-width content */
+  .bi-page { padding: 0; max-width: 100%; }
+  .bi-header { margin-bottom: 12px; }
+  .bi-kpis { grid-template-columns: repeat(3, 1fr); }
+  .bi-section { page-break-inside: avoid; }
+  .admin-table-wrap { overflow: visible; }
+
+  body { background: white !important; color: black !important; }
+  .bi-kpi, .bi-section, .admin-table-wrap { box-shadow: none; border: 1px solid #e2e8f0; }
+}
+
 /* Loading / empty */
 .bi-loading, .bi-empty { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 12px; }
 

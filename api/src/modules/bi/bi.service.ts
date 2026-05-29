@@ -394,6 +394,114 @@ export class BiService implements OnModuleInit {
     return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   }
 
+  // ─── P-14: Comisiones proyectadas vs realizadas ─────────────
+
+  async getComisiones(tenantId: string, desde?: Date, hasta?: Date) {
+    const key = this.cacheKey(tenantId, 'comisiones', desde?.toISOString(), hasta?.toISOString());
+    const cached = await this.fromCache<object>(key);
+    if (cached) return cached;
+
+    const df = this.dateFilter(desde, hasta);
+
+    // Realizadas: GANADO con comision_calculada
+    const ganados = await this.prisma.clientePropiedad.findMany({
+      where: {
+        propiedad: { tenant_id: tenantId },
+        estado: 'GANADO',
+        ...(df && { fecha_cierre: df }),
+      },
+      select: {
+        comision_calculada: true,
+        precio_cierre: true,
+        fecha_cierre: true,
+        cliente: { select: { nombre: true } },
+        propiedad: { select: { titulo: true, codigo: true } },
+      },
+    });
+
+    const realizadas = ganados.reduce(
+      (sum, g) => sum + (g.comision_calculada ? Number(g.comision_calculada) : 0),
+      0,
+    );
+
+    // Proyectadas: EN_NEGOCIACION + CIERRE → precio × comision_%
+    const enProceso = await this.prisma.clientePropiedad.findMany({
+      where: {
+        propiedad: { tenant_id: tenantId },
+        estado: { in: ['EN_NEGOCIACION', 'CIERRE'] },
+      },
+      select: {
+        estado: true,
+        presupuesto: true,
+        propiedad: { select: { titulo: true, codigo: true, precio_venta: true, precio_renta: true, gestion: true, comision_porcentaje: true } },
+        cliente: { select: { nombre: true } },
+      },
+    });
+
+    let proyectadas = 0;
+    const detalleProyectado: Array<{ titulo: string; codigo: string; monto: number; estado: string }> = [];
+    for (const ep of enProceso) {
+      const p = ep.propiedad;
+      const precio = p.gestion === 'RENTA' ? p.precio_renta : p.precio_venta;
+      const pct = p.comision_porcentaje ? Number(p.comision_porcentaje) : 0;
+      const monto = precio && pct ? Math.round(Number(precio) * (pct / 100) * 100) / 100 : 0;
+      proyectadas += monto;
+      detalleProyectado.push({ titulo: p.titulo, codigo: p.codigo, monto, estado: ep.estado });
+    }
+
+    const result = {
+      realizadas: Math.round(realizadas * 100) / 100,
+      proyectadas: Math.round(proyectadas * 100) / 100,
+      totalAcumulado: Math.round((realizadas + proyectadas) * 100) / 100,
+      numCierres: ganados.length,
+      numEnProceso: enProceso.length,
+      detalleProyectado,
+      cacheAt: new Date().toISOString(),
+    };
+    await this.toCache(key, result);
+    return result;
+  }
+
+  // ─── F-22: Heatmap data (coordinates + activity score) ────────
+
+  async getHeatmap(tenantId: string) {
+    const key = this.cacheKey(tenantId, 'heatmap');
+    const cached = await this.fromCache<object[]>(key);
+    if (cached) return cached;
+
+    const props = await this.prisma.propiedad.findMany({
+      where: {
+        tenant_id: tenantId,
+        latitud: { not: null },
+        longitud: { not: null },
+        estado: { in: ['DISPONIBLE', 'RESERVADA', 'EN_NEGOCIACION', 'BORRADOR'] },
+      },
+      select: {
+        id: true,
+        titulo: true,
+        codigo: true,
+        latitud: true,
+        longitud: true,
+        estado: true,
+        _count: { select: { interesados: true } },
+      },
+    });
+
+    const result = props.map((p) => ({
+      id: p.id,
+      titulo: p.titulo,
+      codigo: p.codigo,
+      lat: Number(p.latitud),
+      lng: Number(p.longitud),
+      estado: p.estado,
+      leads: p._count.interesados,
+      weight: Math.min(1, p._count.interesados / 10 + 0.1),
+    }));
+
+    await this.toCache(key, result);
+    return result;
+  }
+
   // ─── Private ─────────────────────────────────────────────────
 
   private dateFilter(desde?: Date, hasta?: Date) {

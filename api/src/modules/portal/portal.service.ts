@@ -285,16 +285,78 @@ export class PortalService {
       });
     }
 
-    // Notify all ADMIN users of the tenant
-    const admins = await this.prisma.user.findMany({
-      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SUPER_ADMIN'] } },
-      select: { id: true },
+    // ─── Lead assignment based on tenant config ─────────────────
+    const config = await this.prisma.configSeguridad.findUnique({
+      where: { tenant_id: tenantId },
+      select: { modo_asignacion_leads: true },
+    });
+    const modo = config?.modo_asignacion_leads ?? 'Manual';
+
+    const activeAgents = await this.prisma.user.findMany({
+      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SENIOR', 'JUNIOR'] } },
+      select: { id: true, rol: true, ultimo_login: true },
+      orderBy: { ultimo_login: 'asc' },
     });
 
-    const notifData = admins.map((u) => ({
+    let assignedAgentId: string | null = null;
+
+    if (modo === 'RoundRobin' && activeAgents.length > 0) {
+      // Assign to the agent who received a lead least recently (approximated by oldest ultimo_login)
+      const lastLeadCounts = await this.prisma.cliente.groupBy({
+        by: ['agente_id'],
+        where: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) }, origen: 'PORTAL_WEB' },
+        _count: { agente_id: true },
+        orderBy: { _count: { agente_id: 'asc' } },
+      });
+      const assignedIds = new Set(lastLeadCounts.map((r) => r.agente_id));
+      const unassigned = activeAgents.find((a) => !assignedIds.has(a.id));
+      assignedAgentId = unassigned?.id ?? lastLeadCounts[0]?.agente_id ?? activeAgents[0].id;
+    } else if (modo === 'MenosCarga' && activeAgents.length > 0) {
+      // Assign to agent with fewest active pipeline items
+      const loads = await this.prisma.clientePropiedad.groupBy({
+        by: ['cliente_id'],
+        where: {
+          estado: { notIn: ['GANADO', 'PERDIDO'] },
+          cliente: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) } },
+        },
+        _count: { cliente_id: true },
+      });
+      // This is approximate — count by agente from cliente
+      const loadByAgent: Record<string, number> = {};
+      for (const ag of activeAgents) loadByAgent[ag.id] = 0;
+      const clienteAgentMap = await this.prisma.cliente.findMany({
+        where: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) } },
+        select: { id: true, agente_id: true },
+      });
+      const clienteToAgent: Record<string, string> = {};
+      for (const c of clienteAgentMap) if (c.agente_id) clienteToAgent[c.id] = c.agente_id;
+      for (const l of loads) {
+        const ag = clienteToAgent[l.cliente_id];
+        if (ag) loadByAgent[ag] = (loadByAgent[ag] ?? 0) + (l._count.cliente_id ?? 0);
+      }
+      assignedAgentId = Object.entries(loadByAgent).sort((a, b) => a[1] - b[1])[0]?.[0] ?? activeAgents[0].id;
+    }
+
+    // Assign client to agent if determined
+    if (assignedAgentId) {
+      await this.prisma.cliente.update({
+        where: { id: clienteId },
+        data: { agente_id: assignedAgentId },
+      });
+    }
+
+    // Notify: assigned agent (or all ADMINs if Manual/no assignment)
+    const notifyIds: string[] = assignedAgentId
+      ? [assignedAgentId]
+      : (await this.prisma.user.findMany({
+          where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+          select: { id: true },
+        })).map((u) => u.id);
+
+    const notifData = notifyIds.map((uid) => ({
       id:         randomUUID(),
       tenant_id:  tenantId,
-      user_id:    u.id,
+      user_id:    uid,
       tipo:       'SISTEMA' as const,
       titulo:     '🤖 Nuevo lead via chatbot',
       mensaje:    `${dto.nombre} está interesado/a. ${notas}`,
@@ -306,7 +368,7 @@ export class PortalService {
       await this.prisma.notificacion.createMany({ data: notifData });
     }
 
-    return { success: true, clienteId };
+    return { success: true, clienteId, asignadoA: assignedAgentId };
   }
 
   // ─── Panel del cliente (magic link + dashboard) ───────────────
@@ -580,5 +642,50 @@ export class PortalService {
   </table>
 </body>
 </html>`;
+  }
+
+  // ─── F-12: Google OAuth ──────────────────────────────────────
+
+  async googleAuth(credential: string, tenantId?: string) {
+    if (!credential) throw new BadRequestException('Credencial de Google requerida');
+
+    // Verify Google credential by calling Google's tokeninfo endpoint
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    if (!res.ok) throw new BadRequestException('Credencial de Google inválida');
+
+    const payload = await res.json() as { email?: string; name?: string; sub?: string; email_verified?: string };
+    if (!payload.email || payload.email_verified !== 'true') {
+      throw new BadRequestException('El email de Google no está verificado');
+    }
+
+    const resolvedTenantId = TENANT_ID ?? tenantId;
+    if (!resolvedTenantId) throw new BadRequestException('No se pudo determinar el tenant');
+
+    // Create or find cliente
+    let cliente = await this.prisma.cliente.findUnique({
+      where: { tenant_id_email: { tenant_id: resolvedTenantId, email: payload.email } },
+    });
+
+    if (!cliente) {
+      cliente = await this.prisma.cliente.create({
+        data: {
+          id: randomUUID(),
+          tenant_id: resolvedTenantId,
+          nombre: payload.name ?? payload.email.split('@')[0],
+          email: payload.email,
+          origen: 'PORTAL_WEB',
+          portal_verificado: true,
+        },
+      });
+    } else if (!cliente.portal_verificado) {
+      await this.prisma.cliente.update({ where: { id: cliente.id }, data: { portal_verificado: true } });
+    }
+
+    const accessToken = this.jwt.sign(
+      { sub: cliente.id, tenantId: cliente.tenant_id, email: cliente.email, type: 'cliente' },
+      { expiresIn: '30d' },
+    );
+
+    return { token: accessToken, nombre: cliente.nombre };
   }
 }

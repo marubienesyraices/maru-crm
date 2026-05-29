@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
@@ -37,6 +37,10 @@ export class ResetPasswordDto {
       'La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial',
   })
   newPassword: string;
+
+  @IsOptional()
+  @IsString()
+  totpCode?: string;
 }
 
 export class OnboardingDto {

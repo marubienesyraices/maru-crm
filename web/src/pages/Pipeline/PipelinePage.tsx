@@ -215,6 +215,48 @@ function fmtNum(n: number) {
   return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+// ─── CIERRE Modal (F-16) ──────────────────────────────────────
+
+function CierreModal({ onConfirm, onCancel }: { onConfirm: (docs: string[]) => void; onCancel: () => void }) {
+  const [lines, setLines] = useState('');
+  const docs = lines.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  return (
+    <Modal isOpen onClose={onCancel} title="Documentos de cierre requeridos" width={480}>
+      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+        Para pasar a estado <strong>Cierre</strong>, debes registrar al menos un documento de soporte.
+        Escribe el nombre o descripción de cada documento (uno por línea).
+      </p>
+      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+        Ejemplos: Promesa de compraventa firmada, Comprobante de pago señal, Contrato de arrendamiento...
+      </p>
+      <textarea
+        className="input-field"
+        style={{ width: '100%', minHeight: 110, resize: 'vertical' }}
+        value={lines}
+        onChange={(e) => setLines(e.target.value)}
+        placeholder={'Promesa de compraventa firmada\nComprobante de pago Q 50,000\nDPI del comprador adjunto'}
+        autoFocus
+      />
+      {docs.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          {docs.length} documento(s) registrado(s)
+        </div>
+      )}
+      <div className="modal-footer">
+        <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
+        <button
+          className="btn btn-primary"
+          disabled={docs.length === 0}
+          onClick={() => { if (docs.length > 0) onConfirm(docs); }}
+        >
+          Pasar a Cierre →
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── GANADO Modal ─────────────────────────────────────────────
 
 function GanadoModal({ item, onConfirm, onCancel }: { item: any; onConfirm: (precioAcordado: number) => void; onCancel: () => void }) {
@@ -266,6 +308,7 @@ export default function PipelinePage() {
 
   const [activeItem, setActiveItem] = useState<any>(null);
   const [pendingMove, setPendingMove] = useState<{ id: string; target: string } | null>(null);
+  const [pendingCierre, setPendingCierre] = useState<{ id: string } | null>(null);
   const [pendingGanado, setPendingGanado] = useState<{ id: string; item: any } | null>(null);
   const [timelineItem, setTimelineItem] = useState<any>(null);
 
@@ -273,9 +316,9 @@ export default function PipelinePage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const doMove = (id: string, nuevoEstado: string, motivoPerdida?: string, precioAcordado?: number) => {
+  const doMove = (id: string, nuevoEstado: string, motivoPerdida?: string, precioAcordado?: number, cierreDocumentos?: string[]) => {
     moveMutation.mutate(
-      { id, nuevoEstado, motivoPerdida, precioAcordado },
+      { id, nuevoEstado, motivoPerdida, precioAcordado, cierreDocumentos },
       {
         onSuccess: () => toast.success('Lead actualizado'),
         onError: (err: any) => toast.error(err.message ?? 'Error al mover el lead'),
@@ -286,6 +329,8 @@ export default function PipelinePage() {
   const handleMove = (id: string, estado: string) => {
     if (estado === 'PERDIDO') {
       setPendingMove({ id, target: estado });
+    } else if (estado === 'CIERRE') {
+      setPendingCierre({ id });
     } else if (estado === 'GANADO') {
       const item = Object.values(pipeline).flat().find((i) => i.id === id);
       setPendingGanado({ id, item });
@@ -373,6 +418,16 @@ export default function PipelinePage() {
             setPendingMove(null);
           }}
           onCancel={() => setPendingMove(null)}
+        />
+      )}
+
+      {pendingCierre && (
+        <CierreModal
+          onConfirm={(docs) => {
+            doMove(pendingCierre.id, 'CIERRE', undefined, undefined, docs);
+            setPendingCierre(null);
+          }}
+          onCancel={() => setPendingCierre(null)}
         />
       )}
 

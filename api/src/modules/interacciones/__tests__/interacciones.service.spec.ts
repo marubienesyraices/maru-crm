@@ -38,6 +38,8 @@ describe('InteraccionesService', () => {
       providers: [
         InteraccionesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: 'NotificacionesService', useValue: { create: jest.fn() } },
+        { provide: require('../../../modules/notificaciones/notificaciones.service').NotificacionesService, useValue: { create: jest.fn() } },
       ],
     }).compile();
     service = module.get<InteraccionesService>(InteraccionesService);

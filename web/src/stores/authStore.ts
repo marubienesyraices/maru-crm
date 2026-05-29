@@ -28,6 +28,7 @@ interface AuthState {
   limitePropiedades: number | null;
   planFeatures: PlanFeatures | null;
   tema: 'oscuro' | 'claro';
+  passwordExpiresIn: number | null; // P-02: days until password expires (null = ok)
   isLoading: boolean;
   error: string | null;
 
@@ -58,12 +59,22 @@ interface BrandingResponse {
   plan: string;
   limite_usuarios: number;
   limite_propiedades: number;
+  color_primario?: string;
+  color_secundario?: string;
+  color_acento?: string;
   tiene_correo?: boolean;
   tiene_campanas?: boolean;
   tiene_portal?: boolean;
   tiene_sitio_propio?: boolean;
   tiene_integraciones?: boolean;
   tiene_meta?: boolean;
+}
+
+function applyBrandingColors(info: BrandingResponse) {
+  const root = document.documentElement;
+  if (info.color_primario)   root.style.setProperty('--brand-primary',   info.color_primario);
+  if (info.color_secundario) root.style.setProperty('--brand-secondary', info.color_secundario);
+  if (info.color_acento)     root.style.setProperty('--brand-accent',    info.color_acento);
 }
 
 function applyBranding(info: BrandingResponse) {
@@ -80,6 +91,7 @@ function applyBranding(info: BrandingResponse) {
       tiene_meta:          info.tiene_meta          ?? false,
     },
   });
+  applyBrandingColors(info);
 }
 
 const _rawRefresh = localStorage.getItem('refreshToken');
@@ -116,6 +128,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   limitePropiedades: null,
   planFeatures:      null,
   tema:              (localStorage.getItem('userTheme') as 'oscuro' | 'claro') || 'oscuro',
+  passwordExpiresIn: null,
   isLoading:    false,
   error:        null,
 
@@ -163,7 +176,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = parseJwt(data.accessToken);
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
-      set({ user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false });
+      set({
+        user, accessToken: data.accessToken, refreshToken: data.refreshToken, isLoading: false,
+        passwordExpiresIn: data.passwordExpiresIn ?? null, // P-02
+      });
       scheduleRefresh(data.accessToken);
       apiRequest<{ tema: 'oscuro' | 'claro' }>('/api/users/me', { token: data.accessToken })
         .then((profile) => { applyTema(profile.tema); set({ tema: profile.tema }); })

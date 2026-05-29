@@ -86,15 +86,17 @@ export class ConfigIntegracionesService {
   async getCartaConfig(tenantId: string) {
     const row = await this.prisma.configIntegraciones.findUnique({
       where: { tenant_id: tenantId },
-      select: { carta_color_primario: true, carta_tagline: true },
+      select: { carta_color_primario: true, carta_tagline: true, carta_logo_url: true, carta_clausulas_custom: true },
     });
-    return row ?? { carta_color_primario: null, carta_tagline: null };
+    return row ?? { carta_color_primario: null, carta_tagline: null, carta_logo_url: null, carta_clausulas_custom: null };
   }
 
   async updateCartaConfig(tenantId: string, dto: UpdateConfigIntegracionesDto) {
     const data: Record<string, unknown> = {};
-    if (dto.carta_color_primario !== undefined) data.carta_color_primario = dto.carta_color_primario || null;
-    if (dto.carta_tagline       !== undefined) data.carta_tagline        = dto.carta_tagline        || null;
+    if (dto.carta_color_primario   !== undefined) data.carta_color_primario   = dto.carta_color_primario   || null;
+    if (dto.carta_tagline          !== undefined) data.carta_tagline          = dto.carta_tagline          || null;
+    if (dto.carta_logo_url         !== undefined) data.carta_logo_url         = dto.carta_logo_url         || null;
+    if (dto.carta_clausulas_custom !== undefined) data.carta_clausulas_custom = dto.carta_clausulas_custom || null;
 
     await this.prisma.configIntegraciones.upsert({
       where:  { tenant_id: tenantId },

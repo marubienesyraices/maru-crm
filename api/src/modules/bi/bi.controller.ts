@@ -89,6 +89,28 @@ export class BiController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @SkipAudit()
+  @Get('heatmap')
+  @ApiOperation({ summary: 'Coordenadas + actividad de propiedades para mapa de calor' })
+  getHeatmap(@CurrentUser() user: any) {
+    return this.bi.getHeatmap(user.tenantId);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @SkipAudit()
+  @Get('comisiones')
+  @ApiOperation({ summary: 'Comisiones realizadas (GANADO) vs proyectadas (EN_NEGOCIACION + CIERRE)' })
+  getComisiones(
+    @CurrentUser() user: any,
+    @Query('desde') desdeStr?: string,
+    @Query('hasta') hastaStr?: string,
+  ) {
+    return this.bi.getComisiones(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @SkipAudit()
   @Post('cache/flush')
   @ApiOperation({ summary: 'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)' })
   async flushCache(@CurrentUser() user: any) {

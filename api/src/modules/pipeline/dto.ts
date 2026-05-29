@@ -14,6 +14,7 @@ export class CambiarEstadoInteresDto {
   @IsString() nuevoEstado: string;
   @IsOptional() @IsString() motivoPerdida?: string;
   @IsOptional() @IsNumber() precioAcordado?: number;
+  @IsOptional() cierreDocumentos?: string[]; // F-16: required when moving to CIERRE
 }
 
 export class UpdateInteresDto {

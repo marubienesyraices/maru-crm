@@ -109,8 +109,20 @@ export class PipelineService {
       throw new BadRequestException('Debe indicar el motivo de pérdida');
     }
 
+    if (nuevoEstado === 'CIERRE') {
+      const docs = dto.cierreDocumentos ?? [];
+      if (!docs.length) {
+        throw new BadRequestException(
+          'Debe adjuntar al menos un documento de soporte para pasar a Cierre (promesa de compraventa, comprobante de pago, etc.).',
+        );
+      }
+    }
+
     // ─── Pipeline data ─────────────────────────────────────────
     const pipelineData: any = { estado: nuevoEstado as EstadoInteres };
+    if (nuevoEstado === 'CIERRE' && dto.cierreDocumentos?.length) {
+      pipelineData.cierre_documentos = dto.cierreDocumentos;
+    }
     if (nuevoEstado === 'CONTACTADO' && !interes.fecha_contacto) {
       pipelineData.fecha_contacto = new Date();
     }

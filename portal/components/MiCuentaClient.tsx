@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -100,11 +100,16 @@ function fmtDateTime(iso: string) {
   });
 }
 
+// ─── Google OAuth helper ──────────────────────────────────────
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+
 // ─── Login form ───────────────────────────────────────────────
 
-function LoginForm({ tenantId }: { tenantId?: string }) {
+function LoginForm({ tenantId, onSuccess }: { tenantId?: string; onSuccess: (token: string, nombre: string) => void }) {
   const [email, setEmail]     = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [sent, setSent]       = useState(false);
   const [error, setError]     = useState('');
 
@@ -125,6 +130,37 @@ function LoginForm({ tenantId }: { tenantId?: string }) {
       setLoading(false);
     }
   };
+
+  // Handle Google Sign-In credential callback
+  const handleGoogleCredential = async (credential: string) => {
+    setGoogleLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/api/public/cliente/google-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, tenantId }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? 'Error al autenticar con Google'); }
+      const data = await res.json();
+      localStorage.setItem('cliente_token', data.token);
+      localStorage.setItem('cliente_nombre', data.nombre);
+      onSuccess(data.token, data.nombre);
+    } catch (err: any) {
+      setError(err.message ?? 'Error al autenticar con Google');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // Expose callback globally for Google GSI script
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    (window as any).__mcGoogleCallback = (response: { credential: string }) => {
+      handleGoogleCredential(response.credential);
+    };
+    return () => { delete (window as any).__mcGoogleCallback; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
 
   if (sent) {
     return (
@@ -149,6 +185,37 @@ function LoginForm({ tenantId }: { tenantId?: string }) {
       <p className="mc-subtitle">
         Ingresa tu correo y te enviaremos un enlace de acceso instantáneo.
       </p>
+
+      {/* F-12: Google Sign-In button (shown only if NEXT_PUBLIC_GOOGLE_CLIENT_ID is set) */}
+      {GOOGLE_CLIENT_ID && (
+        <>
+          <div
+            id="g_id_onload"
+            data-client_id={GOOGLE_CLIENT_ID}
+            data-context="signin"
+            data-ux_mode="popup"
+            data-callback="__mcGoogleCallback"
+            data-auto_prompt="false"
+          />
+          <div
+            className="g_id_signin"
+            data-type="standard"
+            data-shape="rectangular"
+            data-theme="outline"
+            data-text="signin_with"
+            data-size="large"
+            data-locale="es"
+            style={{ marginBottom: 12 }}
+          />
+          <div className="mc-divider" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 12px', color: '#94a3b8', fontSize: '0.8rem' }}>
+            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+            <span>o usa tu correo</span>
+            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+          </div>
+          {googleLoading && <p className="mc-hint">Autenticando con Google…</p>}
+        </>
+      )}
+
       <form className="mc-form" onSubmit={submit}>
         <input
           className="mc-input"
@@ -157,10 +224,10 @@ function LoginForm({ tenantId }: { tenantId?: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          autoFocus
+          autoFocus={!GOOGLE_CLIENT_ID}
         />
         {error && <p className="mc-error">{error}</p>}
-        <button className="mc-btn mc-btn-primary" type="submit" disabled={loading}>
+        <button className="mc-btn mc-btn-primary" type="submit" disabled={loading || googleLoading}>
           {loading ? 'Enviando…' : 'Enviar enlace de acceso'}
         </button>
       </form>
@@ -387,22 +454,35 @@ export default function MiCuentaClient({ tenantId }: { tenantId?: string }) {
   const [cliente, setCliente] = useState<ClienteData | null>(null);
   const [error, setError]   = useState('');
 
+  const loadDashboard = useCallback(async (token: string) => {
+    const res = await fetch(`${API}/api/public/cliente/mi-cuenta`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 401) { localStorage.removeItem('cliente_token'); setState('login'); return; }
+    if (!res.ok) throw new Error('Error al cargar tu cuenta.');
+    const data: ClienteData = await res.json();
+    setCliente(data);
+    setState('dashboard');
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('cliente_token');
     if (!token) { setState('login'); return; }
+    loadDashboard(token).catch((e: Error) => { setError(e.message); setState('login'); });
+  }, [loadDashboard]);
 
-    fetch(`${API}/api/public/cliente/mi-cuenta`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        if (res.status === 401) { localStorage.removeItem('cliente_token'); setState('login'); return; }
-        if (!res.ok) throw new Error('Error al cargar tu cuenta.');
-        const data: ClienteData = await res.json();
-        setCliente(data);
-        setState('dashboard');
-      })
-      .catch((e: Error) => { setError(e.message); setState('login'); });
+  // Load Google GSI script once if client ID is configured
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || document.getElementById('google-gsi')) return;
+    const script = document.createElement('script');
+    script.id = 'google-gsi';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
   }, []);
+
+  const handleGoogleSuccess = useCallback((token: string) => {
+    loadDashboard(token).catch((e: Error) => setError(e.message));
+  }, [loadDashboard]);
 
   const handleLogout = () => {
     localStorage.removeItem('cliente_token');
@@ -424,7 +504,7 @@ export default function MiCuentaClient({ tenantId }: { tenantId?: string }) {
     return (
       <div className="mc-page">
         {error && <p className="mc-error mc-error-top">{error}</p>}
-        <LoginForm tenantId={tenantId} />
+        <LoginForm tenantId={tenantId} onSuccess={handleGoogleSuccess} />
       </div>
     );
   }

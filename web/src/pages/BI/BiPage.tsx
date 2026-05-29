@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
 import './Bi.css';
 
-type Tab = 'resumen' | 'agentes' | 'propiedades' | 'productividad';
+type Tab = 'resumen' | 'agentes' | 'propiedades' | 'productividad' | 'comisiones' | 'heatmap';
 
 const FUNNEL_COLORS: Record<string, string> = {
   NUEVO: '#64748b', CONTACTADO: '#3b82f6', INTERESADO: '#f59e0b',
@@ -503,6 +503,219 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
   );
 }
 
+// ─── Heatmap Tab (F-22) ────────────────────────────────────────────────────────
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+
+function HeatmapTab({ token }: { token: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [noToken, setNoToken] = useState(false);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN) { setNoToken(true); setLoading(false); return; }
+    apiRequest<any[]>('/api/bi/heatmap', { token })
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !containerRef.current || !data.length) return;
+    let map: any;
+    import('mapbox-gl').then(({ default: mapboxgl }) => {
+      mapboxgl.accessToken = MAPBOX_TOKEN;
+      map = new mapboxgl.Map({
+        container: containerRef.current!,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-90.5328, 14.6407], // Guatemala City
+        zoom: 10,
+      });
+      map.on('load', () => {
+        const geojson: any = {
+          type: 'FeatureCollection',
+          features: data.map((p) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+            properties: { weight: p.weight, leads: p.leads, titulo: p.titulo, codigo: p.codigo },
+          })),
+        };
+        map.addSource('props', { type: 'geojson', data: geojson });
+        map.addLayer({
+          id: 'heat',
+          type: 'heatmap',
+          source: 'props',
+          maxzoom: 15,
+          paint: {
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+            'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(33,102,172,0)', 0.2, 'rgb(103,169,207)', 0.4, 'rgb(209,229,240)',
+              0.6, 'rgb(253,219,199)', 0.8, 'rgb(239,138,98)', 1, 'rgb(178,24,43)',
+            ],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 20, 15, 50],
+            'heatmap-opacity': 0.8,
+          },
+        });
+      });
+    });
+    return () => { map?.remove(); };
+  }, [data]);
+
+  if (loading) return <div className="bi-loading"><div className="spinner" /><span>Cargando mapa…</span></div>;
+  if (noToken) return (
+    <div className="bi-empty" style={{ flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: '2rem' }}>🗺️</span>
+      <strong>Mapbox no configurado</strong>
+      <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Agrega <code>VITE_MAPBOX_TOKEN</code> al .env para ver el mapa de calor.</span>
+    </div>
+  );
+  if (!data.length) return <div className="bi-empty">Sin propiedades con coordenadas para mostrar.</div>;
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div className="bi-kpi" style={{ flex: 1, minWidth: 120 }}>
+          <span className="bi-kpi-label">Propiedades en mapa</span>
+          <span className="bi-kpi-value">{data.length}</span>
+        </div>
+        <div className="bi-kpi" style={{ flex: 1, minWidth: 120 }}>
+          <span className="bi-kpi-label">Total leads activos</span>
+          <span className="bi-kpi-value">{data.reduce((s: number, p: any) => s + p.leads, 0)}</span>
+        </div>
+      </div>
+      <div ref={containerRef} style={{ width: '100%', height: 450, borderRadius: 12, overflow: 'hidden' }} />
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
+        Intensidad = número de leads activos por propiedad. Solo propiedades con coordenadas GPS registradas.
+      </p>
+    </>
+  );
+}
+
+// ─── Comisiones Tab (P-14) ────────────────────────────────────────────────────
+
+function ComisionesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setIsError(false);
+    try {
+      const params = new URLSearchParams();
+      if (desde) params.set('desde', desde);
+      if (hasta) params.set('hasta', hasta);
+      const res = await apiRequest<any>(`/api/bi/comisiones?${params}`, { token });
+      setData(res);
+    } catch { setIsError(true); }
+    finally { setLoading(false); }
+  }, [desde, hasta, token]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <div className="bi-loading"><div className="spinner" /><span>Calculando comisiones…</span></div>;
+  if (isError) return (
+    <div className="page-error-state">
+      <h3>Error al cargar comisiones</h3>
+      <button className="btn btn-ghost" onClick={fetchData}>Reintentar</button>
+    </div>
+  );
+  if (!data) return <div className="bi-empty">Sin datos</div>;
+
+  const total = data.totalAcumulado ?? 0;
+  const pctReal = total > 0 ? Math.round((data.realizadas / total) * 100) : 0;
+
+  return (
+    <>
+      <div className="bi-kpis">
+        <div className="bi-kpi" style={{ borderLeft: '3px solid #22c55e' }}>
+          <span className="bi-kpi-label">Comisiones realizadas</span>
+          <span className="bi-kpi-value" style={{ fontSize: '1.25rem', color: '#22c55e' }}>{fmtMoney(data.realizadas)}</span>
+          <span className="bi-kpi-sub">{data.numCierres} trámite(s) cerrado(s)</span>
+        </div>
+        <div className="bi-kpi" style={{ borderLeft: '3px solid #f59e0b' }}>
+          <span className="bi-kpi-label">Comisiones proyectadas</span>
+          <span className="bi-kpi-value" style={{ fontSize: '1.25rem', color: '#f59e0b' }}>{fmtMoney(data.proyectadas)}</span>
+          <span className="bi-kpi-sub">{data.numEnProceso} trámite(s) en negociación/cierre</span>
+        </div>
+        <div className="bi-kpi">
+          <span className="bi-kpi-label">Total acumulado</span>
+          <span className="bi-kpi-value" style={{ fontSize: '1.25rem' }}>{fmtMoney(data.totalAcumulado)}</span>
+          <span className="bi-kpi-sub">{pctReal}% ya realizadas</span>
+        </div>
+      </div>
+
+      <div className="bi-section">
+        <h3>Barra realizadas vs proyectadas</h3>
+        <div style={{ display: 'flex', height: 24, borderRadius: 6, overflow: 'hidden', gap: 2, marginTop: 8 }}>
+          {data.realizadas > 0 && (
+            <div
+              title={`Realizadas: ${fmtMoney(data.realizadas)}`}
+              style={{ flex: data.realizadas, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 600, minWidth: 60 }}
+            >
+              {pctReal}% real.
+            </div>
+          )}
+          {data.proyectadas > 0 && (
+            <div
+              title={`Proyectadas: ${fmtMoney(data.proyectadas)}`}
+              style={{ flex: data.proyectadas, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 600, minWidth: 60 }}
+            >
+              {100 - pctReal}% proy.
+            </div>
+          )}
+          {data.realizadas === 0 && data.proyectadas === 0 && (
+            <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Sin datos
+            </div>
+          )}
+        </div>
+      </div>
+
+      {data.detalleProyectado?.length > 0 && (
+        <div className="bi-section">
+          <h3>Trámites en proceso ({data.detalleProyectado.length})</h3>
+          <div className="admin-table-wrap" style={{ marginTop: 12 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Propiedad</th>
+                  <th>Estado pipeline</th>
+                  <th style={{ textAlign: 'right' }}>Comisión proyectada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.detalleProyectado.map((item: any, i: number) => (
+                  <tr key={i}>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.codigo}</td>
+                    <td>{item.titulo}</td>
+                    <td>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+                        background: item.estado === 'CIERRE' ? 'rgba(236,72,153,0.15)' : 'rgba(139,92,246,0.15)',
+                        color: item.estado === 'CIERRE' ? '#ec4899' : '#8b5cf6',
+                      }}>
+                        {item.estado === 'CIERRE' ? 'En cierre' : 'En negociación'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtMoney(item.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 16 }}>
+        Proyectadas = precio de propiedad × % comisión de trámites en EN_NEGOCIACION/CIERRE · Realizadas = comisión calculada de trámites GANADO
+      </p>
+    </>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BiPage() {
@@ -528,6 +741,14 @@ export default function BiPage() {
           <input type="date" value={desde} onChange={e => setDesde(e.target.value)} max={hasta} />
           <label>Hasta</label>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} min={desde} max={defaultHasta} />
+          <button
+            className="btn btn-ghost"
+            style={{ fontSize: '0.8125rem', gap: 6 }}
+            onClick={() => window.print()}
+            title="Exportar / Imprimir como PDF"
+          >
+            🖨️ PDF
+          </button>
         </div>
       </div>
 
@@ -536,12 +757,16 @@ export default function BiPage() {
         <button className={`bi-tab ${tab === 'agentes' ? 'active' : ''}`} onClick={() => setTab('agentes')}>Agentes</button>
         <button className={`bi-tab ${tab === 'propiedades' ? 'active' : ''}`} onClick={() => setTab('propiedades')}>Top Propiedades</button>
         <button className={`bi-tab ${tab === 'productividad' ? 'active' : ''}`} onClick={() => setTab('productividad')}>Productividad</button>
+        <button className={`bi-tab ${tab === 'comisiones' ? 'active' : ''}`} onClick={() => setTab('comisiones')}>💰 Comisiones</button>
+        <button className={`bi-tab ${tab === 'heatmap' ? 'active' : ''}`} onClick={() => setTab('heatmap')}>🗺️ Mapa de calor</button>
       </div>
 
       {tab === 'resumen' && <ResumenTab {...sharedProps} />}
       {tab === 'agentes' && <AgentesTab {...sharedProps} />}
       {tab === 'propiedades' && <PropiedadesTab {...sharedProps} />}
       {tab === 'productividad' && <ProductividadTab {...sharedProps} />}
+      {tab === 'comisiones' && <ComisionesTab {...sharedProps} />}
+      {tab === 'heatmap' && <HeatmapTab token={accessToken!} />}
     </div>
   );
 }

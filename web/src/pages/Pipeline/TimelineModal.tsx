@@ -319,8 +319,11 @@ export default function TimelineModal({ item, onClose }: Props) {
                   style={{ width: 130 }} />
               </div>
               <div className="timeline-form-row">
-                <textarea placeholder="Notas sobre la interacción..." value={form.notas} rows={2}
-                  onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} style={{ flex: 1 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <textarea placeholder="Notas sobre la interacción... Usa @[Nombre] para mencionar a un agente" value={form.notas} rows={2}
+                    onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} style={{ width: '100%' }} />
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>F-18: Menciona agentes con @[Nombre Apellido]</span>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <input type="datetime-local" value={form.fecha} style={{ fontSize: '0.8125rem' }}
                     onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))} />

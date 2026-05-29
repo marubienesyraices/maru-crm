@@ -100,4 +100,13 @@ export class PortalController {
   getFavoritos(@Request() req: any) {
     return this.service.getFavoritos(req.clienteId);
   }
+
+  // ─── F-12: Google OAuth ────────────────────────────────────
+
+  @Post('cliente/google-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Iniciar sesión con Google OAuth — crea o recupera cuenta de cliente' })
+  googleAuth(@Body('credential') credential: string, @Body('tenantId') tenantId?: string) {
+    return this.service.googleAuth(credential, tenantId);
+  }
 }

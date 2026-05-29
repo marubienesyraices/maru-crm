@@ -132,7 +132,24 @@ export class AuthService {
 
     await this.auditLog(user.tenant_id, user.id, user.nombre, 'LOGIN', 'Auth', 'User', user.id, ip, userAgent);
 
-    return this.issueTokens(user.id, user.tenant_id, user.email, user.rol, ip, userAgent);
+    // P-02: Check password expiry (90-day policy)
+    const EXPIRY_DAYS = 90;
+    const WARN_DAYS = 7;
+    const passwordAge = user.password_changed_at
+      ? Math.floor((Date.now() - user.password_changed_at.getTime()) / 86_400_000)
+      : EXPIRY_DAYS + 1;
+    const daysLeft = EXPIRY_DAYS - passwordAge;
+    let passwordExpiresIn: number | undefined;
+
+    if (daysLeft <= 0) {
+      // Expired — include warning in response (UI must redirect to change-password)
+      passwordExpiresIn = 0;
+    } else if (daysLeft <= WARN_DAYS) {
+      passwordExpiresIn = daysLeft;
+    }
+
+    const tokens = await this.issueTokens(user.id, user.tenant_id, user.email, user.rol, ip, userAgent);
+    return passwordExpiresIn !== undefined ? { ...tokens, passwordExpiresIn } : tokens;
   }
 
   // ─── SETUP 2FA ────────────────────────────────────────────
@@ -316,6 +333,16 @@ export class AuthService {
 
     if (!user) throw new BadRequestException('Token inválido o expirado');
 
+    // F-02: If user has 2FA enabled, require TOTP verification
+    if (user.totp_habilitado && user.totp_secret) {
+      if (!dto.totpCode) {
+        throw new BadRequestException(JSON.stringify({ requiresTOTP: true, message: 'Tu cuenta tiene 2FA activo. Ingresa el código de tu app autenticadora.' }));
+      }
+      const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
+      const isValid = totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
+      if (!isValid) throw new BadRequestException('Código 2FA incorrecto');
+    }
+
     const history: string[] = (user.password_history as string[]) || [];
     for (const oldHash of history) {
       if (await bcrypt.compare(dto.newPassword, oldHash)) {
@@ -419,7 +446,7 @@ export class AuthService {
     let blockedUntil: Date | null = null;
 
     if (attempts >= 9) {
-      blockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      blockedUntil = new Date('2099-01-01T00:00:00Z'); // requires Admin manual unlock
     } else if (attempts >= 6) {
       blockedUntil = new Date(Date.now() + 60 * 60 * 1000);
     } else if (attempts >= 3) {

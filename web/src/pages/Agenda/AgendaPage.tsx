@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiRequest } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useVisitas, useVisitasConfig, useCreateVisita, useUpdateVisita, useDeleteVisita, useReporteVisita, useCrearMeeting, useEliminarMeeting } from '../../hooks/useVisitas';
 import { usePipeline } from '../../hooks/usePipeline';
@@ -297,16 +298,36 @@ interface ReporteModalProps {
 }
 
 function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
+  const { accessToken } = useAuthStore();
   const reporteMutation = useReporteVisita();
   const saving = reporteMutation.isPending;
+  const [enviandoPropietario, setEnviandoPropietario] = useState(false);
+  const [propietarioMsg, setPropietarioMsg] = useState('');
 
   const [form, setForm] = useState({
     notas: visita.reporte_notas ?? '',
     nivelInteres: visita.reporte_nivel_interes ?? '',
     reaccion: visita.reporte_reaccion ?? '',
     siguientePaso: visita.reporte_siguiente_paso ?? '',
+    fotosInput: '',
   });
+  const [fotosList, setFotosList] = useState<string[]>((visita as any).fotos_visita ?? []);
   const [error, setError] = useState('');
+
+  const handleEnviarPropietario = async () => {
+    setEnviandoPropietario(true);
+    setPropietarioMsg('');
+    try {
+      const res = await apiRequest<{ sent: boolean; reason?: string }>(`/api/visitas/${visita.id}/resumen-propietario`, {
+        method: 'POST', token: accessToken!,
+      });
+      setPropietarioMsg(res.sent ? '✓ Resumen enviado al propietario' : `Sin envío: ${res.reason}`);
+    } catch (err: any) {
+      setPropietarioMsg(`Error: ${err.message}`);
+    } finally {
+      setEnviandoPropietario(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,6 +339,7 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
         nivelInteres: form.nivelInteres || undefined,
         reaccion: form.reaccion || undefined,
         siguientePaso: form.siguientePaso || undefined,
+        fotosVisita: fotosList.length > 0 ? fotosList : undefined,
       },
       {
         onSuccess: () => { onSaved(); onClose(); },
@@ -395,6 +417,43 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
             />
           </div>
 
+          {/* F-21: Fotos de la visita */}
+          <div>
+            <label className="agenda-label">Fotos de la visita (URLs)</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+              <input
+                className="agenda-input"
+                placeholder="https://... pega URL de foto y presiona +"
+                value={form.fotosInput}
+                onChange={(e) => setForm((f) => ({ ...f, fotosInput: e.target.value }))}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ padding: '4px 12px', whiteSpace: 'nowrap' }}
+                onClick={() => {
+                  const url = form.fotosInput.trim();
+                  if (url) { setFotosList((p) => [...p, url]); setForm((f) => ({ ...f, fotosInput: '' })); }
+                }}
+              >+</button>
+            </div>
+            {fotosList.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {fotosList.map((url, i) => (
+                  <div key={i} style={{ position: 'relative', width: 64, height: 48 }}>
+                    <img src={url} alt={`foto-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} onError={(e) => { (e.target as HTMLImageElement).src = ''; }} />
+                    <button
+                      type="button"
+                      onClick={() => setFotosList((p) => p.filter((_, j) => j !== i))}
+                      style={{ position: 'absolute', top: -4, right: -4, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 16, height: 16, fontSize: 10, cursor: 'pointer', lineHeight: '16px', padding: 0 }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <div className="agenda-error">{error}</div>}
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
@@ -404,6 +463,24 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
             </button>
           </div>
         </form>
+
+        {yaCompletado && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8125rem' }}
+              disabled={enviandoPropietario}
+              onClick={handleEnviarPropietario}
+            >
+              {enviandoPropietario ? '...' : '📧 Enviar resumen al propietario'}
+            </button>
+            {propietarioMsg && (
+              <span style={{ marginLeft: 10, fontSize: '0.8rem', color: propietarioMsg.startsWith('✓') ? '#22c55e' : 'var(--text-muted)' }}>
+                {propietarioMsg}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

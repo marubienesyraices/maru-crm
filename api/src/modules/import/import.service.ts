@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import * as XLSX from 'xlsx';
 import { randomUUID } from 'crypto';
 
+const IMPORT_IP = '0.0.0.0'; // system action, no real IP
+
 // ─── Types ────────────────────────────────────────────────────
 
 export interface ImportError {
@@ -445,6 +447,23 @@ export class ImportService {
         propOffset--;
         errors.push({ row: rowNum, campo: 'codigo', mensaje: `Error al crear la propiedad (código ${codigo} duplicado, reintenta)` });
       }
+    }
+
+    // P-16: Log import action in audit_logs with origin metadata
+    if (created > 0 && userId) {
+      this.prisma.auditLog.create({
+        data: {
+          tenant_id: tenantId,
+          user_id: userId,
+          nombre_usuario: 'Importación masiva',
+          accion: 'CREATE' as any,
+          modulo: 'Import',
+          entidad: 'Propiedad',
+          entidad_id: null,
+          ip_address: IMPORT_IP,
+          payload_cambio: { origen: 'Importación masiva', archivo: filename ?? 'CSV/Excel', cantidad: created },
+        },
+      }).catch(() => {});
     }
 
     return {

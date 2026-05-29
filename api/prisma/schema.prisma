@@ -66,6 +66,9 @@ model Tenant {
   id               String        @id @default(uuid())
   nombre           String
   logo_url         String?
+  color_primario   String        @default("#1E3A5F")
+  color_secundario String        @default("#F5A623")
+  color_acento     String        @default("#10B981")
   plan             Plan          @default(FREE)
   moneda           String        @default("GTQ")
   zona_horaria     String        @default("America/Guatemala")
@@ -126,8 +129,10 @@ model ConfigIntegraciones {
   ml_access_token     String?
 
   // ── P-07: Carta de Comisión configurable ──────
-  carta_color_primario String?
-  carta_tagline        String?
+  carta_color_primario   String?
+  carta_tagline          String?
+  carta_logo_url         String?
+  carta_clausulas_custom String?
 
   tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   updated_at DateTime @updatedAt
@@ -199,8 +204,9 @@ model User {
   intentos_login      Int           @default(0)
   bloqueado_hasta     DateTime?
   ultimo_login        DateTime?
-  password_changed_at DateTime?
-  password_history    Json?
+  password_changed_at     DateTime?
+  password_history        Json?
+  password_expiry_warned  Boolean   @default(false)
   activation_token    String?       @unique
   activation_expires  DateTime?
   reset_token         String?       @unique
@@ -252,6 +258,9 @@ model AuditLog {
   ip_address     String
   user_agent     String?
   payload_cambio Json?
+  archivado      Boolean     @default(false)
+  archivado_url  String?
+  archivado_at   DateTime?
   created_at     DateTime    @default(now())
 
   tenant Tenant @relation(fields: [tenant_id], references: [id])
@@ -270,6 +279,7 @@ model ConfigSeguridad {
   dias_inactividad_lead   Int     @default(21)
   senior_puede_ver_upline Boolean @default(false)
   buffer_entre_citas_min  Int     @default(30)
+  modo_asignacion_leads   String  @default("Manual")
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 
@@ -385,6 +395,8 @@ model PropiedadImagen {
   id            String   @id @default(uuid())
   propiedad_id  String
   url           String
+  thumbnail_url String?
+  original_url  String?
   nombre        String?
   tipo          String   @default("galeria") // portada | galeria
   orden         Int      @default(0)
@@ -426,6 +438,7 @@ enum TipoNotificacion {
   LEAD_INACTIVO
   NEGOCIACION_TIMEOUT
   PROPIEDAD_ESTANCADA
+  MENCION
 }
 
 model Notificacion {
@@ -554,6 +567,7 @@ model ClientePropiedad {
   presupuesto     Decimal?      @db.Decimal(14, 2)
   notas           String?
   motivo_perdida  String?
+  cierre_documentos Json?       @default("[]")
   fecha_contacto  DateTime?
   fecha_cierre    DateTime?
   precio_cierre   Decimal?      @db.Decimal(14, 2)
@@ -580,6 +594,7 @@ model Interaccion {
   tipo         TipoInteraccion
   resultado    ResultadoInteraccion @default(NEUTRO)
   notas        String?
+  menciones    Json?                @default("[]")
   duracion_min Int?
   fecha        DateTime             @default(now())
   created_at   DateTime             @default(now())
@@ -608,6 +623,7 @@ model Visita {
   reporte_reaccion        String?
   reporte_siguiente_paso  String?
   reporte_fecha           DateTime?
+  fotos_visita            Json?    @default("[]")
 
   // Client reschedule link
   reschedule_token           String?   @unique
@@ -687,6 +703,8 @@ model EmailPlantilla {
   asunto      String
   cuerpo_html String
   variables   String[]
+  version     Int            @default(1)
+  historial   Json?          @default("[]")
   created_at  DateTime       @default(now())
   updated_at  DateTime       @updatedAt
   campanas    EmailCampana[]
