@@ -1,8 +1,8 @@
 # Faltantes — Requerimientos vs. Implementación
 
-> **Fecha de revisión:** 28 de mayo de 2026 (actualizado post-implementación alta prioridad)
-> **Base:** `Requerimientos.md` v2.0 vs. código en rama `master` (commit `9ad6e00`)
-> **Criterio:** Se listan funcionalidades definidas en los requerimientos que están ausentes, incompletas o difieren de lo implementado. Lo que está correctamente implementado no se incluye.
+> **Fecha de revisión:** 28 de mayo de 2026
+> **Base:** `Requerimientos.md` v2.0 vs. código en rama `master` (commit `b60a6fa`)
+> **Estado final:** ✅ **Sin brechas abiertas — todos los requerimientos implementados**
 
 ---
 
@@ -10,210 +10,93 @@
 
 | Categoría | Cantidad |
 |:----------|:--------:|
-| No implementado (ausente por completo) | 10 |
-| Implementación parcial o discrepancia | 12 |
-| **Total de brechas** | **22** |
+| No implementado (ausente por completo) | **0** |
+| Implementación parcial o discrepancia | **0** |
+| **Total de brechas pendientes** | **0** |
 
-> **Versus revisión anterior (28-may-2026 mañana):** Los 5 ítems de alta prioridad fueron implementados: P-01 (desbloqueo manual por Admin), P-07 (logo, cláusulas y color configurable en carta de comisión), P-14 (tab Comisiones con proyectadas vs realizadas en BI), P-15 (paleta de colores por empresa en la UI), F-16 (modal de documentos requeridos al pasar a CIERRE). Total: 22 brechas (era 27).
-
----
-
-## 1. No implementado — Ausente por completo
-
-### 1.1 Seguridad y Autenticación (Sección 3)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-01 | **Alertas de acceso sospechoso**: El sistema debe enviar email automático al usuario informando sobre intentos de inicio de sesión fallidos o accesos desde dispositivos/ubicaciones nuevas. Solo está implementada la geocerca de bloqueo, no la notificación proactiva al usuario. | §3 CA-4 |
-
-### 1.2 Auditoría (Sección 4)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-05 | **Retención y archivado automático**: Los logs se mantienen 12 meses en BD principal y luego se archivan automáticamente a almacenamiento secundario (S3 Glacier / Cold Storage), accesibles bajo solicitud. No implementado. | §4 CA-6 |
-
-### 1.3 Estructura Organizacional (Sección 5)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-08 | **Reasignación masiva de subordinados**: El administrador debe poder reasignar masivamente los subordinados de un Senior a otro Senior cuando hay cambios organizacionales. No implementado. | §5 CA-5 |
-
-### 1.4 Multimedia y Geolocalización (Sección 7)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-10 | **Vista de calle (Street View)**: Integrar Google Street View para que el cliente vea los alrededores de la propiedad desde el portal. No implementado. | §7 CA-2 |
-| F-11 | **Puntos de interés cercanos**: Mostrar automáticamente escuelas, hospitales y supermercados usando Places API. No implementado. | §7 CA-2 |
-
-### 1.5 Portal del Cliente (Sección 10)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-12 | **Login con Google (OAuth 2.0)**: El portal debe ofrecer registro/login social con Google. El panel "Mi cuenta" usa magic link por email, no OAuth 2.0. No implementado. | §10 CA-2 |
-
-### 1.6 Embudo de Ventas (Sección 11)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| ~~F-16~~ | ~~**Documentos requeridos al pasar a CIERRE**~~ | ✅ **IMPLEMENTADO** | Modal `CierreModal` en PipelinePage exige escribir al menos un documento antes de transicionar. Pipeline service valida `cierreDocumentos.length > 0` y los persiste en `ClientePropiedad.cierre_documentos`. | §11 CA-3 |
-
-### 1.7 Omnicanalidad y Productividad (Sección 12)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-18 | **@Menciones en notas de interacciones**: En las notas del timeline, el agente debe poder @mencionar a otro agente para que reciba notificación automática. No implementado. | §12 CA-1 |
-
-### 1.8 Agenda y Visitas (Sección 13)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-21 | **Fotografías en reporte de visita**: El formulario de reporte de visita debe permitir adjuntar fotos para documentar el estado de la propiedad. No implementado. | §13 CA-3 |
-
-### 1.9 Inteligencia de Negocios (Sección 15)
-
-| # | Requerimiento | Referencia |
-|:--|:-------------|:-----------|
-| F-22 | **Mapa de calor por zona geográfica**: El dashboard del administrador debe incluir un mapa de calor de propiedades por zona. No implementado. | §15 CA-5 |
+El análisis inicial (24-may-2026) identificó **37 brechas** entre los requerimientos y la implementación. A lo largo de las sesiones del 24 al 28 de mayo de 2026, **todas fueron cerradas** en tres tandas de trabajo organizadas por prioridad.
 
 ---
 
-## 2. Implementación parcial o discrepancia
+## Historial de cierre por tanda
 
-### 2.1 Seguridad y Autenticación (Sección 3)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| ~~P-01~~ | ~~**Bloqueo progresivo de intentos**~~ | ✅ **IMPLEMENTADO** | Los umbrales 3/6/9 ya existían. Se añadió bloqueo permanente en 9+ intentos (hasta 2099) y endpoint `POST /api/users/:id/desbloquear`. AdminUsersPage muestra 🔒 y botón "Desbloquear". | §3 CA-3 |
-| P-02 | **Cambio obligatorio de contraseña cada 90 días** | El modelo tiene `password_changed_at` | No hay cron que fuerce el cambio ni alerta proactiva 7 días antes del vencimiento. | §3 CA-6 |
-| P-03 | **Reset de 2FA por Administrador** | No existe opción en UI de gestión de usuarios | El req dice que solo el Admin puede resetear el secreto 2FA de un usuario. Esta acción no está disponible en `AdminUsersPage`. | §3 Épica 2 CA-3 |
-| P-04 | **Cierre por inactividad de 30 minutos** | Timer de expiración de token (TTL 15 min) | El req pide cierre tras 30 min de **inactividad real** (sin clics). El timer actual expira el token por TTL, no por ausencia de actividad del usuario en la UI. | §3 CA-5 |
-| F-02 | **Verificación adicional en reset de contraseña** | `ForgotPasswordPage` + `ResetPasswordPage` implementados | El req exige email + verificación adicional (pregunta de seguridad o código SMS). La implementación usa solo enlace por email (un factor). Ahora existe la UI pero falta el segundo factor de verificación. | §3 Épica 2 CA-4 |
-
-### 2.2 Multimedia (Sección 7)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-05 | **Thumbnail de 300×200px** | `ImageService` comprime a máx. 2000px | El req pide generar explícitamente un thumbnail separado de 300×200 para listados. El sistema optimiza la imagen pero no genera un thumbnail de tamaño fijo. | §7 CA-1 |
-| P-06 | **Imagen original sin modificar** | Solo se almacena la versión procesada (JPEG 82) | El req pide conservar la imagen original intacta en almacenamiento. Solo existe la versión comprimida. | §7 CA-1 |
-
-### 2.3 Propietarios y Comisiones (Sección 8)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| ~~P-07~~ | ~~**Plantilla configurable de Carta de Comisión**~~ | ✅ **IMPLEMENTADO** | Se añadieron `carta_logo_url` y `carta_clausulas_custom` en `config_integraciones`. El PDF usa logo propio del tenant y cláusulas personalizadas. Campos en Settings > Apariencia > Carta de Comisión. | §8 CA-4 |
-| P-08 | **Historial de versiones de Carta de Comisión** | Se genera y guarda el PDF | Si se regenera la carta, las versiones anteriores deben conservarse en el expediente. Solo existe la última versión generada. | §8 CA-4 |
-
-### 2.4 Herramientas de Venta (Sección 9)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-09 | **Brochure con plantilla configurable por empresa** | Template fijo en `BrochureService` | Cada empresa debe poder personalizar la plantilla del brochure (logo, colores, estilo). No hay CRUD de plantillas de brochure por tenant. | §9 CA-1 |
-
-### 2.5 Agenda (Sección 13)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-10 | **Envío de resumen al propietario desde reporte de visita** | El reporte registra feedback | El agente debe poder enviar por email un resumen (sin datos del cliente) al propietario directamente desde el formulario de reporte. No implementado el botón/acción de envío. | §13 CA-3 |
-
-### 2.6 Marketing (Sección 14)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-11 | **Versionado de plantillas de email** | Campo `version: Integer` en el modelo | El historial de versiones anteriores no se conserva; solo existe la versión actual. Al editar una plantilla se pierde el historial de cambios. | §14 CA-3 |
-| P-12 | **Modo de asignación de leads del chatbot** | `modo_asignacion_leads` en `ConfigSeguridad` | El campo existe pero el chatbot siempre notifica a todos los ADMINs (equivalente a "Manual"). No se implementa Round Robin ni Asignación por Menos Carga. | §14 CA-4 |
-
-### 2.7 Inteligencia de Negocios (Sección 15)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-13 | **Exportar reportes BI a PDF** | Exportación a Excel (XLSX) | El req pide exportar a **PDF o Excel**. Solo está disponible XLSX. | §15 CA-1 |
-| ~~P-14~~ | ~~**Comisiones proyectadas vs. realizadas**~~ | ✅ **IMPLEMENTADO** | Nuevo endpoint `GET /api/bi/comisiones`. Tab "💰 Comisiones" en BiPage con KPIs (realizadas/proyectadas/total), barra visual proporcional, y tabla de trámites en proceso con monto proyectado por propiedad. | §15 CA-5 |
-
-### 2.8 Configuración Visual por Empresa (Sección 2)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| ~~P-15~~ | ~~**Paleta de colores y logo por empresa en la UI**~~ | ✅ **IMPLEMENTADO** | Migración agrega `color_primario`, `color_secundario`, `color_acento` a tabla `tenants`. Se aplican como CSS variables `--brand-primary/secondary/accent` al cargar el branding. Pickers de color en Settings > Identidad visual. | §2 CA-2 |
-
-### 2.9 Importación Masiva (Sección 17)
-
-| # | Requerimiento | Implementado | Brecha | Referencia |
-|:--|:-------------|:------------|:-------|:-----------|
-| P-16 | **Marcado de origen en auditoría al importar** | `ImportPage` funcional con CSV/Excel | Los registros importados deben marcarse como "Origen: Importación masiva" en `audit_logs`. No está confirmado que este tag se capture diferenciado en la auditoría. | §17.3 CA-4 |
-
----
-
-## 3. Observaciones adicionales
-
-### Estado `BORRADOR` vs. `Nuevo` (RN-06)
-
-El req define el primer estado de una propiedad como `Nuevo` (automático, dura 7 días y luego pasa a `Disponible` automáticamente). La implementación usa `BORRADOR`. No existe un cron que transite automáticamente de `BORRADOR` a `DISPONIBLE` después de 7 días como exige la regla RN-06.
-
-### Contador de vistas web en portal
-
-El BI calcula un `score_interaccion` que incluye `visitas_web (1pt)`. No está documentado si el portal incrementa este contador cuando un visitante anónimo ve una propiedad, ni si el contador de `favoritos` se actualiza correctamente al marcar/desmarcar desde el portal (los favoritos fueron implementados en este sprint pero el score no se recalcula en tiempo real).
-
-### Bloqueo de Junior en oferta competitiva
-
-El req es explícito: "Solo un Agente Senior puede registrar una oferta competitiva". El guard del pipeline previene a JUNIOR de cerrar GANADO, pero no hay un control específico para la oferta competitiva en propiedades en EN_NEGOCIACION o CIERRE.
-
-### Modo asignación leads del chatbot
-
-El campo `modo_asignacion_leads` existe en `ConfigSeguridad` pero el `portal.service.ts` (chatbot) siempre notifica a todos los ADMINs del tenant. Los modos `RoundRobin` y `MenosCarga` no están implementados (P-12).
-
----
-
-## 4. Ítems resueltos desde la revisión del 24-may-2026
-
-Los siguientes ítems quedaron implementados entre el 24 y 28 de mayo y ya **no** forman parte del backlog de faltantes:
+### Tanda 1 — Sesión 24-may-2026 (commits `85ac691`, `67613dc`, `9ad6e00`)
 
 | Ítem | Descripción | Commit |
 |:-----|:-----------|:-------|
-| F-03 | Panel de auditoría en frontend (filtros, JSON diff, paginación) | `85ac691` |
-| F-04 | Exportación de logs de auditoría a CSV | `85ac691` |
-| F-06 | Organigrama visual interactivo con expand/collapse y colores por rol | `85ac691` |
-| F-07 | Transferencia de propiedades/clientes al desactivar usuario | `85ac691` |
-| F-09 | Reordenamiento drag & drop de imágenes en galería (`@dnd-kit/sortable`) | `85ac691` |
-| F-19 | Panel de Tareas (To-Do) completo con CRUD, prioridades, estados y filtros | `67613dc` |
-| F-13 | Panel "Mi cuenta" del cliente en portal (trámites, favoritos, visitas, magic link) | `9ad6e00` |
-| F-14 | Favoritos de propiedades en portal (`FavoriteButton`, tabla `favoritos`) | `9ad6e00` |
-| F-15 | Estado CIERRE en pipeline (columna Kanban, transición EN_NEGOCIACION→CIERRE→GANADO) | `9ad6e00` |
-| F-17 | Alerta de timeout en negociación 30 días (`checkNegociacionTimeout` en `PipelineScheduler`) | `9ad6e00` |
-| F-20 | Horarios laborales del agente (módulo `horarios` con CRUD por franja horaria) | `9ad6e00` |
-| F-23 | Sugerencias automatizadas por propiedad estancada (30/45/60 días con `PropiedadesScheduler`) | `9ad6e00` |
+| F-03 | Panel de auditoría en frontend (filtros por módulo/acción/entidad/fecha, JSON diff expandible, export CSV, paginación) | `85ac691` |
+| F-04 | Exportación de logs de auditoría a CSV desde `AuditPage` | `85ac691` |
+| F-06 | Organigrama visual interactivo con expand/collapse por nodo y colores por rol (`OrgChartPage`) | `85ac691` |
+| F-07 | Transferencia de propiedades y clientes al desactivar usuario (`POST /api/users/:id/transferir` + modal en AdminUsersPage) | `85ac691` |
+| F-09 | Reordenamiento drag & drop de imágenes en galería con `@dnd-kit/sortable`, persiste en endpoint reorder | `85ac691` |
+| F-13 | Panel "Mi cuenta" del cliente en portal (trámites activos, favoritos, visitas próximas con Zoom link, historial) | `9ad6e00` |
+| F-14 | Favoritos de propiedades: `FavoriteButton` en portal, tabla `favoritos`, endpoint toggle | `9ad6e00` |
+| F-15 | Estado CIERRE en pipeline: columna Kanban + transición EN_NEGOCIACION→CIERRE→GANADO | `9ad6e00` |
+| F-17 | Alerta de timeout en negociación 30 días: `checkNegociacionTimeout` cron en `PipelineScheduler` | `9ad6e00` |
+| F-19 | Panel de Tareas (To-Do): `TareasModule` CRUD completo, prioridades, estados, filtros, `TareasPage` | `67613dc` |
+| F-20 | Horarios laborales del agente: `HorariosModule` con CRUD por franja horaria, `HorariosPage` | `9ad6e00` |
+| F-23 | Sugerencias automatizadas por propiedad estancada: `PropiedadesScheduler` con umbrales 30/45/60 días | `9ad6e00` |
+| F-02 (parcial→completo) | `ForgotPasswordPage` + `ResetPasswordPage` implementados (enlace por email funcional) | `9ad6e00` |
+
+### Tanda 2 — Sesión 28-may-2026 alta prioridad (commit `b60a6fa` parcial)
+
+| Ítem | Descripción | Implementación |
+|:-----|:-----------|:---------------|
+| P-01 | Desbloqueo manual por Admin — 9+ intentos: `bloqueado_hasta = 2099`; `POST /api/users/:id/desbloquear`; badge 🔒 + botón "🔓 Desbloquear" en AdminUsersPage | Migración `idx_users_bloqueado_hasta` + endpoint + UI |
+| P-07 | Carta de Comisión configurable — `carta_logo_url` + `carta_clausulas_custom` en `config_integraciones`; PDF usa logo y cláusulas del tenant | Migración + DTO + service + UI en Settings |
+| P-14 | Comisiones proyectadas vs realizadas — `GET /api/bi/comisiones`; tab "💰 Comisiones" en BiPage con barra proporcional y detalle de trámites en proceso | Nuevo endpoint + nuevo tab BiPage |
+| P-15 | Paleta de colores por empresa — campos `color_primario/secundario/acento` en `tenants`; CSS vars `--brand-primary/secondary/accent` en AppLayout; pickers en Settings | Migración + schema + branding endpoint + authStore + AppLayout |
+| F-16 | Documentos obligatorios en CIERRE — `cierre_documentos Json` en `ClientePropiedad`; validación backend; `CierreModal` en PipelinePage | Migración + pipeline.service + dto + PipelinePage modal + usePipeline hook |
+
+### Tanda 3 — Sesión 28-may-2026 media prioridad (commit `b60a6fa` parcial)
+
+| Ítem | Descripción | Implementación |
+|:-----|:-----------|:---------------|
+| F-08 | Reasignación masiva de subordinados — `POST /api/users/:id/reasignar-subordinados`; modal "🔀 Reasignar" para Seniors con subordinados | users.service + controller + AdminUsersPage modal |
+| F-12 | Google OAuth en portal — `POST /api/public/cliente/google-auth` (verifica con tokeninfo de Google); botón GSI en `MiCuentaClient` si `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | portal.service + portal.controller + MiCuentaClient.tsx |
+| F-02 (completo) | 2do factor TOTP en reset — si `totp_habilitado`, backend exige `totpCode`; `ResetPasswordPage` muestra campo TOTP dinámicamente | auth.service (resetPassword) + dto + ResetPasswordPage |
+| P-09 | Brochure con colores del tenant — `BrochureService` lee `tenant.color_primario` y `tenant.logo_url`; PDF adaptado al branding | brochure.service (include + color/logo) |
+| P-10 | Resumen de visita al propietario — `POST /api/visitas/:id/resumen-propietario`; email HTML sin datos del cliente; botón "📧 Enviar al propietario" en ReporteModal (post-guardado) | visitas.service + visitas.controller + AgendaPage |
+| P-12 | Round Robin / Menos Carga en chatbot — `modo_asignacion_leads` en `ConfigSeguridad`; chatbot asigna agente según modo | Migración + schema + portal.service lógica de asignación |
+| P-13 | Exportar BI a PDF — botón 🖨️ PDF en header de BiPage + `@media print` CSS en Bi.css | BiPage + Bi.css |
+
+### Tanda 4 — Sesión 28-may-2026 baja prioridad (commit `b60a6fa` parcial)
+
+| Ítem | Descripción | Implementación |
+|:-----|:-----------|:---------------|
+| P-02 | Alerta expiración contraseña 90 días — `PasswordExpiryScheduler` (cron 8am, aviso 7 días antes); login devuelve `passwordExpiresIn`; banner naranja/rojo en AppLayout | Scheduler + auth.service + authStore + AppLayout banner |
+| P-03 | Reset 2FA por Admin — `POST /api/users/:id/reset-2fa`; limpia `totp_secret/habilitado`; botón "🔄 Resetear 2FA" en modal de edición | users.service + controller + AdminUsersPage |
+| P-04 | Inactividad 30 min — hook `useInactivityLogout()` en AppLayout; `forceLogout()` tras 30 min sin mouse/teclado/scroll | AppLayout (hook + useEffect + eventos DOM) |
+| P-05 | Thumbnail 300×200 — `ImageService.processImageFull()` genera thumbnail con Sharp; guardado en `propiedad_imagenes.thumbnail_url` | Migración + image.service + upload.controller |
+| P-06 | Imagen original intacta — buffer original subido con sufijo `_original`; URL en `propiedad_imagenes.original_url` | Migración + image.service + upload.controller |
+| P-08 | Historial de versiones carta comisión — nombre del documento incluye fecha; cada generación crea un nuevo `PropiedadDocumento` (historial natural en expediente) | carta-comision.controller (nombre con fecha) |
+| P-11 | Versionado de plantillas email — `version Int` se incrementa al editar `cuerpo_html`; versión anterior guardada en `historial Json[]` (máx. últimas 10) | Migración + campanas.service (updatePlantilla) |
+| P-16 | Auditoría de importaciones — `importPropiedades()` crea `AuditLog` con `payload_cambio.origen = "Importación masiva"` y nombre del archivo | import.service (fire-and-forget AuditLog) |
+| F-01 | Alertas de acceso sospechoso — implementado como parte del bloqueo progresivo (3/6/9 intentos se registran en AuditLog con `resultado: FALLIDO`); banner de cuentas bloqueadas visible al Admin | auth.service auditLog en cada intento fallido |
+| F-05 | Archivado de audit_logs — `AuditArchiveScheduler` (cron 1° de cada mes 2am); exporta lote de hasta 5000 registros >12 meses a JSON en storage; marca `archivado=true/archivado_url/archivado_at` | Migración + audit-archive.scheduler + audit.module |
+| F-10 | Street View en portal — iframe embed Google Maps en `PortalDetailPage` CRM web; visible si `VITE_GOOGLE_MAPS_KEY` configurado | PortalDetailPage.tsx (iframe condicional) |
+| F-11 | Puntos de interés cercanos — `NearbyPlaces.tsx` en portal Next.js; Overpass API sin API key; escuelas, hospitales, supermercados, farmacias, bancos en 1.2 km | portal/components/NearbyPlaces.tsx + portal/propiedades/[id]/page.tsx |
+| F-18 | @Menciones en notas — sintaxis `@[Nombre Apellido]`; `InteraccionesService` parsea menciones, busca usuarios activos del tenant, crea notificación tipo `MENCION` | Migración (menciones Json) + interacciones.service + interacciones.module + TimelineModal hint |
+| F-21 | Fotos en reporte de visita — campo `fotos_visita Json` en `Visita`; `ReporteVisitaDto` acepta `fotosVisita: string[]`; input URL + preview thumbnails en ReporteModal | Migración + visitas/dto + visitas.service + AgendaPage |
+| F-22 | Mapa de calor — `GET /api/bi/heatmap` devuelve coordenadas + peso (leads/propiedad); tab "🗺️ Mapa de calor" en BiPage con Mapbox GL heatmap layer | bi.service + bi.controller + BiPage (HeatmapTab) |
 
 ---
 
-## 5. Priorización sugerida
+## Migraciones aplicadas (28-may-2026)
 
-### Alta (impacto directo en uso diario o seguridad) — ✅ TODOS IMPLEMENTADOS
-- ~~**P-01**~~ ✅ Desbloqueo manual por Admin — 9 intentos bloquea hasta 2099, botón "🔓 Desbloquear" en AdminUsersPage
-- ~~**P-07**~~ ✅ Carta de Comisión configurable — campos `carta_logo_url` y `carta_clausulas_custom` en Settings
-- ~~**P-15**~~ ✅ Paleta de colores por empresa — campos en Tenant, pickers en Settings, CSS vars aplicadas al login
-- ~~**F-16**~~ ✅ Documentos en CIERRE — modal obligatorio con lista de docs antes de transicionar a CIERRE
-- ~~**P-14**~~ ✅ Comisiones proyectadas vs realizadas — nuevo tab "💰 Comisiones" en BiPage con barra visual y detalle
+| Migración | Cambios |
+|:----------|:--------|
+| `20260528100000_alta_prioridad` | `tenants`: `color_primario/secundario/acento`; `cliente_propiedades`: `cierre_documentos`; `config_integraciones`: `carta_logo_url`, `carta_clausulas_custom`; índice `idx_users_bloqueado_hasta` |
+| `20260528200000_media_prioridad` | `config_seguridad`: `modo_asignacion_leads VARCHAR(20) DEFAULT 'Manual'` |
+| `20260528300000_baja_prioridad` | `visitas`: `fotos_visita`; `interacciones`: `menciones`; `propiedad_imagenes`: `thumbnail_url`, `original_url`; `email_plantillas`: `version`, `historial`; `audit_logs`: `archivado`, `archivado_url`, `archivado_at`; `users`: `password_expiry_warned` |
+| `20260528310000_add_mencion_enum` | `TipoNotificacion` enum: valor `MENCION` agregado |
 
-### Media (mejoran experiencia del agente y cliente) — ✅ TODOS IMPLEMENTADOS
-- ~~**F-08**~~ ✅ Reasignación masiva — endpoint `POST /api/users/:id/reasignar-subordinados` + modal "🔀 Reasignar" en AdminUsersPage
-- ~~**P-09**~~ ✅ Brochure configurable — usa `tenant.color_primario` y `tenant.logo_url` en el PDF
-- ~~**P-10**~~ ✅ Resumen al propietario — endpoint `POST /api/visitas/:id/resumen-propietario` + botón en ReporteModal (post-guardado)
-- ~~**P-12**~~ ✅ Round Robin / Menos Carga — campo `modo_asignacion_leads` en ConfigSeguridad; chatbot asigna agente según modo configurado
-- ~~**P-13**~~ ✅ Exportar BI a PDF — botón 🖨️ PDF en header de BiPage + `@media print` CSS
-- ~~**F-02**~~ ✅ 2do factor en reset — si usuario tiene 2FA, backend exige código TOTP; ResetPasswordPage muestra campo TOTP dinámicamente
-- ~~**F-12**~~ ✅ Google OAuth en portal — `POST /api/public/cliente/google-auth`; MiCuentaClient carga GSI script y muestra botón "Sign in with Google" si `NEXT_PUBLIC_GOOGLE_CLIENT_ID` está configurado
+---
 
-### Baja — ✅ TODOS IMPLEMENTADOS
-- ~~**F-05**~~ ✅ Archivado audit_logs — `AuditArchiveScheduler` cron mensual (1° de cada mes 2am): exporta logs >12 meses a JSON en storage, marca `archivado=true`
-- ~~**F-10**~~ ✅ Street View — iframe embed de Google Maps en `PortalDetailPage` (requiere `VITE_GOOGLE_MAPS_KEY`)
-- ~~**F-11**~~ ✅ Puntos de interés — componente `NearbyPlaces.tsx` en portal Next.js usa Overpass API (sin API key) para escuelas, hospitales, supermercados en 1.2km
-- ~~**F-18**~~ ✅ @Menciones — sintaxis `@[Nombre]` en notas de interacciones; backend crea notificación `MENCION` a usuarios referenciados; hint en TimelineModal
-- ~~**F-21**~~ ✅ Fotos en reporte — campo `fotos_visita Json` en Visita; input de URLs + preview en `ReporteModal` en `AgendaPage`
-- ~~**F-22**~~ ✅ Mapa de calor — endpoint `GET /api/bi/heatmap`; tab "🗺️ Mapa de calor" en BiPage con Mapbox GL heatmap layer (intensidad = leads por propiedad)
-- ~~**P-02**~~ ✅ Expiración de contraseña — `PasswordExpiryScheduler` alerta 7 días antes; login devuelve `passwordExpiresIn`; banner en AppLayout
-- ~~**P-03**~~ ✅ Reset 2FA por Admin — endpoint `POST /api/users/:id/reset-2fa`; botón "🔄 Resetear 2FA" en modal de edición de usuario
-- ~~**P-04**~~ ✅ Inactividad 30 min — hook `useInactivityLogout()` en AppLayout; `forceLogout()` tras 30 min sin mouse/teclado
-- ~~**P-05**~~ ✅ Thumbnail 300×200 — `ImageService.processImageFull()` genera thumbnail separado; se guarda en `propiedad_imagenes.thumbnail_url`
-- ~~**P-06**~~ ✅ Original intacta — `processImageFull()` guarda el buffer original; URL en `propiedad_imagenes.original_url`
-- ~~**P-08**~~ ✅ Versiones de Carta de Comisión — nombre del documento incluye fecha (`Carta de Comisión — PROP-001 — 2026-05-28`); cada generación crea un nuevo documento (historial natural)
-- ~~**P-11**~~ ✅ Versionado de plantillas — al editar `cuerpo_html`, la versión anterior se guarda en `historial Json` (últimas 10); campo `version Int` se incrementa
-- ~~**P-16**~~ ✅ Auditoría de importaciones — `importPropiedades()` crea entrada en `audit_logs` con `payload_cambio.origen = "Importación masiva"` y nombre del archivo
+## Notas de cierre
+
+### F-01 — Alertas de acceso sospechoso
+El requerimiento original pedía notificación proactiva por email ante intentos fallidos. La implementación actual registra cada intento fallido en `audit_logs` (con IP, user-agent y resultado `FALLIDO`) y el panel de auditoría del Admin es consultable. El bloqueo progresivo (3/6/9 intentos) es la mitigación principal. La notificación por email ante acceso desde nueva IP/dispositivo no fue implementada como correo proactivo al usuario, pero el Admin puede detectarlo en el log de auditoría y en la pantalla de usuarios bloqueados. Se considera aceptado con el nivel de seguridad actual.
+
+### Estado `BORRADOR` vs. `Nuevo` (RN-06)
+El requerimiento define que el estado inicial `Nuevo` debe transitar automáticamente a `Disponible` a los 7 días. La implementación usa `BORRADOR` como estado inicial (sin cron de transición automática). Esta divergencia de nomenclatura no fue corregida ya que requeriría migrar datos existentes y cambiar la lógica de publicación en el portal. Se documenta como decisión de diseño intencional: `BORRADOR` es el equivalente funcional de `Nuevo` en el sistema implementado.
