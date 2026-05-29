@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { PropiedadPublica, fmtPrecio, TIPO_LABELS, GESTION_LABELS } from '@/lib/api';
+import FavoriteButton from './FavoriteButton';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -11,7 +12,7 @@ export default function PropertyCard({ p }: { p: PropiedadPublica }) {
 
   return (
     <Link href={`/propiedades/${p.id}`} className="prop-card">
-      <div className="prop-card-img">
+      <div className="prop-card-img" style={{ position: 'relative' }}>
         {img ? (
           <Image
             src={img.url.startsWith('http') ? img.url : `${API}${img.url}`}
@@ -26,6 +27,7 @@ export default function PropertyCard({ p }: { p: PropiedadPublica }) {
         <span className={`prop-card-badge ${isVenta ? 'prop-card-badge-venta' : 'prop-card-badge-renta'}`}>
           {GESTION_LABELS[p.gestion] ?? p.gestion}
         </span>
+        <FavoriteButton propiedadId={p.id} />
       </div>
 
       <div className="prop-card-body">

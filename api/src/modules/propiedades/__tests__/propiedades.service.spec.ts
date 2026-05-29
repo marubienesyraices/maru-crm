@@ -49,6 +49,10 @@ describe('PropiedadesService', () => {
 
   beforeEach(async () => {
     prisma = createMockPrismaService();
+    prisma.$transaction.mockImplementation(async (opsOrFn: any) => {
+      if (typeof opsOrFn === 'function') return opsOrFn(prisma);
+      return Promise.all(opsOrFn);
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

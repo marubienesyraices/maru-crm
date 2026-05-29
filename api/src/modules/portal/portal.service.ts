@@ -399,11 +399,62 @@ export class PortalService {
             },
           },
         },
+        favoritos: {
+          orderBy: { created_at: 'desc' as const },
+          select: {
+            id: true, created_at: true,
+            propiedad: {
+              select: {
+                id: true, codigo: true, titulo: true, tipo: true, gestion: true,
+                precio_venta: true, precio_renta: true, moneda: true,
+                estado: true, zona: true, municipio: true, departamento: true,
+                imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+              },
+            },
+          },
+        },
       },
     });
 
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
     return cliente;
+  }
+
+  async addFavorito(clienteId: string, tenantId: string, propiedadId: string) {
+    const prop = await this.prisma.propiedad.findUnique({ where: { id: propiedadId }, select: { id: true } });
+    if (!prop) throw new NotFoundException('Propiedad no encontrada');
+
+    await this.prisma.favorito.upsert({
+      where: { cliente_id_propiedad_id: { cliente_id: clienteId, propiedad_id: propiedadId } },
+      create: { id: randomUUID(), tenant_id: tenantId, cliente_id: clienteId, propiedad_id: propiedadId },
+      update: {},
+    });
+    return { success: true };
+  }
+
+  async removeFavorito(clienteId: string, propiedadId: string) {
+    await this.prisma.favorito.deleteMany({
+      where: { cliente_id: clienteId, propiedad_id: propiedadId },
+    });
+    return { success: true };
+  }
+
+  async getFavoritos(clienteId: string) {
+    return this.prisma.favorito.findMany({
+      where: { cliente_id: clienteId },
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true, created_at: true,
+        propiedad: {
+          select: {
+            id: true, codigo: true, titulo: true, tipo: true, gestion: true,
+            precio_venta: true, precio_renta: true, moneda: true,
+            estado: true, zona: true, municipio: true, departamento: true,
+            imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+          },
+        },
+      },
+    });
   }
 
   // ─── Branding ─────────────────────────────────────────────────

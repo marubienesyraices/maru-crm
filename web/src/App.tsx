@@ -2,6 +2,8 @@ import * as Sentry from '@sentry/react';
 import { type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/Login/LoginPage';
+import ForgotPasswordPage from './pages/Login/ForgotPasswordPage';
+import ResetPasswordPage from './pages/Login/ResetPasswordPage';
 import Verify2FAPage from './pages/Verify2FA/Verify2FAPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import PropertiesListPage from './pages/Properties/PropertiesListPage';
@@ -27,6 +29,7 @@ import MetaPage from './pages/Meta/MetaPage';
 import HelpPage from './pages/Help/HelpPage';
 import OnboardingPage from './pages/Onboarding/OnboardingPage';
 import TareasPage from './pages/Tareas/TareasPage';
+import HorariosPage from './pages/Horarios/HorariosPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
@@ -68,6 +71,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-2fa" element={<Verify2FAPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/portal" element={<PortalPage />} />
@@ -111,6 +116,7 @@ export default function App() {
           <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />
           <Route path="/settings/perfil" element={<SettingsPerfilPage />} />
           <Route path="/tareas" element={<TareasPage />} />
+          <Route path="/horarios" element={<HorariosPage />} />
           <Route path="/help" element={<HelpPage />} />
         </Route>
 

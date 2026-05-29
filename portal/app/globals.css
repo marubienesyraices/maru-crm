@@ -409,6 +409,15 @@ input, select, textarea { font-family: inherit; }
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: 2.5rem; color: var(--text-faint);
 }
+.fav-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  background: rgba(0,0,0,0.45); border: none; border-radius: 50%;
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; cursor: pointer; color: #fff; transition: background 0.2s, color 0.2s;
+}
+.fav-btn:hover { background: rgba(0,0,0,0.7); }
+.fav-btn-active { color: #f43f5e; }
+.fav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Empty state ───────────────────────────────── */
 .portal-empty {
@@ -1084,6 +1093,14 @@ input, select, textarea { font-family: inherit; }
   transition: color var(--transition);
 }
 .mc-prop-link:hover { color: var(--accent-dark); }
+.mc-fav-remove-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,0.5); border: none; border-radius: 50%;
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  color: #f43f5e; font-size: 1rem; cursor: pointer; transition: background 0.2s;
+}
+.mc-fav-remove-btn:hover { background: rgba(0,0,0,0.75); }
+.mc-fav-remove-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Visita chip */
 .mc-visita-chip {

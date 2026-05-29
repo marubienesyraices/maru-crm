@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PortalService } from './portal.service';
 import { ClienteJwtGuard } from './cliente-jwt.guard';
@@ -73,5 +73,31 @@ export class PortalController {
   @ApiOperation({ summary: 'Dashboard del cliente: perfil + propiedades de interés + visitas próximas' })
   getMiCuenta(@Request() req: any) {
     return this.service.getMiCuenta(req.clienteId);
+  }
+
+  @Post('cliente/favoritos/:propiedadId')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Agregar propiedad a favoritos del cliente' })
+  addFavorito(@Request() req: any, @Param('propiedadId') propiedadId: string) {
+    return this.service.addFavorito(req.clienteId, req.clienteTenantId, propiedadId);
+  }
+
+  @Delete('cliente/favoritos/:propiedadId')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Quitar propiedad de favoritos del cliente' })
+  removeFavorito(@Request() req: any, @Param('propiedadId') propiedadId: string) {
+    return this.service.removeFavorito(req.clienteId, propiedadId);
+  }
+
+  @Get('cliente/favoritos')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar propiedades favoritas del cliente' })
+  getFavoritos(@Request() req: any) {
+    return this.service.getFavoritos(req.clienteId);
   }
 }

@@ -44,6 +44,12 @@ interface Interes {
   visitas: Visita[];
 }
 
+interface Favorito {
+  id: string;
+  created_at: string;
+  propiedad: PropiedadResumen;
+}
+
 interface ClienteData {
   id: string;
   nombre: string;
@@ -55,17 +61,20 @@ interface ClienteData {
   tipo_interes: string | null;
   created_at: string;
   intereses: Interes[];
+  favoritos: Favorito[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
 
 const ESTADO_LABELS: Record<string, string> = {
   NUEVO: 'Nuevo', CONTACTADO: 'Contactado', INTERESADO: 'Interesado',
-  EN_NEGOCIACION: 'En negociación', GANADO: 'Cerrado ✓', PERDIDO: 'Cancelado',
+  EN_NEGOCIACION: 'En negociación', CIERRE: 'En cierre',
+  GANADO: 'Cerrado ✓', PERDIDO: 'Cancelado',
 };
 const ESTADO_COLORS: Record<string, string> = {
   NUEVO: '#6b7280', CONTACTADO: '#3b82f6', INTERESADO: '#8b5cf6',
-  EN_NEGOCIACION: '#f59e0b', GANADO: '#22c55e', PERDIDO: '#ef4444',
+  EN_NEGOCIACION: '#f59e0b', CIERRE: '#ec4899',
+  GANADO: '#22c55e', PERDIDO: '#ef4444',
 };
 const PROP_ESTADO_LABELS: Record<string, string> = {
   BORRADOR: 'Borrador', DISPONIBLE: 'Disponible', RESERVADA: 'Reservada',
@@ -231,11 +240,67 @@ function InteresCard({ item }: { item: Interes }) {
   );
 }
 
+// ─── Favorito card ────────────────────────────────────────────
+
+function FavoritoCard({ item, onRemove }: { item: Favorito; onRemove: (id: string) => void }) {
+  const p = item.propiedad;
+  const thumb = p.imagenes[0]?.url;
+  const precio = p.gestion === 'RENTA' ? p.precio_renta : (p.precio_venta ?? p.precio_renta);
+  const [removing, setRemoving] = useState(false);
+
+  const handleRemove = async () => {
+    setRemoving(true);
+    const token = localStorage.getItem('cliente_token');
+    try {
+      await fetch(`${API}/api/public/cliente/favoritos/${p.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onRemove(item.id);
+    } catch {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <div className="mc-prop-card">
+      <div className="mc-prop-thumb">
+        {thumb
+          ? <img src={thumb.startsWith('http') ? thumb : `${API}${thumb}`} alt={p.titulo} loading="lazy" />
+          : <div className="mc-prop-no-img">🏠</div>
+        }
+        <button
+          className="mc-fav-remove-btn"
+          onClick={handleRemove}
+          disabled={removing}
+          title="Quitar de favoritos"
+        >
+          ♥
+        </button>
+      </div>
+      <div className="mc-prop-body">
+        <div className="mc-prop-codigo">{p.codigo}</div>
+        <div className="mc-prop-titulo">{p.titulo}</div>
+        <div className="mc-prop-ubicacion">
+          {[p.zona, p.municipio, p.departamento].filter(Boolean).join(', ') || 'Ubicación no especificada'}
+        </div>
+        <div className="mc-prop-precio">{fmtPrecio(precio, p.moneda)}</div>
+        <a href={`/propiedades/${p.id}`} className="mc-prop-link">
+          Ver propiedad →
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────
 
 function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () => void }) {
   const activos  = cliente.intereses.filter((i) => !['GANADO', 'PERDIDO'].includes(i.estado));
   const cerrados = cliente.intereses.filter((i) =>  ['GANADO', 'PERDIDO'].includes(i.estado));
+  const [favoritos, setFavoritos] = useState<Favorito[]>(cliente.favoritos ?? []);
+
+  const removeFavorito = (id: string) => setFavoritos((prev) => prev.filter((f) => f.id !== id));
 
   return (
     <div className="mc-dashboard">
@@ -267,6 +332,10 @@ function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () =
           </div>
           <div className="mc-stat-lbl">Próx. visitas</div>
         </div>
+        <div className="mc-stat">
+          <div className="mc-stat-num">{favoritos.length}</div>
+          <div className="mc-stat-lbl">Favoritos</div>
+        </div>
       </div>
 
       {/* Active interests */}
@@ -275,6 +344,16 @@ function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () =
           <h2 className="mc-section-title">Propiedades en proceso</h2>
           <div className="mc-prop-grid">
             {activos.map((i) => <InteresCard key={i.id} item={i} />)}
+          </div>
+        </section>
+      )}
+
+      {/* Favorites */}
+      {favoritos.length > 0 && (
+        <section className="mc-section">
+          <h2 className="mc-section-title">♥ Mis favoritos</h2>
+          <div className="mc-prop-grid">
+            {favoritos.map((f) => <FavoritoCard key={f.id} item={f} onRemove={removeFavorito} />)}
           </div>
         </section>
       )}
@@ -289,7 +368,7 @@ function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () =
         </section>
       )}
 
-      {cliente.intereses.length === 0 && (
+      {cliente.intereses.length === 0 && favoritos.length === 0 && (
         <div className="mc-empty">
           <div style={{ fontSize: '3rem' }}>🏡</div>
           <h3>Sin propiedades registradas aún</h3>

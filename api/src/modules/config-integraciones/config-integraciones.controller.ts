@@ -24,3 +24,21 @@ export class ConfigIntegracionesController {
     return this.svc.update(req.user.tenantId, dto);
   }
 }
+
+/** Carta de Comisión config — accessible to all ADMIN regardless of plan */
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
+@Controller('api/tenants/mi-tenant/carta-config')
+export class CartaConfigController {
+  constructor(private readonly svc: ConfigIntegracionesService) {}
+
+  @Get()
+  find(@Req() req: any) {
+    return this.svc.getCartaConfig(req.user.tenantId);
+  }
+
+  @Patch()
+  update(@Req() req: any, @Body() dto: UpdateConfigIntegracionesDto) {
+    return this.svc.updateCartaConfig(req.user.tenantId, dto);
+  }
+}

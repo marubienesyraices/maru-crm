@@ -30,6 +30,7 @@ import { MetaModule } from './modules/meta/meta.module';
 import { SindicacionModule } from './modules/sindicacion/sindicacion.module';
 import { FirmaDigitalModule } from './modules/firma-digital/firma-digital.module';
 import { TareasModule } from './modules/tareas/tareas.module';
+import { HorariosModule } from './modules/horarios/horarios.module';
 import { VideollamadasModule } from './modules/videollamadas/videollamadas.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -86,6 +87,7 @@ import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.
     SindicacionModule,
     FirmaDigitalModule,
     TareasModule,
+    HorariosModule,
     VideollamadasModule,
     ConfigIntegracionesModule,
     ConfigPortalModule,

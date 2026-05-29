@@ -10,7 +10,8 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   NUEVO: ['CONTACTADO', 'PERDIDO'],
   CONTACTADO: ['INTERESADO', 'PERDIDO'],
   INTERESADO: ['EN_NEGOCIACION', 'PERDIDO'],
-  EN_NEGOCIACION: ['GANADO', 'PERDIDO'],
+  EN_NEGOCIACION: ['CIERRE', 'PERDIDO'],
+  CIERRE: ['GANADO', 'PERDIDO'],
   GANADO: [],      // terminal
   PERDIDO: ['NUEVO'], // reapertura
 };
@@ -149,7 +150,8 @@ export class PipelineService {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'RESERVADA' } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
       });
-    } else if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'GANADO') {
+    } else if (nuevoEstado === 'GANADO') {
+      // CIERRE → GANADO: finalize deal and update property
       updated = await this.prisma.$transaction(async (tx) => {
         const prop = await tx.propiedad.findUnique({
           where: { id: propiedadId },
@@ -173,7 +175,8 @@ export class PipelineService {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: estadoPropFinal } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
       });
-    } else if (estadoActual === 'EN_NEGOCIACION' && nuevoEstado === 'PERDIDO') {
+    } else if (nuevoEstado === 'PERDIDO' && ['EN_NEGOCIACION', 'CIERRE'].includes(estadoActual)) {
+      // Release reservation when deal falls through
       updated = await this.prisma.$transaction(async (tx) => {
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'DISPONIBLE' } });
         return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
@@ -279,7 +282,7 @@ export class PipelineService {
 
     // Group by estado for Kanban columns
     const pipeline: Record<string, typeof items> = {
-      NUEVO: [], CONTACTADO: [], INTERESADO: [], EN_NEGOCIACION: [], GANADO: [], PERDIDO: [],
+      NUEVO: [], CONTACTADO: [], INTERESADO: [], EN_NEGOCIACION: [], CIERRE: [], GANADO: [], PERDIDO: [],
     };
     for (const item of items) {
       pipeline[item.estado]?.push(item);

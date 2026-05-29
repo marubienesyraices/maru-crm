@@ -128,8 +128,8 @@ describe('PipelineService', () => {
       );
     });
 
-    it('EN_NEGOCIACION → GANADO (cierra propiedad como VENDIDA)', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+    it('CIERRE → GANADO (cierra propiedad como VENDIDA)', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'VENTA', precio_venta: 150000, precio_renta: null, comision_porcentaje: 3 });
       prisma.propiedad.update.mockResolvedValue({});
       prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
@@ -199,8 +199,8 @@ describe('PipelineService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('EN_NEGOCIACION → GANADO cierra propiedad como RENTADA cuando gestion=RENTA', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+    it('CIERRE → GANADO cierra propiedad como RENTADA cuando gestion=RENTA', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({ gestion: 'RENTA', precio_renta: 5000, precio_venta: null, comision_porcentaje: 10 });
       prisma.propiedad.update.mockResolvedValue({});
       prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
@@ -213,7 +213,7 @@ describe('PipelineService', () => {
     });
 
     it('GANADO calcula comisión desde precio de lista', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({
         gestion: 'VENTA', precio_venta: 200000, precio_renta: null, comision_porcentaje: 5,
       });
@@ -228,7 +228,7 @@ describe('PipelineService', () => {
     });
 
     it('GANADO usa precio acordado del agente cuando se envía', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({
         gestion: 'VENTA', precio_venta: 200000, precio_renta: null, comision_porcentaje: 3,
       });
@@ -243,7 +243,7 @@ describe('PipelineService', () => {
     });
 
     it('GANADO sin comision_porcentaje no guarda comision_calculada', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'EN_NEGOCIACION' });
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({
         gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: null,
       });

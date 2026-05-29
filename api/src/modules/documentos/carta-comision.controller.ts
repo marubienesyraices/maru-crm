@@ -48,14 +48,20 @@ export class CartaComisionController {
     @CurrentUser() user: any,
     @Res() res: Response,
   ) {
-    const propiedad = await this.prisma.propiedad.findFirst({
-      where: { id: propiedadId, tenant_id: user.tenantId },
-      include: {
-        propietario: true,
-        agente: { select: { nombre: true, email: true } },
-        tenant: { select: { nombre: true, moneda: true } },
-      },
-    });
+    const [propiedad, configIntegraciones] = await Promise.all([
+      this.prisma.propiedad.findFirst({
+        where: { id: propiedadId, tenant_id: user.tenantId },
+        include: {
+          propietario: true,
+          agente: { select: { nombre: true, email: true } },
+          tenant: { select: { nombre: true, moneda: true } },
+        },
+      }),
+      this.prisma.configIntegraciones.findUnique({
+        where: { tenant_id: user.tenantId },
+        select: { carta_color_primario: true, carta_tagline: true },
+      }),
+    ]);
 
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
     if (!propiedad.comision_porcentaje) {
@@ -70,7 +76,7 @@ export class CartaComisionController {
     const MARGIN_R = 48;
     const CONTENT_W = W - MARGIN_L - MARGIN_R;
 
-    const primary = '#2563eb';
+    const primary = configIntegraciones?.carta_color_primario ?? '#2563eb';
     const primaryDark = darken(primary, 0.2);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';
@@ -94,8 +100,9 @@ export class CartaComisionController {
       .text(propiedad.tenant.nombre, MARGIN_L, 22, { width: CONTENT_W, align: 'left' });
 
     // Tagline / subtitle
+    const tagline = configIntegraciones?.carta_tagline ?? 'Bienes y Raíces · CRM';
     doc.fillColor('#94a3b8').font('Helvetica').fontSize(9)
-      .text('Bienes y Raíces · CRM', MARGIN_L, 50, { width: CONTENT_W });
+      .text(tagline, MARGIN_L, 50, { width: CONTENT_W });
 
     // Horizontal rule
     doc.moveTo(MARGIN_L, 66).lineTo(W - MARGIN_R, 66).strokeColor(primary).lineWidth(1.5).stroke();

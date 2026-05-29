@@ -33,7 +33,7 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
-        { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined) } },
+        { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined), sendSystemEmail: jest.fn().mockResolvedValue(undefined) } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') } },
       ],
     }).compile();

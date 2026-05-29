@@ -1,20 +1,62 @@
-.orgchart-page { padding: 24px; }
-.orgchart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
-.orgchart-header h1 { margin: 0; font-size: 1.5rem; }
-.orgchart-header p  { margin: 4px 0 0; font-size: 0.875rem; color: var(--text-muted); }
+.orgchart-page {
+  padding: 24px;
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+
+.orgchart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 12px;
+}
+
+.orgchart-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.orgchart-header p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ─── Estados: carga / vacío / error ──────────────────────── */
 
 .orgchart-loading,
 .orgchart-empty,
 .orgchart-error {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 48px;
+  padding: 64px 24px;
   color: var(--text-muted);
   font-size: 0.875rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-align: center;
 }
-.orgchart-error { color: var(--accent-red, #ef4444); }
+
+.orgchart-loading {
+  flex-direction: row;
+  border-style: solid;
+  padding: 32px;
+}
+
+.orgchart-error {
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+/* ─── Canvas y raíces ─────────────────────────────────────── */
 
 .orgchart-canvas {
   overflow-x: auto;
@@ -30,7 +72,7 @@
   padding: 8px 16px;
 }
 
-/* ─── Node card ─────────────────────────────────────── */
+/* ─── Nodo (card) ─────────────────────────────────────────── */
 
 .org-node-wrap {
   display: flex;
@@ -46,15 +88,21 @@
   padding: 12px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-top: 3px solid;
+  border-top: 3px solid;            /* el color se inyecta inline por rol */
   border-radius: var(--radius-md);
   min-width: 210px;
   max-width: 260px;
   position: relative;
-  box-shadow: 0 1px 4px rgba(0,0,0,.08);
-  transition: box-shadow var(--transition);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: box-shadow var(--transition), transform var(--transition);
 }
-.org-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+
+.org-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ─── Avatar ──────────────────────────────────────────────── */
 
 .org-card-avatar {
   width: 36px;
@@ -68,12 +116,15 @@
   flex-shrink: 0;
 }
 
+/* ─── Info del usuario ────────────────────────────────────── */
+
 .org-card-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
+
 .org-card-name {
   font-size: 0.875rem;
   font-weight: 600;
@@ -82,32 +133,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .org-card-rol {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
+
 .org-card-email {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* ─── Botón expand/collapse ───────────────────────────────── */
+
 .org-toggle {
   position: absolute;
-  bottom: -12px;
+  bottom: -13px;
   left: 50%;
   transform: translateX(-50%);
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: 0.7rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -115,10 +170,16 @@
   justify-content: center;
   z-index: 2;
   transition: all var(--transition);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
-.org-toggle:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
-/* ─── Connectors ─────────────────────────────────────── */
+.org-toggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--bg-card-hover);
+}
+
+/* ─── Conectores ──────────────────────────────────────────── */
 
 .org-children {
   display: flex;
@@ -131,6 +192,13 @@
   width: 2px;
   height: 24px;
   background: var(--border-subtle);
+  /* Más visible en dark mode con un ligero borde */
+  opacity: 0.8;
+}
+
+/* Hack para que se vea mejor en dark mode: al hacer hover sobre el nodo padre */
+.org-node-wrap:hover > .org-children > .org-connector-v {
+  opacity: 1;
 }
 
 .org-connector-down {
@@ -156,4 +224,5 @@
   top: 0;
   height: 2px;
   background: var(--border-subtle);
+  opacity: 0.8;
 }

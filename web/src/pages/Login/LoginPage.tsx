@@ -41,7 +41,7 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div className="login-header">
           <div className="login-logo">
-            <img src="/gestprop.png" alt="GestProp" style={{ height: 64, objectFit: 'contain' }} />
+            <img src="/gestprop.png" alt="GestProp" style={{ height: 128, objectFit: 'contain' }} />
           </div>
           <h1>Bienvenido de vuelta</h1>
           <p>Ingrese sus credenciales para acceder al sistema</p>

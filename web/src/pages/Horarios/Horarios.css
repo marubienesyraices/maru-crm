@@ -1,0 +1,163 @@
+.horarios-page {
+  max-width: 620px;
+  padding: 24px 16px;
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+
+.horarios-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.horarios-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.horarios-header p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ─── Grid ────────────────────────────────────────────────── */
+
+.horarios-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.horario-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+}
+
+.horario-row:hover {
+  border-color: var(--accent-blue);
+}
+
+.horario-row.inactive {
+  opacity: 0.6;
+}
+
+/* ─── Toggle + día ────────────────────────────────────────── */
+
+.horario-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 130px;
+}
+
+.horario-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-blue);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.horario-dia {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ─── Times ───────────────────────────────────────────────── */
+
+.horario-times {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.horario-time-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.horario-time-group label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.horario-time-group input[type="time"] {
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: border-color 0.15s;
+}
+
+.horario-time-group input[type="time"]:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.horario-time-group input[type="time"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.horario-sep {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 18px;
+}
+
+.horario-off-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: auto;
+}
+
+/* ─── Skeleton ────────────────────────────────────────────── */
+
+.horarios-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.horarios-skeleton-row {
+  height: 62px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-card) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -86,6 +86,8 @@ model Tenant {
   notificaciones      Notificacion[]
   meta_publicaciones  MetaPublicacion[]
   tareas              Tarea[]
+  horarios_laborales  HorarioLaboral[]
+  favoritos           Favorito[]
 
   @@map("tenants")
 }
@@ -122,6 +124,10 @@ model ConfigIntegraciones {
   // ── Sindicación portales externos ─────────────
   encuentra24_api_key String?
   ml_access_token     String?
+
+  // ── P-07: Carta de Comisión configurable ──────
+  carta_color_primario String?
+  carta_tagline        String?
 
   tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   updated_at DateTime @updatedAt
@@ -213,6 +219,7 @@ model User {
   visitas               Visita[]            @relation("VisitaAgente")
   meta_publicaciones    MetaPublicacion[]   @relation("UserMeta")
   tareas                Tarea[]             @relation("TareaUsuario")
+  horarios_laborales    HorarioLaboral[]    @relation("HorarioUser")
 
   @@unique([tenant_id, email])
   @@map("users")
@@ -361,6 +368,7 @@ model Propiedad {
   imagenes              PropiedadImagen[]
   documentos            PropiedadDocumento[]
   interesados           ClientePropiedad[]
+  favoritos             Favorito[]                @relation("PropiedadFavoritos")
   meta_publicaciones    MetaPublicacion[]         @relation("PropiedadMeta")
   sindicaciones         SindicacionPublicacion[]
   firma_solicitudes     FirmaSolicitud[]
@@ -416,6 +424,8 @@ enum TipoNotificacion {
   MATCH_PROPIEDAD
   VISITA_AGENDADA
   LEAD_INACTIVO
+  NEGOCIACION_TIMEOUT
+  PROPIEDAD_ESTANCADA
 }
 
 model Notificacion {
@@ -454,6 +464,7 @@ enum EstadoInteres {
   CONTACTADO
   INTERESADO
   EN_NEGOCIACION
+  CIERRE
   GANADO
   PERDIDO
 }
@@ -524,6 +535,7 @@ model Cliente {
   tenant      Tenant             @relation(fields: [tenant_id], references: [id])
   agente      User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
   intereses   ClientePropiedad[]
+  favoritos   Favorito[]         @relation("ClienteFavoritos")
   propiedades Propiedad[]        @relation("PropietarioPropiedad")
 
   @@unique([tenant_id, email])
@@ -880,5 +892,42 @@ model Tarea {
   @@index([tenant_id, user_id, estado])
   @@index([tenant_id, fecha_limite])
   @@map("tareas")
+}
+
+// ─── F-20: Horarios laborales del agente ──────────────────────
+
+model HorarioLaboral {
+  id          String  @id @default(uuid())
+  tenant_id   String
+  user_id     String
+  dia_semana  Int     // 0=domingo, 1=lunes … 6=sábado
+  hora_inicio String  // "HH:MM"
+  hora_fin    String  // "HH:MM"
+  activo      Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  user   User   @relation("HorarioUser", fields: [user_id], references: [id])
+
+  @@unique([tenant_id, user_id, dia_semana])
+  @@index([tenant_id, user_id])
+  @@map("horarios_laborales")
+}
+
+// ─── F-14: Favoritos de propiedades ──────────────────────────
+
+model Favorito {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  cliente_id   String
+  propiedad_id String
+  created_at   DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenant_id], references: [id])
+  cliente   Cliente   @relation("ClienteFavoritos", fields: [cliente_id], references: [id], onDelete: Cascade)
+  propiedad Propiedad @relation("PropiedadFavoritos", fields: [propiedad_id], references: [id], onDelete: Cascade)
+
+  @@unique([cliente_id, propiedad_id])
+  @@index([tenant_id, cliente_id])
+  @@map("favoritos")
 }
 

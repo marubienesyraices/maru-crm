@@ -40,15 +40,16 @@ interface ConfigPortal {
   mapa_zoom_default: number | null;
 }
 
-type Tab = 'identidad' | 'dominio' | 'apariencia' | 'seo' | 'chatbot' | 'analytics';
+type Tab = 'identidad' | 'dominio' | 'apariencia' | 'seo' | 'chatbot' | 'analytics' | 'documentos';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'identidad', label: 'Identidad' },
-  { id: 'dominio',   label: 'Dominio' },
-  { id: 'apariencia',label: 'Apariencia' },
-  { id: 'seo',       label: 'SEO' },
-  { id: 'chatbot',   label: 'Chatbot' },
-  { id: 'analytics', label: 'Analytics & Mapa' },
+  { id: 'identidad',  label: 'Identidad' },
+  { id: 'dominio',    label: 'Dominio' },
+  { id: 'apariencia', label: 'Apariencia' },
+  { id: 'seo',        label: 'SEO' },
+  { id: 'chatbot',    label: 'Chatbot' },
+  { id: 'analytics',  label: 'Analytics & Mapa' },
+  { id: 'documentos', label: 'Documentos' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function SettingsPortalPage() {
   const [savedMsg, setSavedMsg] = useState('');
 
   const [branding, setBranding] = useState<TenantBranding>({ nombre: '', logo_url: null });
+  const [carta, setCarta]   = useState({ carta_color_primario: '', carta_tagline: '' });
 
   const [portal, setPortal] = useState<ConfigPortal>({
     nombre_empresa: null, slogan: null, email_contacto: null, telefono: null,
@@ -105,12 +107,16 @@ export default function SettingsPortalPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, p] = await Promise.all([
+      const [b, p, c] = await Promise.all([
         apiRequest<TenantBranding>('/api/tenants/branding', { token: accessToken! }),
         apiRequest<ConfigPortal>('/api/tenants/mi-tenant/portal', { token: accessToken! }),
+        apiRequest<{ carta_color_primario: string | null; carta_tagline: string | null }>(
+          '/api/tenants/mi-tenant/carta-config', { token: accessToken! }
+        ).catch(() => ({ carta_color_primario: null, carta_tagline: null })),
       ]);
       setBranding(b);
       setPortal(p);
+      setCarta({ carta_color_primario: c.carta_color_primario ?? '', carta_tagline: c.carta_tagline ?? '' });
     } catch { /* noop */ }
     finally { setLoading(false); }
   }, [accessToken]);
@@ -140,6 +146,21 @@ export default function SettingsPortalPage() {
         method: 'PATCH', token: accessToken!, body: cleanDto,
       });
       setPortal(updated);
+      showSaved();
+    } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
+    finally { setSaving(false); }
+  };
+
+  const saveCarta = async () => {
+    setSaving(true);
+    try {
+      await apiRequest('/api/tenants/mi-tenant/carta-config', {
+        method: 'PATCH', token: accessToken!,
+        body: {
+          carta_color_primario: carta.carta_color_primario || null,
+          carta_tagline: carta.carta_tagline || null,
+        },
+      });
       showSaved();
     } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
     finally { setSaving(false); }
@@ -406,6 +427,47 @@ export default function SettingsPortalPage() {
             <SaveBar saving={saving} msg={savedMsg} onSave={savePortal} />
           </div>
         </>
+      )}
+
+      {/* ── TAB: Documentos ───────────────────────── */}
+      {tab === 'documentos' && (
+        <div className="settings-card">
+          <div className="settings-card-header">
+            <div className="settings-card-title">
+              <div className="settings-card-icon">📄</div>
+              <div>
+                <h2>Carta de Comisión</h2>
+                <p>Personaliza el color y tagline que aparecen en el PDF de la carta de compromiso de comisión.</p>
+              </div>
+            </div>
+          </div>
+          <div className="settings-grid">
+            <Field label="Color primario" hint="Hex color, ej: #2563eb. Se usa en el encabezado y acentos del PDF.">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="color"
+                  value={carta.carta_color_primario || '#2563eb'}
+                  onChange={(e) => setCarta((prev) => ({ ...prev, carta_color_primario: e.target.value }))}
+                  style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }}
+                />
+                <input
+                  value={carta.carta_color_primario}
+                  onChange={(e) => setCarta((prev) => ({ ...prev, carta_color_primario: e.target.value }))}
+                  placeholder="#2563eb"
+                  style={{ flex: 1 }}
+                />
+              </div>
+            </Field>
+            <Field label="Tagline / subtítulo" hint="Texto debajo del nombre de la empresa en el PDF.">
+              <input
+                value={carta.carta_tagline}
+                onChange={(e) => setCarta((prev) => ({ ...prev, carta_tagline: e.target.value }))}
+                placeholder="Bienes y Raíces · CRM"
+              />
+            </Field>
+          </div>
+          <SaveBar saving={saving} msg={savedMsg} onSave={saveCarta} />
+        </div>
       )}
     </div>
   );

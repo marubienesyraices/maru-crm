@@ -214,6 +214,40 @@
   font-size: 0.75rem;
 }
 
+/* ─── Forgot / Reset password ────────────────────────────── */
+
+.forgot-success {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.forgot-success-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  color: var(--accent-blue);
+}
+
+.forgot-success h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.forgot-success p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.reset-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
 /* ─── Responsive ───────────────────────────────────────────── */
 
 @media (max-width: 480px) {

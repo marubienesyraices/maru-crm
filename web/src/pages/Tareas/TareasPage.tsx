@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import './Tareas.css';
 
@@ -45,6 +46,7 @@ function formatDate(iso?: string): string {
 }
 
 export default function TareasPage() {
+  const { accessToken } = useAuthStore();
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -62,14 +64,14 @@ export default function TareasPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiRequest<Tarea[]>('/api/tareas');
+      const data = await apiRequest<Tarea[]>('/api/tareas', { token: accessToken! });
       setTareas(data);
     } catch {
       setError('Error al cargar tareas');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -106,9 +108,9 @@ export default function TareasPage() {
         fechaLimite: fechaLimite || undefined,
       };
       if (editingId) {
-        await apiRequest(`/api/tareas/${editingId}`, { method: 'PUT', body: JSON.stringify(body) });
+        await apiRequest(`/api/tareas/${editingId}`, { method: 'PUT', body, token: accessToken! });
       } else {
-        await apiRequest('/api/tareas', { method: 'POST', body: JSON.stringify(body) });
+        await apiRequest('/api/tareas', { method: 'POST', body, token: accessToken! });
       }
       setShowForm(false);
       await load();
@@ -121,7 +123,7 @@ export default function TareasPage() {
 
   async function handleEstado(t: Tarea, estado: EstadoTarea) {
     try {
-      await apiRequest(`/api/tareas/${t.id}`, { method: 'PUT', body: JSON.stringify({ estado }) });
+      await apiRequest(`/api/tareas/${t.id}`, { method: 'PUT', body: { estado }, token: accessToken! });
       await load();
     } catch {
       setError('Error al actualizar estado');
@@ -131,7 +133,7 @@ export default function TareasPage() {
   async function handleDelete(id: string) {
     if (!confirm('¿Eliminar esta tarea?')) return;
     try {
-      await apiRequest(`/api/tareas/${id}`, { method: 'DELETE' });
+      await apiRequest(`/api/tareas/${id}`, { method: 'DELETE', token: accessToken! });
       setTareas(prev => prev.filter(t => t.id !== id));
     } catch {
       setError('Error al eliminar');

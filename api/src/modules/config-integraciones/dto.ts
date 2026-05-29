@@ -29,4 +29,8 @@ export class UpdateConfigIntegracionesDto {
   // ── Sindicación ────────────────────────────────
   @IsOptional() @IsString() encuentra24_api_key?: string;
   @IsOptional() @IsString() ml_access_token?: string;
+
+  // ── Carta de Comisión ──────────────────────────
+  @IsOptional() @IsString() carta_color_primario?: string;
+  @IsOptional() @IsString() carta_tagline?: string;
 }

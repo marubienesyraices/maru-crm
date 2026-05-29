@@ -18,6 +18,7 @@ const COLUMNS = [
   { key: 'CONTACTADO', label: 'Contactado', color: '#3b82f6' },
   { key: 'INTERESADO', label: 'Interesado', color: '#f59e0b' },
   { key: 'EN_NEGOCIACION', label: 'En Negociación', color: '#8b5cf6' },
+  { key: 'CIERRE', label: 'Cierre', color: '#ec4899' },
   { key: 'GANADO', label: 'Ganado', color: '#22c55e' },
   { key: 'PERDIDO', label: 'Perdido', color: '#ef4444' },
 ];
@@ -26,14 +27,15 @@ const NEXT_ESTADO: Record<string, string[]> = {
   NUEVO: ['CONTACTADO', 'PERDIDO'],
   CONTACTADO: ['INTERESADO', 'PERDIDO'],
   INTERESADO: ['EN_NEGOCIACION', 'PERDIDO'],
-  EN_NEGOCIACION: ['GANADO', 'PERDIDO'],
+  EN_NEGOCIACION: ['CIERRE', 'PERDIDO'],
+  CIERRE: ['GANADO', 'PERDIDO'],
   GANADO: [],
   PERDIDO: ['NUEVO'],
 };
 
 const NEXT_ESTADO_JUNIOR: Record<string, string[]> = {
   ...NEXT_ESTADO,
-  EN_NEGOCIACION: ['PERDIDO'], // JUNIOR no puede cerrar como GANADO
+  CIERRE: ['PERDIDO'], // JUNIOR no puede finalizar como GANADO
 };
 
 // ─── Draggable Card ──────────────────────────────────────────
@@ -91,7 +93,7 @@ function DraggableCard({
           </button>
           {next.map((est) => (
             <button key={est} onClick={() => onMove(item.id, est)}>
-              → {est === 'EN_NEGOCIACION' ? 'Negociar' : est === 'PERDIDO' ? '✕' : est.charAt(0) + est.slice(1).toLowerCase()}
+              → {est === 'EN_NEGOCIACION' ? 'Negociar' : est === 'CIERRE' ? 'Cierre' : est === 'GANADO' ? 'Ganado' : est === 'PERDIDO' ? '✕' : est.charAt(0) + est.slice(1).toLowerCase()}
             </button>
           ))}
         </div>

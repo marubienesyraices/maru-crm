@@ -5,6 +5,7 @@ import { UnauthorizedException, ForbiddenException, BadRequestException } from '
 import { AuthService } from '../auth.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { RedisService } from '../../../redis/redis.service';
+import { EmailService } from '../../email/email.service';
 import { createMockPrismaService } from '../../../../test/mocks/prisma.mock';
 import * as bcrypt from 'bcrypt';
 
@@ -46,6 +47,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: RedisService, useValue: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined), deleteByPattern: jest.fn().mockResolvedValue(undefined) } },
+        { provide: EmailService, useValue: { sendSystemEmail: jest.fn().mockResolvedValue(undefined), sendTransactionalEmail: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

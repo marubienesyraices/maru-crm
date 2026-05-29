@@ -259,7 +259,9 @@ export default function PortalDetailPage() {
         <div className="portal-detail-gallery">
           <div className="portal-detail-main-img">
             {coverSrc
-              ? <img src={coverSrc} alt={prop.titulo} />
+              ? (images[activeImg]?.tipo === 'video'
+                  ? <video src={coverSrc} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <img src={coverSrc} alt={prop.titulo} />)
               : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: '3rem' }}>🏠</div>
             }
           </div>
@@ -274,7 +276,10 @@ export default function PortalDetailPage() {
                     className={`portal-detail-thumb${i === activeImg ? ' active' : ''}`}
                     onClick={() => setActiveImg(i)}
                   >
-                    <img src={src} alt="" />
+                    {img.tipo === 'video'
+                      ? <video src={src} muted preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <img src={src} alt="" />
+                    }
                   </div>
                 );
               })}

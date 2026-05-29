@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "tema" TEXT NOT NULL DEFAULT 'oscuro';
