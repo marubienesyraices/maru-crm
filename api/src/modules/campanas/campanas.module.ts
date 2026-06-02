@@ -8,7 +8,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [EmailModule, PrismaModule],
-  controllers: [CampanasController, EmailTriggersController],
+  controllers: [EmailTriggersController, CampanasController],
   providers: [CampanasService, EmailTriggersService],
   exports: [EmailTriggersService],
 })
