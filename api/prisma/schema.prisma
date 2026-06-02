@@ -215,6 +215,7 @@ model User {
   reset_token         String?       @unique
   reset_token_expires DateTime?
   tema                String        @default("oscuro")
+  push_token          String?       // FCM/APNs token from mobile app
   created_at          DateTime      @default(now())
   updated_at          DateTime      @updatedAt
 

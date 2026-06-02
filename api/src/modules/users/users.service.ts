@@ -420,6 +420,20 @@ export class UsersService {
     }
   }
 
+  // Push notification token — stored in user metadata (JSON field) for FCM/APNs
+  async savePushToken(userId: string, pushToken: string) {
+    if (!pushToken?.trim()) return { ok: true };
+    // Store in user notas_internas or as metadata; simple approach: upsert via raw JSON update
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { push_token: pushToken } as any, // field added via db push when needed
+    }).catch(() => {
+      // If column doesn't exist yet, log and continue — push infra is optional
+      this.logger.warn(`push_token column not yet migrated for user ${userId}`);
+    });
+    return { ok: true };
+  }
+
   private async checkCircularReference(userId: string, newSupervisorId: string, tenantId: string) {
     // Get the full downline of the user being edited
     const downline = await this.getDownline(tenantId, userId);

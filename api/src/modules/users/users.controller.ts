@@ -33,6 +33,16 @@ export class UsersController {
     return this.usersService.updateTema(tenantId, userId, dto.tema);
   }
 
+  @Patch('push-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Registrar token push FCM/APNs de la app móvil' })
+  registerPushToken(
+    @CurrentUser('sub') userId: string,
+    @Body('pushToken') pushToken: string,
+  ) {
+    return this.usersService.savePushToken(userId, pushToken);
+  }
+
   @Post()
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Crear nuevo usuario en el tenant' })
