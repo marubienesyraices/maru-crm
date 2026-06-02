@@ -7,8 +7,8 @@ describe('Agenda', () => {
 
   it('muestra la vista semanal con 7 columnas de días', () => {
     cy.contains(/agenda|visitas/i).should('be.visible');
-    // 7 columnas de días (dom–sáb o lun–dom según config)
-    cy.get('[data-testid="day-column"], .day-column, [class*="day-col"]')
+    // agenda-grid contains 7 .agenda-day divs (the outer column wrapper, not sub-elements)
+    cy.get('.agenda-grid > .agenda-day, .agenda-grid > [class*="agenda-day"]')
       .should('have.length', 7);
   });
 

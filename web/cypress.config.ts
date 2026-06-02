@@ -14,8 +14,8 @@ export default defineConfig({
     env: {
       apiUrl: 'http://localhost:3000',
       // Credenciales del usuario de prueba (seed)
-      adminEmail: 'admin@demo.com',
-      adminPassword: 'Admin1234!',
+      adminEmail: 'admin@gestprop.net',
+      adminPassword: 'Admin@2026',
     },
   },
 });

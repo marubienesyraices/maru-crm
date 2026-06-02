@@ -1,6 +1,6 @@
 import '@testing-library/cypress/add-commands';
 
-// Comando custom: login sin 2FA (usuario de testing sin TOTP activo)
+// Comando custom: login directo via API (sin UI)
 Cypress.Commands.add('loginAs', (email: string, password: string) => {
   cy.request('POST', `${Cypress.env('apiUrl')}/api/auth/login`, { email, password })
     .then(({ body }) => {

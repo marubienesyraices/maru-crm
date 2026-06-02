@@ -20,7 +20,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 20, ttl: 900000 } })
+  @Throttle({ default: { limit: process.env.NODE_ENV === 'production' ? 20 : 200, ttl: 900000 } })
   @ApiOperation({ summary: 'Paso 1 de login: email + contraseña' })
   @ApiResponse({ status: 200, description: 'Token de acceso o solicitud de 2FA' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
@@ -33,7 +33,7 @@ export class AuthController {
   @Post('verify-2fa')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 20, ttl: 900000 } })
+  @Throttle({ default: { limit: process.env.NODE_ENV === 'production' ? 20 : 200, ttl: 900000 } })
   @ApiOperation({ summary: 'Paso 2 de login: verificar código TOTP' })
   @ApiResponse({ status: 200, description: 'Token de acceso completo' })
   async verify2FA(@Body() dto: Verify2FADto, @Req() req: any) {
