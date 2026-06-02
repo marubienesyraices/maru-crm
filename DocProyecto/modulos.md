@@ -540,15 +540,15 @@ El **Nivel de Riesgo** se calcula como: $\text{NR} = \text{Probabilidad} \times 
 
 Estimación de costos de recurso humano para **4 meses de desarrollo** (≈ 17 semanas laborales a 40 h/semana).
 
-> Tasas de referencia para mercado guatemalteco (desarrollo de software a medida). Conversión: 1 USD ≈ 7.70 GTQ.
+> Tasas de referencia para mercado guatemalteco (desarrollo de software a medida).
 
-| Rol | Dedicación | Semanas | Total horas | Tarifa / hora (USD) | Tarifa / hora (GTQ) | Costo total (USD) | Costo total (GTQ) |
-|:----|:----------:|:-------:|:-----------:|:-------------------:|:-------------------:|:-----------------:|:-----------------:|
-| Supervisor / Arquitecto | 20 h/sem | 17 | 340 h | $25 | Q193 | $8 500 | Q65 500 |
-| Desarrollador Full-Stack | 40 h/sem | 17 | 680 h | $15 | Q116 | $10 200 | Q78 500 |
-| **Subtotal** | | | **1 020 h** | | | **$18 700** | **Q144 000** |
-| Contingencia (10 %) | | | | | | $1 870 | Q14 400 |
-| **Total estimado** | | | | | | **$20 570** | **Q158 400** |
+| Rol | Dedicación | Semanas | Total horas | Tarifa / hora (USD) | Costo total (USD) |
+|:----|:----------:|:-------:|:-----------:|:-------------------:|:-----------------:|
+| Supervisor / Arquitecto | 20 h/sem | 17 | 340 h | $25 | $8 500 |
+| Desarrollador Full-Stack | 40 h/sem | 17 | 680 h | $15 | $10 200 |
+| **Subtotal** | | | **1 020 h** | | **$18 700** |
+| Contingencia (10 %) | | | | | $1 870 |
+| **Total estimado** | | | | | **$20 570** |
 
 ### Supuestos
 
@@ -557,25 +557,72 @@ Estimación de costos de recurso humano para **4 meses de desarrollo** (≈ 17 s
 | 1 | Mes laboral = 4.25 semanas · 4 meses = 17 semanas · semana = 40 h para el desarrollador, 20 h para el supervisor |
 | 2 | El supervisor cubre arquitectura, revisión de código, gestión de sprints y comunicación con el cliente |
 | 3 | El desarrollador cubre backend (NestJS + Prisma), frontend (React + Next.js), pruebas e integraciones |
-| 4 | No incluye licencias de software (stack 100 % open-source / free tier), infraestructura ni costos indirectos |
+| 4 | Solo incluye costo de recurso humano; los costos de hardware, herramientas y staging se detallan en §2.6.1 |
 | 5 | Contingencia del 10 % cubre cambios de alcance menores, depuración imprevista y ajustes de UX |
+
+---
+
+## 2.6.1 Costos de Inversión Inicial Adicionales
+
+Costos complementarios al recurso humano que deben considerarse antes o durante la fase de desarrollo. Se presentan separados para facilitar la negociación: algunos son opcionales si el equipo ya dispone de los recursos.
+
+### Hardware de trabajo (compra única)
+
+| Concepto | Especificación referencial | Costo (USD) | Observación |
+|:---------|:--------------------------|:-----------:|:------------|
+| Laptop desarrollador | 16 GB RAM · SSD 512 GB · CPU 8+ cores (Dell Inspiron 15 / Lenovo IdeaPad / MacBook Air M2) | $900 | Requerido si no se dispone de equipo propio |
+| Monitor externo 24" | FHD IPS, para trabajo en pantalla dual | $130 | Opcional; mejora productividad en desarrollo frontend |
+| UPS / regulador de voltaje | APC Back-UPS 600 VA o similar | $60 | Recomendado en Guatemala por frecuentes cortes eléctricos |
+| Mouse + teclado | Periféricos básicos | $30 | Solo si no se tienen |
+| **Subtotal hardware** | | **$1 120** | Omitir si el equipo ya dispone de equipos adecuados |
+
+### Herramientas y suscripciones (fase de desarrollo — 4 meses)
+
+| Concepto | Plan | Duración | Costo (USD) | Observación |
+|:---------|:-----|:--------:|:-----------:|:------------|
+| GitHub Teams | $4/usuario/mes × 2 usuarios | 4 meses | $32 | CI/CD + repos privados; free tier disponible para equipos pequeños |
+| Figma (diseño UI/UX) | Professional $12/mes × 1 usuario | 4 meses | $48 | Opcional; el plan gratuito cubre la fase de wireframes |
+| Zoom Pro | $15/mes × 1 cuenta | 4 meses | $60 | Para reuniones con el cliente; la versión gratuita limita a 40 min |
+| Dominio (.com o .gt) | Registro anual (GoDaddy / Namecheap) | 1 año | $15 | gestpro.com o gestpro.gt; necesario desde el inicio |
+| **Subtotal herramientas** | | | **$155** | |
+
+### Infraestructura de desarrollo y staging
+
+| Concepto | Producto GCP | Duración | Costo (USD) | Observación |
+|:---------|:------------|:--------:|:-----------:|:------------|
+| Servidor staging | e2-micro + 20 GB SSD | 4 meses | $20 | Entorno previo a producción para pruebas de integración |
+| Cloud SQL staging | db-f1-micro PostgreSQL | 4 meses | $40 | Base de datos de staging compartida con el equipo |
+| Redis staging | Upstash free tier | — | $0 | Suficiente para validar colas BullMQ y caché BI en staging |
+| **Subtotal infraestructura staging** | | | **$60** | |
+
+### Consolidado total de inversión en desarrollo
+
+| Categoría | Costo (USD) | ¿Obligatorio? |
+|:----------|:-----------:|:-------------:|
+| Recurso humano (§2.6) | $20 570 | Sí |
+| Herramientas y suscripciones | $155 | Parcial |
+| Infraestructura staging | $60 | Sí |
+| Hardware de trabajo | $1 120 | Solo si no se tiene |
+| **Total con hardware** | **$21 905** | |
+| **Total sin hardware** | **$20 785** | Escenario con equipo propio |
+
+> **Nota:** Si el equipo ya dispone de laptops y periféricos adecuados (mínimo 16 GB RAM, SSD), el costo de hardware es $0 y la inversión total se reduce a **$20 785 USD**, prácticamente igual al estimado original de §2.6.
 
 ---
 
 ## 2.7 Costos de Mantenimiento y Soporte (Años 1–5)
 
-Proyección post-lanzamiento con **1 desarrollador de soporte a 3 h/semana** (156 h/año · $15/h) más costos operativos fijos. Conversión referencial: 1 USD ≈ 7.70 GTQ.
+Proyección post-lanzamiento con **1 desarrollador de soporte a 10 h/semana** (520 h/año · $15/h) más costos operativos fijos.
 
 | Rubro | Año 1 | Año 2 | Año 3 | Año 4 | Año 5 |
 |:------|------:|------:|------:|------:|------:|
-| Desarrollador de soporte (3 h/sem · 156 h/año · $15/h) | $2 340 | $2 340 | $2 340 | $2 340 | $2 340 |
+| Desarrollador de soporte (10 h/sem · 520 h/año · $15/h) | $7 800 | $7 800 | $7 800 | $7 800 | $7 800 |
 | Infraestructura (VPS Hetzner + dominio SSL) | $130 | $130 | $220 | $220 | $400 |
 | Servicios de terceros (Resend, Mapbox, Sentry) | $300 | $600 | $720 | $1 200 | $1 200 |
 | Actualizaciones de seguridad / dependencias | $500 | $300 | $300 | $300 | $300 |
-| Contingencia (10 %) | $327 | $337 | $358 | $406 | $424 |
-| **Total año (USD)** | **$3 597** | **$3 707** | **$3 938** | **$4 466** | **$4 664** |
-| **Total año (GTQ)** | **Q27 697** | **Q28 544** | **Q30 323** | **Q34 388** | **Q35 913** |
-| **Acumulado (USD)** | $3 597 | $7 304 | $11 242 | $15 708 | **$20 372** |
+| Contingencia (10 %) | $873 | $883 | $904 | $952 | $970 |
+| **Total año (USD)** | **$9 603** | **$9 713** | **$9 944** | **$10 472** | **$10 670** |
+| **Acumulado (USD)** | $9 603 | $19 316 | $29 260 | $39 732 | **$50 402** |
 
 > La infraestructura sube en año 3 (upgrade de VPS por crecimiento de tenants) y en año 5 (segundo servidor o tier superior). Los servicios de terceros escalan conforme el volumen de emails y mapas supera los free tiers.
 
@@ -659,13 +706,13 @@ GestPro opera como **SaaS multi-tenant** con licencias mensuales por agencia (te
 | **Ingreso anual (GTQ)** | **Q53 400** | **Q139 200** | **Q283 200** |
 | **Ingreso anual (USD)** | **~$6 900** | **~$18 100** | **~$36 800** |
 
-> A partir del año 2 el ingreso anual supera el costo de mantenimiento (§2.7 ~$3 700/año), alcanzando el punto de equilibrio operativo. El desarrollo inicial (~$20 570, §2.6) se recupera antes del mes 30 en el escenario base.
+> A partir del año 2 el ingreso anual supera el costo de mantenimiento (§2.7 ~$9 700/año), alcanzando el punto de equilibrio operativo. El desarrollo inicial (~$20 570, §2.6) se recupera en el tercer año de operación según el escenario de proyección.
 
 #### Punto de equilibrio mensual
 
-$$\text{Clientes para equilibrio} = \left\lceil \frac{\text{Costo operativo mensual}}{\text{Ticket promedio}} \right\rceil = \left\lceil \frac{\$308}{\ \$80} \right\rceil = 4 \text{ clientes}$$
+$$\text{Clientes para equilibrio} = \left\lceil \frac{\text{Costo operativo mensual}}{\text{Ticket promedio}} \right\rceil = \left\lceil \frac{\$809}{\ \$80} \right\rceil = 11 \text{ clientes}$$
 
-> Costo operativo mensual = $3 707/12 ≈ $308. Ticket promedio ponderado estimado ≈ $80/mes.
+> Costo operativo mensual = $9 713/12 ≈ $809. Ticket promedio ponderado estimado ≈ $80/mes.
 
 ---
 
@@ -686,22 +733,22 @@ $$\text{Clientes para equilibrio} = \left\lceil \frac{\text{Costo operativo mens
 
 ### Costo operativo mensual de referencia
 
-El costo de mantenimiento del Año 1 es **$3,597/año** → **~$308/mes** a cubrir con ingresos de suscripciones.
+El costo de mantenimiento del Año 1 es **$9,603/año** → **~$800/mes** a cubrir con ingresos de suscripciones.
 
-### Punto de equilibrio: solo 4 clientes
+### Punto de equilibrio: ~10 clientes
 
-$$\text{Clientes para equilibrio} = \left\lceil \frac{\$308}{\$80\text{ ticket promedio}} \right\rceil = 4 \text{ clientes}$$
+$$\text{Clientes para equilibrio} = \left\lceil \frac{\$800}{\$80\text{ ticket promedio}} \right\rceil = 10 \text{ clientes}$$
 
 Con la mezcla mínima para cubrir ese umbral:
 
 | Plan | Precio/mes (USD) | Cantidad mínima | Ingreso mensual |
 |:-----|:----------------:|:---------------:|----------------:|
-| Starter | ~$45 | 1 | ~$45 |
-| Profesional | ~$104 | 2 | ~$208 |
-| Empresarial | ~$208 | 1 | ~$208 |
-| **Total** | | **4** | **~$461** |
+| Starter | ~$45 | 2 | ~$90 |
+| Profesional | ~$104 | 4 | ~$416 |
+| Empresarial | ~$208 | 2 | ~$416 |
+| **Total** | | **8** | **~$922** |
 
-Con solo 4 clientes se generan **~$153/mes de utilidad** sobre costos operativos, cubriendo el punto de equilibrio desde el primer mes completo con esa cartera.
+Con 8 clientes (mix con ticket promedio superior a $80) se generan **~$122/mes de utilidad** sobre costos operativos, cubriendo el punto de equilibrio desde el primer mes completo con esa cartera.
 
 ### Proyección conservadora Año 1 (escenario §3.4)
 
@@ -709,11 +756,11 @@ La combinación proyectada de **3 Starter + 3 Profesional + 1 Empresarial = 7 cl
 
 | Concepto | Año 1 |
 |:---------|------:|
-| Ingreso anual | ~$6,900 |
-| Costo de mantenimiento | ~$3,597 |
-| **Utilidad operativa neta** | **~$3,303** |
+| Ingreso anual | ~$7,860 |
+| Costo de mantenimiento | ~$9,603 |
+| **Pérdida operativa neta** | **~−$1,743** |
 
-Con 7 clientes el ingreso operativo es **positivo desde el primer año**, cubriendo 1.9× los costos de mantenimiento.
+Con 7 clientes el ingreso cubre parcialmente los costos; la pérdida operativa es de solo ~$1,743 en el primer año. El punto de equilibrio operativo se alcanza en el **Año 2**, cuando los ingresos (~$20,712) superan ampliamente el costo de mantenimiento (~$9,713).
 
 ---
 
@@ -735,13 +782,172 @@ $$\text{Amortización anual} = \frac{\$20{,}570}{3} \approx \$6{,}857 \text{ · 
 | **Total clientes** | **7** | **17** | **30** | **44** | **58** |
 | **MRR (USD)** | **~$655** | **~$1,726** | **~$3,050** | **~$4,464** | **~$5,892** |
 | **Ingreso anual (USD)** | **~$7,860** | **~$20,712** | **~$36,600** | **~$53,568** | **~$70,704** |
-| Costo de mantenimiento | $3,597 | $3,707 | $3,938 | $4,466 | $4,664 |
-| **Utilidad operativa** | **~$4,263** | **~$17,005** | **~$32,662** | **~$49,102** | **~$66,040** |
+| Costo de mantenimiento | $9,603 | $9,713 | $9,944 | $10,472 | $10,670 |
+| **Utilidad operativa** | **−$1,743** | **~$11,000** | **~$26,656** | **~$43,096** | **~$60,034** |
 | Amortización desarrollo | $6,857 | $6,857 | $6,857 | $0 | $0 |
-| **Utilidad neta** | **−$2,594** | **~$10,148** | **~$25,805** | **~$49,102** | **~$66,040** |
-| **Utilidad acumulada** | −$2,594 | **~$7,554** | **~$33,359** | **~$82,461** | **~$148,501** |
+| **Utilidad neta** | **−$8,600** | **~$4,142** | **~$19,799** | **~$43,096** | **~$60,034** |
+| **Utilidad acumulada** | −$8,600 | **~−$4,458** | **~$15,341** | **~$58,437** | **~$118,471** |
 
-> Al cierre del **Año 2** la utilidad acumulada es positiva (+$7,554), lo que significa que la inversión de desarrollo queda totalmente absorbida dentro del segundo año de operación. Al final del **Año 5** el negocio acumula **~$148,501 de utilidad neta** después de haber descontado el costo total de desarrollo y todos los gastos de mantenimiento.
+> Al cierre del **Año 3** la utilidad acumulada se vuelve positiva (+$15,341), momento en que la inversión de desarrollo queda totalmente absorbida. Al final del **Año 5** el negocio acumula **~$118,471 de utilidad neta** después de haber descontado el costo total de desarrollo y todos los gastos de mantenimiento.
+
+---
+
+*Última actualización: mayo 2026*
+
+---
+
+## 2.4.1 Rol de Cada Componente GCP en GestPro (Escenario Recomendado — $144/mes)
+
+Esta sección explica para qué sirve cada servicio de la nube en el contexto específico del sistema GestPro CRM Inmobiliario.
+
+---
+
+### Compute Engine — e2-standard-2 (2 vCPU / 8 GB RAM · $49/mes)
+
+**Qué es:** Máquina virtual de propósito general en Google Cloud.
+
+**Para qué se usa en GestPro:**
+Es el servidor principal de la aplicación. Ejecuta simultáneamente los cuatro procesos del sistema:
+
+- **API NestJS** (puerto 3000) — lógica de negocio, autenticación, pipeline, visitas, BI
+- **CRM Web React/Vite** servido por Nginx
+- **Portal Público Next.js** (SSR en puerto 3001)
+- **Workers BullMQ** — generación de brochures PDF y procesamiento de colas de notificaciones
+
+Con 2 vCPU y 8 GB de RAM tiene margen suficiente para ~30–50 tenants activos concurrentes sin degradación. Si el tráfico crece, se puede redimensionar verticalmente (e2-standard-4) sin cambiar la arquitectura.
+
+---
+
+### Persistent Disk SSD — Boot 40 GB ($7/mes)
+
+**Qué es:** Disco de arranque del sistema operativo de la VM.
+
+**Para qué se usa en GestPro:**
+Contiene el sistema operativo (Ubuntu/Debian), el runtime de Node.js, las dependencias npm, el código desplegado de todos los paquetes del monorepo y la configuración de Nginx. Se mantiene separado del disco de datos para poder recrear la VM desde una imagen sin perder uploads ni backups.
+
+---
+
+### Persistent Disk SSD — Datos 100 GB ($17/mes)
+
+**Qué es:** Volumen de datos independiente montado en la VM (p. ej. `/mnt/data`).
+
+**Para qué se usa en GestPro:**
+Almacena los archivos que genera y consume la aplicación en tiempo de ejecución:
+
+- **`uploads/`** — fotos de propiedades, documentos de expedientes legales, contratos escaneados (cuando no se usa Cloudflare R2)
+- **Logs de aplicación** rotados por PM2/Winston
+- **Caché temporal** de PDFs de brochures antes de enviarse a Cloud Storage
+
+Al estar en un volumen separado, un snapshot de este disco sirve como backup incremental de todos los activos binarios sin necesidad de descargar desde la VM.
+
+---
+
+### Cloud SQL for PostgreSQL — db-g1-small (1 vCPU / 1.7 GB · $26/mes)
+
+**Qué es:** Instancia de PostgreSQL 16 totalmente administrada por Google (parches, backups automáticos, failover).
+
+**Para qué se usa en GestPro:**
+Es la base de datos principal del sistema. Almacena todas las entidades del dominio:
+
+- Tenants, usuarios, sesiones y auditoría
+- Propiedades, propietarios y expedientes legales
+- Clientes, pipeline de ventas e interacciones
+- Visitas, agendas y reportes post-visita
+- Configuración por tenant y logs de notificaciones
+
+Las políticas de **Row-Level Security (RLS)** que garantizan el aislamiento multi-tenant se ejecutan directamente en esta instancia. Al ser un servicio administrado, Google gestiona los backups diarios automáticos con retención de 7 días, lo que elimina ese riesgo operativo del equipo de desarrollo.
+
+---
+
+### Memorystore for Redis — Basic 1 GB ($35/mes)
+
+**Qué es:** Instancia de Redis administrada por Google, con baja latencia y alta disponibilidad regional.
+
+**Para qué se usa en GestPro:**
+Redis cumple dos funciones críticas en el sistema:
+
+1. **Cola de trabajos BullMQ** — los jobs de generación de brochures PDF, envío de notificaciones push y procesamiento de webhooks de DocuSign/Meta se encolan en Redis. Sin Redis, estos trabajos no pueden ejecutarse.
+2. **Caché de dashboards BI** — `BiService` almacena en Redis (por 15 minutos) el resultado de las consultas analíticas pesadas (actividad del pipeline, tasas de conversión, propiedades más vistas). Cada request de dashboard que llega antes de que expire el caché no toca la base de datos, reduciendo la latencia de ~400 ms a ~5 ms.
+
+Al ser un servicio administrado, no requiere configuración de persistencia ni mantenimiento de instancias.
+
+---
+
+### Cloud Storage — Standard 100 GB ($2/mes)
+
+**Qué es:** Almacenamiento de objetos duradero y de bajo costo (equivalente a S3 de AWS).
+
+**Para qué se usa en GestPro:**
+Actúa como capa de almacenamiento de objetos cuando `R2_BUCKET` está configurado (el `StorageService` lo detecta automáticamente). Sirve para:
+
+- **Fotos de propiedades** comprimidas y con watermark por `ImageService` (máx. 2000 px, JPEG 82 %)
+- **Documentos de expedientes** (escrituras, planos, permisos)
+- **PDFs de brochures** generados por `BrochureProcessor`
+- **Backups del Persistent Disk** exportados periódicamente por el script `infra/backup/backup.sh`
+
+Con 100 GB y el precio de Standard ($0.02/GB) el costo es mínimo; el bucket puede crecer bajo demanda sin redimensionamiento manual.
+
+---
+
+### Cloud Armor — WAF Básico ($5/mes)
+
+**Qué es:** Servicio de firewall de aplicaciones web (WAF) y protección contra DDoS de Google Cloud.
+
+**Para qué se usa en GestPro:**
+Protege el punto de entrada público del sistema (la IP del Load Balancer o la VM) contra:
+
+- **Ataques DDoS volumétricos** — limita el daño si el portal o la API reciben tráfico malicioso masivo
+- **OWASP Top 10** — reglas preconfiguradas que bloquean inyección SQL, XSS, path traversal y ataques de fuerza bruta contra `/api/auth/login`
+- **Rate limiting por IP** — evita que un scraper o bot abusen del portal público de listado de propiedades
+
+Dado que el sistema maneja datos de clientes, contratos y transacciones inmobiliarias, este servicio es el primer escudo de defensa antes de que cualquier petición llegue a Nginx o a la API.
+
+---
+
+### Cloud CDN + Networking — Egress 30 GB/mes ($3/mes)
+
+**Qué es:** Red de distribución de contenido (CDN) de Google y costo de transferencia de datos salientes.
+
+**Para qué se usa en GestPro:**
+El CDN actúa en dos frentes:
+
+1. **Assets estáticos del CRM y del portal** (JS, CSS, fuentes, favicon) — se sirven desde el edge de Google más cercano al usuario final en lugar de desde la VM, reduciendo la latencia percibida y el consumo de CPU/ancho de banda de la instancia principal.
+2. **Imágenes de propiedades almacenadas en Cloud Storage** — las fotos más solicitadas (listados populares del portal) se cachean en el CDN, de modo que solo el primer request va al bucket; los subsiguientes se resuelven desde el edge.
+
+Los 30 GB de egress estimados contemplan el tráfico del portal público (catálogo de propiedades con imágenes), respuestas de la API a la app móvil y descargas de brochures PDF.
+
+---
+
+### Resumen: cómo interactúan los componentes
+
+```
+Usuario / App Móvil
+       │
+       ▼
+Cloud Armor (WAF / DDoS)
+       │
+       ▼
+Cloud CDN ──► Cloud Storage (imágenes, PDFs, backups)
+       │
+       ▼
+  Compute Engine VM
+  ┌────────────────────────────────┐
+  │  Nginx (reverse proxy)         │
+  │  ├─ CRM Web (React/Vite :80)  │
+  │  ├─ Portal Next.js (:3001)    │
+  │  └─ API NestJS (:3000)        │
+  │       │            │           │
+  │       ▼            ▼           │
+  │  Cloud SQL    Memorystore      │
+  │  PostgreSQL   Redis            │
+  │  (datos)      (colas + caché)  │
+  └────────────────────────────────┘
+       │
+  Persistent Disk SSD Datos
+  (uploads, logs, caché temporal)
+```
+
+Cada servicio tiene una responsabilidad única y ninguno puede eliminarse del escenario recomendado sin degradar la funcionalidad o la seguridad del sistema.
 
 ---
 
@@ -802,6 +1008,118 @@ $$\text{Amortización anual} = \frac{\$20{,}570}{3} \approx \$6{,}857 \text{ · 
 | Adecuado | $354 | $4,248 | ~4 clientes Starter |
 
 La configuración adecuada eleva el punto de equilibrio operativo (sin amortización) de ~4 a ~5–6 clientes totales, manteniéndose alcanzable en el primer trimestre de operación según la proyección conservadora del §3.6.
+
+### Capacidad por configuración
+
+| Configuración | Costo/mes | Tenants (agencias) | Agentes concurrentes | Propiedades activas | Tráfico portal/mes |
+|:--------------|----------:|:-----------------:|:-------------------:|:-------------------:|:-----------------:|
+| **Mínima** ($144) | $144 | 1 – 5 | hasta 15 | hasta 300 | ~5 000 visitas |
+| **Óptima** ($354) | $354 | 5 – 20 | hasta 60 | hasta 2 000 | ~30 000 visitas |
+
+> Los rangos asumen un uso normal del sistema (pipeline activo, brochures ocasionales, portal con imágenes comprimidas). Picos de carga simultánea (p. ej. campañas de email masivo o generación de muchos PDFs en paralelo) pueden reducir la capacidad efectiva en ~30 %.
+
+---
+
+*Última actualización: mayo 2026*
+
+---
+
+## 3.8 Punto de Equilibrio Total — Inversión Inicial + Mantenimiento
+
+Integra la inversión de desarrollo ($20,570 de §2.6) con los costos anuales de mantenimiento (§2.7) y los ingresos proyectados (§3.6) para determinar cuándo la empresa recupera **toda** la inversión realizada.
+
+| Concepto | Año 0 | Año 1 | Año 2 | Año 3 | Año 4 | Año 5 |
+|:---------|------:|------:|------:|------:|------:|------:|
+| Inversión inicial (desarrollo) | −$20,570 | — | — | — | — | — |
+| Ingresos anuales | — | $7,860 | $20,712 | $36,600 | $53,568 | $70,704 |
+| Costos de mantenimiento (§2.7) | — | $9,603 | $9,713 | $9,944 | $10,472 | $10,670 |
+| **Flujo neto del período** | **−$20,570** | **−$1,743** | **+$10,999** | **+$26,656** | **+$43,096** | **+$60,034** |
+| **Flujo acumulado** | **−$20,570** | **−$22,313** | **−$11,314** | **+$15,342 ✅** | **+$58,438** | **+$118,472** |
+
+### Cómo se alcanzan los ingresos anuales
+
+Los ingresos provienen exclusivamente de suscripciones mensuales activas. El crecimiento asume incorporación orgánica de 2–4 agencias nuevas por trimestre en los primeros dos años, acelerando desde el Año 3 con expansión centroamericana.
+
+| Plan | Precio/mes | Año 1 | Año 2 | Año 3 | Año 4 | Año 5 |
+|:-----|:----------:|------:|------:|------:|------:|------:|
+| Starter (~$45/mes) | $45 | 3 | 6 | 10 | 16 | 20 |
+| Profesional (~$104/mes) | $104 | 3 | 8 | 15 | 20 | 28 |
+| Empresarial (~$208/mes) | $208 | 1 | 3 | 5 | 8 | 10 |
+| **Total clientes** | | **7** | **17** | **30** | **44** | **58** |
+| Starter (aporte mensual) | | $135 | $270 | $450 | $720 | $900 |
+| Profesional (aporte mensual) | | $312 | $832 | $1,560 | $2,080 | $2,912 |
+| Empresarial (aporte mensual) | | $208 | $624 | $1,040 | $1,664 | $2,080 |
+| **MRR total** | | **$655** | **$1,726** | **$3,050** | **$4,464** | **$5,892** |
+| **Ingreso anual (MRR × 12)** | | **$7,860** | **$20,712** | **$36,600** | **$53,568** | **$70,704** |
+
+> Los valores anuales se obtienen multiplicando el MRR por 12, asumiendo que la cartera de clientes al cierre de cada año se mantiene estable durante todo ese período (sin cancelaciones netas). La tasa de cancelación proyectada es 0 % en el escenario conservador; una cancelación neta del 5 % anual reduciría el MRR del Año 5 a ~$5,597 (~$67,164/año), sin afectar el punto de equilibrio.
+
+### Gráfica 1 — Ingresos anuales vs Costos de mantenimiento
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'xyChart': {'backgroundColor': '#EFF8FF', 'plotColorPalette': '#0288D1,#01579B', 'gridColor': '#B3D9F5', 'titleColor': '#01579B'}}}}%%
+xychart-beta
+    title "Ingresos Anuales vs Costos de Mantenimiento (USD)"
+    x-axis ["Año 1", "Año 2", "Año 3", "Año 4", "Año 5"]
+    y-axis "USD" 0 --> 75000
+    bar [7860, 20712, 36600, 53568, 70704]
+    line [9603, 9713, 9944, 10472, 10670]
+```
+
+> **Barras (azul claro)** = Ingresos anuales por suscripciones · **Línea (azul oscuro)** = Costos de mantenimiento anuales (§2.7). Los ingresos superan los costos operativos a partir del **Año 2**; en el Año 5 los ingresos son ~**6.6× mayores** que los costos.
+
+### Gráfica 2 — Flujo de Caja Acumulado (Punto de Equilibrio)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'xyChart': {'backgroundColor': '#EFF8FF', 'plotColorPalette': '#0277BD', 'gridColor': '#B3D9F5', 'titleColor': '#01579B'}}}}%%
+xychart-beta
+    title "Flujo de Caja Acumulado — Cruce en Mes 30 (USD)"
+    x-axis ["Año 0", "Año 1", "Año 2", "Año 3", "Año 4", "Año 5"]
+    y-axis "USD" -25000 --> 120000
+    line [-20570, -22313, -11314, 15342, 58438, 118472]
+```
+
+> La línea parte desde **−$20,570** (inversión inicial) y cruza el eje cero — **punto de equilibrio** — durante el **Año 3** (mes 30 desde el lanzamiento). Todo valor positivo representa ganancia neta después de recuperar la inversión total de desarrollo y mantenimiento acumulado.
+
+### Punto de equilibrio exacto
+
+El flujo acumulado cruza cero durante el **Año 3**. Con un flujo mensual promedio de $26,656 ÷ 12 ≈ $2,221/mes en ese año, y un déficit de $11,314 al inicio del Año 3:
+
+$$\text{Mes de equilibrio} = 24 + \left\lceil \frac{\$11{,}314}{\$26{,}656 / 12} \right\rceil = 24 + 6 = \textbf{mes 30}$$
+
+> La inversión total queda recuperada en el **mes 30 desde el lanzamiento** (~2.5 años), dentro del primer semestre del Año 3.
+
+### Retorno sobre la inversión a 5 años
+
+| Métrica | Valor |
+|:--------|------:|
+| Inversión total (desarrollo + 5 años mantenimiento) | $70,972 |
+| Ingresos totales acumulados (5 años) | $189,444 |
+| **Utilidad neta acumulada** | **$118,472** |
+| **ROI sobre inversión inicial** | **~5.8×** |
+| **ROI sobre inversión total** | **~167 %** |
+
+> El negocio genera **$5.76 por cada $1 invertido en desarrollo** al cierre del Año 5. Considerando el costo total (desarrollo + mantenimiento), el retorno es del **167 %** sobre la inversión total de $70,972.
+
+---
+
+### Valor Actual Neto (VAN)
+
+El VAN descuenta todos los flujos netos del proyecto a una tasa de referencia del **12 %** anual, representativa del costo de oportunidad de capital para startups SaaS en Centroamérica.
+
+$$VAN = -\$20{,}570 + \sum_{t=1}^{5} \frac{FC_t}{(1{+}0.12)^t} = -\$20{,}570 + \frac{-\$1{,}743}{1.12} + \frac{\$10{,}999}{1.12^2} + \frac{\$26{,}656}{1.12^3} + \frac{\$43{,}096}{1.12^4} + \frac{\$60{,}034}{1.12^5} \approx \mathbf{\$67{,}071}$$
+
+Un **VAN > 0** confirma que el proyecto crea valor por encima del retorno mínimo exigido: por cada dólar invertido se generan $0.12 de rendimiento anual esperado **más** $67,071 de valor presente adicional. Si la tasa de descuento subiera hasta ~63 % el VAN llegaría a cero, lo que coincide con la TIR calculada a continuación.
+
+---
+
+### Tasa Interna de Retorno (TIR)
+
+La TIR es la tasa de descuento que iguala el VAN a cero. Resolviendo iterativamente con los mismos flujos netos del período:
+
+$$0 = -\$20{,}570 + \frac{-\$1{,}743}{(1{+}r)} + \frac{\$10{,}999}{(1{+}r)^2} + \frac{\$26{,}656}{(1{+}r)^3} + \frac{\$43{,}096}{(1{+}r)^4} + \frac{\$60{,}034}{(1{+}r)^5} \implies r \approx \mathbf{63\,\%}$$
+
+Una TIR del **63 %** supera ampliamente la tasa de referencia del 12 %, lo que indica que el proyecto es **altamente rentable** incluso bajo escenarios de crecimiento más conservadores. Para que la inversión dejara de ser atractiva, los ingresos proyectados tendrían que reducirse a menos de la mitad del escenario conservador planteado en §3.4, manteniendo los costos actuales.
 
 ---
 
