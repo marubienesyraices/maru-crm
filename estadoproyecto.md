@@ -1,9 +1,9 @@
 # Estado del Proyecto — CRM GestProp
 
-> **Fecha de revisión:** 1 de junio de 2026
-> **Rama:** master · commit `cbb07cf`
+> **Fecha de revisión:** 2 de junio de 2026
+> **Rama:** master · commit `6470aa4`
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
-> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ · Fase 3 ✅ · Fase 4 ✅ · Fase 5 ✅ · Planes ✅ · **Brechas Requerimientos ✅ 0 pendientes**
+> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ · Fase 3 ✅ · Fase 4 ✅ · Fase 5 ✅ · Planes ✅ · Brechas ✅ 0 · **Pruebas integrales ✅**
 
 ---
 
@@ -347,24 +347,24 @@
 
 ---
 
-## Inventario Técnico (estado 1-jun-2026)
+## Inventario Técnico (estado 2-jun-2026)
 
 | Capa | Artefacto | Cantidad |
 |:-----|:----------|:--------:|
-| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones, tareas, horarios, **busquedas** | 32 |
-| API — controladores | auth, users, tenants, audit, propiedades, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, **notificacion-preferencias**, search, portal (`google-auth`, magic link, favoritos, horarios cliente, **busquedas**), import, campanas, **email-triggers**, email-tracking, bi (+heatmap, +comisiones), meta, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones | 34 |
-| API — schedulers | VisitasScheduler, PipelineScheduler (inactividad + timeout 30d), DocumentosScheduler, PropiedadesScheduler (estancadas 30/45/60d + **auto-publicación BORRADOR→DISPONIBLE**), PasswordExpiryScheduler (aviso 90d), AuditArchiveScheduler (mensual), **SindicacionScheduler** (horario + diario por tenant) | 7 |
-| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad (`sinc_frecuencia`), AuditLog, Propiedad, PropiedadImagen, PropiedadDocumento, Cliente (`superficie_min_m2`), ClientePropiedad (`es_oferta_competitiva`), Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, **EmailTrigger**, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, CatalogoPlan, Tarea, HorarioLaboral, Favorito, **BusquedaGuardada**, **NotificacionPreferencia** | 28 |
-| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion (**+SISTEMA**), ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno (**+ZILLOW**), EstadoSindicacion, EstadoFirma | 23 |
-| BD — migraciones (1-jun) | `20260601000000_cerrar_brechas_13` (3 tablas nuevas, 3 columnas, 2 enums, FK/idx iniciales), `20260601100000_sync_schema_constraints` (alineación Prisma: FK names, idx names, nullability, defaults) | 2 nuevas · **40 total** |
-| Frontend — páginas CRM | Login, ForgotPassword, ResetPassword, Verify2FA, Dashboard, PropertiesList, PropertyForm (**superficie_min_m2**), PropertyDetail, ClientsList, ClientForm (**superficie_min_m2**), ClientDetail, Pipeline (+CierreModal), Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi (6 tabs), Campanas (**+Triggers tab**), Ranking, Meta, AdminTenants, AdminUsers, OrgChart, Audit, Horarios, Tareas, AdminPlanes, Settings, Help | 33 |
-| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + NearbyPlaces + RegistroInteresForm), `/verificar`, `/mi-cuenta` (MiCuentaClient + **BusquedasGuardadasPanel** + Google OAuth) | 4 |
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones, tareas, horarios, busquedas | 32 |
+| API — controladores | auth, users (+push-token), tenants, audit, propiedades, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, notificacion-preferencias, search, portal (google-auth, magic link, favoritos, horarios cliente, busquedas), import, campanas, email-triggers, email-tracking, bi (+heatmap, +comisiones), meta, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones | 35 |
+| API — schedulers | VisitasScheduler, PipelineScheduler (inactividad + timeout 30d), DocumentosScheduler, PropiedadesScheduler (estancadas 30/45/60d + auto-publicación BORRADOR→DISPONIBLE), PasswordExpiryScheduler (aviso 90d), AuditArchiveScheduler (mensual), SindicacionScheduler (horario + diario por tenant) | 7 |
+| BD — modelos Prisma | Tenant, User (`push_token`), Session, ConfigSeguridad (`sinc_frecuencia`), AuditLog, Propiedad, PropiedadImagen, PropiedadDocumento, Cliente (`superficie_min_m2`), ClientePropiedad (`es_oferta_competitiva`), Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, EmailTrigger, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, CatalogoPlan, Tarea, HorarioLaboral, Favorito, BusquedaGuardada, NotificacionPreferencia | 28 |
+| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion (+SISTEMA), ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno (+ZILLOW), EstadoSindicacion, EstadoFirma | 23 |
+| BD — migraciones (2-jun) | `20260601000000_cerrar_brechas_13`, `20260601100000_sync_schema_constraints` + columna `users.push_token` vía `db push` | **40 total** |
+| Frontend — páginas CRM | Login, ForgotPassword, ResetPassword, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm (+superficie_min_m2), ClientDetail, Pipeline (+CierreModal), Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi (6 tabs), Campanas (+Triggers), Ranking, Meta, AdminTenants, AdminUsers, OrgChart, Audit, Horarios, Tareas, AdminPlanes, Settings, Help | 33 |
+| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + NearbyPlaces + RegistroInteresForm), `/verificar`, `/mi-cuenta` (MiCuentaClient + BusquedasGuardadasPanel + Google OAuth) | 4 |
 | Tests unitarios | 127 tests en 12 suites | 127 |
-| Tests E2E Cypress | 6 suites integradas en CI | 6 |
+| Tests E2E Cypress | 6 suites · 19 tests · **19/19 pasan** (selectores y credenciales actualizados 2-jun) | 19 |
 | Tests de carga k6 | 3 scripts (auth, pipeline, portal-publico); p95 < 500ms | 3 |
 | Tests de seguridad OWASP | A01/A02/A03/A05/A06/A07/A09 | 1 suite |
 | Infraestructura Docker | Dockerfiles multi-stage; `docker-compose.prod.yml`; nginx; backup.sh | — |
-| App móvil | `mobile/` — Expo Router; 5 pantallas; push FCM/APNs; offline AsyncStorage | — |
+| App móvil | `mobile/` — Expo Router; 5 pantallas; push FCM/APNs; offline AsyncStorage; TypeScript ✅ | — |
 | PostGIS / Spatial | Extensión + índice GIST + precio sugerido IDW + heatmap `/api/bi/heatmap` | — |
 
 ---
@@ -529,3 +529,66 @@
 - ~~**F-18 @Menciones en notas**~~ ✅ — Sintaxis `@[Nombre]`; `InteraccionesService` parsea menciones, busca usuarios activos, crea notificación tipo `MENCION`; hint en TimelineModal
 - ~~**F-21 Fotos en reporte de visita**~~ ✅ — Campo `fotos_visita Json` en `Visita`; input URL + preview thumbnails + botón eliminar en ReporteModal de AgendaPage
 - ~~**F-22 Mapa de calor**~~ ✅ — `GET /api/bi/heatmap` retorna coordenadas + peso (leads/propiedad); tab "🗺️ Mapa de calor" en BiPage con Mapbox GL heatmap layer; KPIs de propiedades y leads
+
+---
+
+## Pruebas Integrales de los 3 Frontends — sesión 2-jun-2026
+
+> **Commits:** `2d16c14` (Cypress fixes) · `4e2eaf7` (routing fix) · `6470aa4` (mobile fixes)
+
+### CRM Web (`web/` — React/Vite `:5173`)
+
+**Cypress E2E — 19/19 tests pasando en 6 suites:**
+
+| Suite | Tests | Resultado |
+|:------|:-----:|:---------:|
+| `01-auth.cy.ts` — login, sesión, rutas protegidas | 5 | ✅ |
+| `02-propiedades.cy.ts` — listado, form, crear, detalle | 4 | ✅ |
+| `03-pipeline.cy.ts` — columnas Kanban, estructura | 2 | ✅ |
+| `04-agenda.cy.ts` — vista semanal 7 días, botón agendar | 2 | ✅ |
+| `05-clientes.cy.ts` — listado "Contactos", form, crear | 3 | ✅ |
+| `06-busqueda-global.cy.ts` — Ctrl+K, Escape, resultados | 3 | ✅ |
+
+**Bugs encontrados y corregidos:**
+- Selectores Cypress desactualizados: UI usa "Contactos" (no "Clientes"), `.prop-card`, `.pipeline-col-title`, `.agenda-day`, `.gs-results`
+- `EmailTriggersController` debía registrarse antes de `CampanasController` (conflicto `GET /triggers` vs `GET /:id`)
+- Throttle de login en dev: 20 → 200 intentos para no bloquear runs repetidos de Cypress
+- Credenciales `cypress.config.ts` actualizadas a `admin@gestprop.net / Admin@2026`
+
+### Portal (`portal/` — Next.js 14 `:3001`)
+
+**Smoke test Playwright — 9/9 checks:**
+
+| Check | Resultado |
+|:------|:---------:|
+| Home SSR carga ("GestProp \| Propiedades en Guatemala") | ✅ |
+| 8 elementos de filtro de búsqueda | ✅ |
+| Listado con estado vacío (BD seedeada) | ✅ |
+| HTML SSR — 20 KB con contenido real | ✅ |
+| Detalle `/propiedades/:id` — precio, código, breadcrumb, specs | ✅ |
+| Galería de imágenes presente | ✅ |
+| Puntos de interés cercanos (Overpass API) | ✅ |
+| Mi Cuenta — formulario magic link | ✅ |
+| Chatbot widget visible | ✅ |
+| JSON-LD + OG tags (SEO) | ✅ |
+| Sin errores JS | ✅ |
+
+### App Móvil (`mobile/` — Expo React Native)
+
+**TypeScript + Metro + integración API — 9/9 checks:**
+
+| Check | Resultado |
+|:------|:---------:|
+| `tsc --noEmit` — 0 errores | ✅ |
+| Metro bundler `:8081` arranca limpio | ✅ |
+| 5 pantallas con imports correctos | ✅ |
+| Login → JWT | ✅ |
+| Dashboard KPIs (`/api/propiedades/stats`) | ✅ |
+| Propiedades paginadas (`/api/propiedades`) | ✅ |
+| Agenda visitas (`/api/visitas`) | ✅ |
+| Notificaciones unread | ✅ |
+| Push token `PATCH /api/users/push-token` | ✅ (endpoint creado) |
+
+**Bug encontrado y corregido:**
+- `NotificationBehavior` de `expo-notifications v53` requiere `shouldShowBanner` + `shouldShowList` (nuevos campos no presentes en el código original)
+- `PATCH /api/users/push-token` no existía en el backend — creado con campo `users.push_token String?`
