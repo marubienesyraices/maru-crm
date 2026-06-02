@@ -153,6 +153,25 @@ export class PipelineService {
         });
 
         if (!prop) throw new NotFoundException('Propiedad no encontrada');
+
+        // §11 CA-2 / RN-11: Competitive offer logic
+        if (prop.estado === 'RESERVADA') {
+          // JUNIOR cannot compete on a reserved property
+          if (usuarioRol === 'JUNIOR') {
+            throw new ForbiddenException('JUNIOR no puede presentar oferta competitiva sobre una propiedad en negociación.');
+          }
+          // Only one competitive offer allowed at a time
+          const competitivaExistente = await tx.clientePropiedad.count({
+            where: { propiedad_id: propiedadId, estado: 'EN_NEGOCIACION', es_oferta_competitiva: true },
+          });
+          if (competitivaExistente > 0) {
+            throw new ConflictException('Ya existe una oferta competitiva activa para esta propiedad. Solo se permite una a la vez.');
+          }
+          // Mark as competitive offer; property stays RESERVADA
+          pipelineData.es_oferta_competitiva = true;
+          return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+        }
+
         if (prop.estado !== 'DISPONIBLE') {
           throw new ConflictException(
             `La propiedad ya está en "${prop.estado}" y no puede entrar en negociación`,
@@ -197,7 +216,10 @@ export class PipelineService {
       updated = await this.prisma.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
     }
 
-    // ─── Fire-and-forget: email + invalidar caché BI ──────────
+    // §12 CA-1: Auto-entry in timeline for every state change
+    this.crearInteraccionSistema(id, usuarioId, `Estado actualizado: ${estadoActual} → ${nuevoEstado}`).catch(() => {});
+
+    // Fire-and-forget: email + invalidar caché BI
     if (interes.cliente.email) {
       this.sendPipelineEmail(nuevoEstado, interes).catch(() => {});
     }
@@ -347,5 +369,18 @@ export class PipelineService {
       throw new NotFoundException('Interés no encontrado');
     }
     return interes;
+  }
+
+  // §12 CA-1: Create automatic SISTEMA timeline entry after state changes
+  private async crearInteraccionSistema(interesId: string, usuarioId: string, notas: string) {
+    await this.prisma.interaccion.create({
+      data: {
+        interes_id: interesId,
+        usuario_id: usuarioId,
+        tipo: 'SISTEMA' as any,
+        resultado: 'NEUTRO',
+        notas,
+      },
+    });
   }
 }

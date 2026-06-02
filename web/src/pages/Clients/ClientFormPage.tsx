@@ -38,7 +38,7 @@ const GESTIONES = [
 const EMPTY_FORM = {
   nombre: '', email: '', telefono: '', dpi: '', nit: '', direccion: '',
   origen: 'OTRO', notas: '', esPropietario: false,
-  tipoInteres: '', gestionInteres: '', presupuestoMax: '', zonaInteres: '', habitacionesMin: '',
+  tipoInteres: '', gestionInteres: '', presupuestoMax: '', zonaInteres: '', habitacionesMin: '', superficieMinM2: '',
 };
 
 export default function ClientFormPage() {
@@ -77,6 +77,7 @@ export default function ClientFormPage() {
           presupuestoMax: c.presupuesto_max ? String(c.presupuesto_max) : '',
           zonaInteres: c.zona_interes || '',
           habitacionesMin: c.habitaciones_min != null ? String(c.habitaciones_min) : '',
+          superficieMinM2: (c as any).superficie_min_m2 != null ? String((c as any).superficie_min_m2) : '',
         });
       })
       .catch(() => setError('No se pudo cargar el contacto'))
@@ -106,6 +107,7 @@ export default function ClientFormPage() {
         presupuestoMax: form.presupuestoMax ? parseFloat(form.presupuestoMax) : undefined,
         zonaInteres: form.zonaInteres || undefined,
         habitacionesMin: form.habitacionesMin ? parseInt(form.habitacionesMin) : undefined,
+        superficieMinM2: form.superficieMinM2 ? parseFloat(form.superficieMinM2) : undefined,
       };
       if (isEdit) {
         await apiRequest(`/api/clientes/${id}`, { method: 'PUT', body, token: accessToken! });
@@ -232,6 +234,13 @@ export default function ClientFormPage() {
             <div className="form-group">
               <label className="form-label">Habitaciones mínimas</label>
               <input className="form-input" type="number" min="0" value={form.habitacionesMin} onChange={(e) => set('habitacionesMin', e.target.value)} placeholder="Ej. 3" />
+            </div>
+          </div>
+
+          <div className="client-form-row">
+            <div className="form-group">
+              <label className="form-label">Superficie mínima (m²)</label>
+              <input className="form-input" type="number" min="0" step="0.01" value={form.superficieMinM2} onChange={(e) => set('superficieMinM2', e.target.value)} placeholder="Ej. 120" />
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
@@ -475,6 +476,11 @@ export class PortalService {
             },
           },
         },
+        // §10 CA-2: Búsquedas guardadas
+        busquedas_guardadas: {
+          orderBy: { created_at: 'desc' as const },
+          select: { id: true, nombre: true, filtros: true, alertas: true, created_at: true },
+        },
       },
     });
 
@@ -499,6 +505,27 @@ export class PortalService {
       where: { cliente_id: clienteId, propiedad_id: propiedadId },
     });
     return { success: true };
+  }
+
+  // §10 CA-2: Saved searches
+  async getBusquedasGuardadas(clienteId: string) {
+    return this.prisma.busquedaGuardada.findMany({
+      where: { cliente_id: clienteId },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async saveBusquedaGuardada(clienteId: string, tenantId: string, nombre: string, filtros: Record<string, unknown>, alertas = true) {
+    return this.prisma.busquedaGuardada.create({
+      data: { id: randomUUID(), tenant_id: tenantId, cliente_id: clienteId, nombre, filtros: filtros as Prisma.InputJsonValue, alertas },
+    });
+  }
+
+  async deleteBusquedaGuardada(clienteId: string, id: string) {
+    const b = await this.prisma.busquedaGuardada.findFirst({ where: { id, cliente_id: clienteId } });
+    if (!b) throw new NotFoundException('Búsqueda no encontrada');
+    await this.prisma.busquedaGuardada.delete({ where: { id } });
+    return { deleted: true };
   }
 
   async getFavoritos(clienteId: string) {

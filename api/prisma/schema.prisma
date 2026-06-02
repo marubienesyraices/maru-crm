@@ -90,7 +90,10 @@ model Tenant {
   meta_publicaciones  MetaPublicacion[]
   tareas              Tarea[]
   horarios_laborales  HorarioLaboral[]
-  favoritos           Favorito[]
+  favoritos                Favorito[]
+  busquedas_guardadas      BusquedaGuardada[]
+  notificacion_preferencias NotificacionPreferencia[]
+  email_triggers           EmailTrigger[]
 
   @@map("tenants")
 }
@@ -221,11 +224,12 @@ model User {
   sessions     Session[]
   propiedades_asignadas Propiedad[]     @relation("PropiedadAgente")
   clientes_asignados    Cliente[]       @relation("ClienteAgente")
-  interacciones         Interaccion[]       @relation("InteraccionUsuario")
-  visitas               Visita[]            @relation("VisitaAgente")
-  meta_publicaciones    MetaPublicacion[]   @relation("UserMeta")
-  tareas                Tarea[]             @relation("TareaUsuario")
-  horarios_laborales    HorarioLaboral[]    @relation("HorarioUser")
+  interacciones             Interaccion[]            @relation("InteraccionUsuario")
+  visitas                   Visita[]                 @relation("VisitaAgente")
+  meta_publicaciones        MetaPublicacion[]        @relation("UserMeta")
+  tareas                    Tarea[]                  @relation("TareaUsuario")
+  horarios_laborales        HorarioLaboral[]         @relation("HorarioUser")
+  notificacion_preferencias NotificacionPreferencia[] @relation("UserNotifPrefs")
 
   @@unique([tenant_id, email])
   @@map("users")
@@ -280,6 +284,7 @@ model ConfigSeguridad {
   senior_puede_ver_upline Boolean @default(false)
   buffer_entre_citas_min  Int     @default(30)
   modo_asignacion_leads   String  @default("Manual")
+  sinc_frecuencia         String  @default("manual") // brecha 1.5: manual | hora | diario
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 
@@ -496,6 +501,7 @@ enum TipoInteraccion {
   NOTA
   WHATSAPP
   EMAIL
+  SISTEMA
 }
 
 enum ResultadoInteraccion {
@@ -531,11 +537,12 @@ model Cliente {
   es_propietario   Boolean         @default(false)
 
   // Preferencias de búsqueda (para matching)
-  tipo_interes     TipoPropiedad?
-  gestion_interes  TipoGestion?
-  presupuesto_max  Decimal?        @db.Decimal(14, 2)
-  zona_interes     String?
-  habitaciones_min Int?
+  tipo_interes      TipoPropiedad?
+  gestion_interes   TipoGestion?
+  presupuesto_max   Decimal?       @db.Decimal(14, 2)
+  zona_interes      String?
+  habitaciones_min  Int?
+  superficie_min_m2 Decimal?       @db.Decimal(10, 2) // brecha 2.7
 
   // Portal self-registration
   portal_verificado  Boolean   @default(false)
@@ -546,10 +553,11 @@ model Cliente {
   updated_at       DateTime        @updatedAt
 
   tenant      Tenant             @relation(fields: [tenant_id], references: [id])
-  agente      User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
-  intereses   ClientePropiedad[]
-  favoritos   Favorito[]         @relation("ClienteFavoritos")
-  propiedades Propiedad[]        @relation("PropietarioPropiedad")
+  agente              User?              @relation("ClienteAgente", fields: [agente_id], references: [id])
+  intereses           ClientePropiedad[]
+  favoritos           Favorito[]         @relation("ClienteFavoritos")
+  propiedades         Propiedad[]        @relation("PropietarioPropiedad")
+  busquedas_guardadas BusquedaGuardada[] @relation("ClienteBusquedas")
 
   @@unique([tenant_id, email])
   @@index([tenant_id])
@@ -569,11 +577,12 @@ model ClientePropiedad {
   motivo_perdida  String?
   cierre_documentos Json?       @default("[]")
   fecha_contacto  DateTime?
-  fecha_cierre    DateTime?
-  precio_cierre   Decimal?      @db.Decimal(14, 2)
-  comision_calculada Decimal?   @db.Decimal(14, 2)
-  created_at      DateTime      @default(now())
-  updated_at      DateTime      @updatedAt
+  fecha_cierre         DateTime?
+  precio_cierre        Decimal?  @db.Decimal(14, 2)
+  comision_calculada   Decimal?  @db.Decimal(14, 2)
+  es_oferta_competitiva Boolean  @default(false) // brecha 1.1
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
   cliente       Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   propiedad     Propiedad      @relation(fields: [propiedad_id], references: [id], onDelete: Cascade)
@@ -707,7 +716,8 @@ model EmailPlantilla {
   historial   Json?          @default("[]")
   created_at  DateTime       @default(now())
   updated_at  DateTime       @updatedAt
-  campanas    EmailCampana[]
+  campanas      EmailCampana[]
+  email_triggers EmailTrigger[]
 
   @@index([tenant_id])
   @@map("email_plantillas")
@@ -775,6 +785,7 @@ model EmailEvento {
 enum PortalExterno {
   ENCUENTRA24
   MERCADOLIBRE
+  ZILLOW
 }
 
 enum EstadoSindicacion {
@@ -947,5 +958,62 @@ model Favorito {
   @@unique([cliente_id, propiedad_id])
   @@index([tenant_id, cliente_id])
   @@map("favoritos")
+}
+
+// ─── Brecha 2.6: Búsquedas guardadas del cliente ────────────
+
+model BusquedaGuardada {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  cliente_id String
+  nombre     String
+  filtros    Json     @default("{}")
+  alertas    Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenant_id], references: [id])
+  cliente Cliente @relation("ClienteBusquedas", fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, cliente_id])
+  @@map("busquedas_guardadas")
+}
+
+// ─── Brecha 1.3: Preferencias de notificación por canal ─────
+
+model NotificacionPreferencia {
+  id          String  @id @default(uuid())
+  tenant_id   String
+  user_id     String
+  tipo        String
+  canal_inapp Boolean @default(true)
+  canal_email Boolean @default(true)
+  canal_push  Boolean @default(true)
+  activa      Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  user   User   @relation("UserNotifPrefs", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, user_id, tipo])
+  @@index([tenant_id, user_id])
+  @@map("notificacion_preferencias")
+}
+
+// ─── Brecha 1.2: Triggers de email configurables ────────────
+
+model EmailTrigger {
+  id           String         @id @default(uuid())
+  tenant_id    String
+  evento       String
+  activo       Boolean        @default(true)
+  plantilla_id String?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenant_id], references: [id])
+  plantilla EmailPlantilla? @relation(fields: [plantilla_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, evento])
+  @@index([tenant_id])
+  @@map("email_triggers")
 }
 

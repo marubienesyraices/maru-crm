@@ -39,6 +39,7 @@ import { EncryptionModule } from './common/encryption/encryption.module';
 import { ConfigIntegracionesModule } from './modules/config-integraciones/config-integraciones.module';
 import { ConfigPortalModule } from './modules/config-portal/config-portal.module';
 import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.module';
+import { BusquedasModule } from './modules/busquedas/busquedas.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.
     ConfigIntegracionesModule,
     ConfigPortalModule,
     CatalogoPlanesModule,
+    BusquedasModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',

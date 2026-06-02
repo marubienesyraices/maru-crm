@@ -190,9 +190,18 @@ describe('PipelineService', () => {
   // ─── CONCURRENCIA EN NEGOCIACIÓN ────────────────────────────
 
   describe('cambiarEstado — concurrencia propiedad', () => {
-    it('rechaza EN_NEGOCIACION si propiedad no está DISPONIBLE', async () => {
-      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+    it('rechaza oferta competitiva de JUNIOR en propiedad RESERVADA', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO', cliente: { ...mockInteres.cliente, agente_id: AGENTE_ID } });
       prisma.propiedad.findUnique.mockResolvedValue({ estado: 'RESERVADA' });
+
+      await expect(
+        service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' }, 'JUNIOR', AGENTE_ID, [AGENTE_ID]),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rechaza EN_NEGOCIACION si propiedad no está DISPONIBLE ni RESERVADA (ej. VENDIDA)', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'INTERESADO' });
+      prisma.propiedad.findUnique.mockResolvedValue({ estado: 'VENDIDA' });
 
       await expect(
         service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'EN_NEGOCIACION' }, 'ADMIN', AGENTE_ID, null),

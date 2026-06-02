@@ -461,6 +461,22 @@ export class AuthService {
     await this.auditLog(tenantId, userId, user.nombre, 'LOGIN', 'Auth', 'User', userId, ip, userAgent, {
       resultado: 'FALLIDO', intentos: attempts, bloqueado: !!blockedUntil,
     });
+
+    // §3 CA-4: Notify user by email on suspicious access (3+ failed attempts)
+    if (attempts >= 3 && user.email) {
+      const bloqueoMsg = blockedUntil
+        ? attempts >= 9
+          ? 'Tu cuenta ha sido bloqueada indefinidamente. Contacta al administrador para desbloquearla.'
+          : `Tu cuenta ha sido bloqueada temporalmente. Intenta nuevamente en ${attempts >= 6 ? '1 hora' : '15 minutos'}.`
+        : 'Te recomendamos cambiar tu contraseña si no fuiste tú.';
+
+      this.email.sendSystemEmail({
+        to: user.email,
+        subject: 'Alerta de seguridad: intentos de acceso fallidos — GestProp',
+        heading: '⚠️ Alerta de seguridad',
+        body: `Detectamos ${attempts} intento(s) fallido(s) de inicio de sesión en tu cuenta desde la IP ${ip}. ${bloqueoMsg}`,
+      }).catch(() => {});
+    }
   }
 
   private async validateGeofence(ip: string, tenantId: string) {

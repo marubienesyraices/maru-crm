@@ -216,20 +216,51 @@ export class BiService implements OnModuleInit {
     const brochureMap: Record<string, number> = {};
     for (const r of brochureRows) brochureMap[r.propiedad_id] = Number(r.total);
 
+    // §15 CA-2: Favoritos (2pts each) — count per property
+    const favRows = await this.prisma.$queryRaw<{ propiedad_id: string; total: bigint }[]>`
+      SELECT propiedad_id, COUNT(id) AS total
+      FROM favoritos
+      WHERE tenant_id = ${tenantId}
+      GROUP BY propiedad_id
+    `;
+    const favMap: Record<string, number> = {};
+    for (const r of favRows) favMap[r.propiedad_id] = Number(r.total);
+
+    // §15 CA-2: Correos abiertos (2pts) — link email_eventos to properties via client email
+    let emailDateWhere: Prisma.Sql = Prisma.empty;
+    if (desde && hasta) emailDateWhere = Prisma.sql`AND ee.abierto_at >= ${desde} AND ee.abierto_at <= ${hasta}`;
+    else if (desde)     emailDateWhere = Prisma.sql`AND ee.abierto_at >= ${desde}`;
+    else if (hasta)     emailDateWhere = Prisma.sql`AND ee.abierto_at <= ${hasta}`;
+
+    const emailAperturaRows = await this.prisma.$queryRaw<{ propiedad_id: string; total: bigint }[]>`
+      SELECT cp.propiedad_id, COUNT(ee.id) AS total
+      FROM email_eventos ee
+      JOIN clientes c ON c.email = ee.destinatario AND c.tenant_id = ${tenantId}
+      JOIN cliente_propiedades cp ON cp.cliente_id = c.id
+      WHERE ee.tenant_id = ${tenantId} AND ee.abierto_at IS NOT NULL
+      ${emailDateWhere}
+      GROUP BY cp.propiedad_id
+    `;
+    const emailMap: Record<string, number> = {};
+    for (const r of emailAperturaRows) emailMap[r.propiedad_id] = Number(r.total);
+
+    // §15 CA-2: Score formula: leads(10) + visitas(5) + interacciones(3) + favoritos(2) + correos_abiertos(2) + brochures(1)
     const ranked = props
-      .map((p) => ({
-        id: p.id,
-        codigo: p.codigo,
-        titulo: p.titulo,
-        tipo: p.tipo,
-        estado: p.estado,
-        agente: p.agente?.nombre ?? null,
-        leads: p.interesados.length,
-        visitas: p.interesados.reduce((s, i) => s + i.visitas.length, 0),
-        interacciones: p.interesados.reduce((s, i) => s + i.interacciones.length, 0),
-        brochures: brochureMap[p.id] ?? 0,
-      }))
-      .sort((a, b) => (b.leads + b.visitas + b.interacciones) - (a.leads + a.visitas + a.interacciones))
+      .map((p) => {
+        const leads = p.interesados.length;
+        const visitas = p.interesados.reduce((s, i) => s + i.visitas.length, 0);
+        const interacciones = p.interesados.reduce((s, i) => s + i.interacciones.length, 0);
+        const favoritos = favMap[p.id] ?? 0;
+        const correosAbiertos = emailMap[p.id] ?? 0;
+        const brochures = brochureMap[p.id] ?? 0;
+        const score = leads * 10 + visitas * 5 + interacciones * 3 + favoritos * 2 + correosAbiertos * 2 + brochures;
+        return {
+          id: p.id, codigo: p.codigo, titulo: p.titulo, tipo: p.tipo, estado: p.estado,
+          agente: p.agente?.nombre ?? null,
+          leads, visitas, interacciones, favoritos, correosAbiertos, brochures, score,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
     const result = { propiedades: ranked, cacheAt: new Date().toISOString() };

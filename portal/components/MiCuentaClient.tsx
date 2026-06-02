@@ -362,6 +362,40 @@ function FavoritoCard({ item, onRemove }: { item: Favorito; onRemove: (id: strin
 
 // ─── Dashboard ────────────────────────────────────────────────
 
+// §10 CA-2: Saved searches panel
+function BusquedasGuardadasPanel({ clienteData }: { clienteData: any }) {
+  const busquedas: Array<{ id: string; nombre: string; filtros: Record<string, unknown>; alertas: boolean; created_at: string }> =
+    clienteData.busquedas_guardadas ?? [];
+  const [lista, setLista] = useState(busquedas);
+
+  const handleDelete = async (id: string) => {
+    const token = localStorage.getItem('cliente_token');
+    await fetch(`${API}/api/public/cliente/busquedas/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setLista((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  if (!lista.length) return null;
+  return (
+    <section className="mc-section">
+      <h2 className="mc-section-title">🔍 Mis búsquedas guardadas</h2>
+      <div className="mc-busquedas-list">
+        {lista.map((b) => (
+          <div key={b.id} className="mc-busqueda-item">
+            <div className="mc-busqueda-nombre">{b.nombre}</div>
+            <div className="mc-busqueda-meta">
+              {b.alertas && <span className="mc-busqueda-alerta">🔔 Con alertas</span>}
+            </div>
+            <button className="mc-busqueda-delete" onClick={() => handleDelete(b.id)} title="Eliminar búsqueda">✕</button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () => void }) {
   const activos  = cliente.intereses.filter((i) => !['GANADO', 'PERDIDO'].includes(i.estado));
   const cerrados = cliente.intereses.filter((i) =>  ['GANADO', 'PERDIDO'].includes(i.estado));
@@ -414,6 +448,9 @@ function Dashboard({ cliente, onLogout }: { cliente: ClienteData; onLogout: () =
           </div>
         </section>
       )}
+
+      {/* Saved searches */}
+      <BusquedasGuardadasPanel clienteData={cliente} />
 
       {/* Favorites */}
       {favoritos.length > 0 && (

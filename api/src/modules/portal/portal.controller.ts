@@ -109,4 +109,32 @@ export class PortalController {
   googleAuth(@Body('credential') credential: string, @Body('tenantId') tenantId?: string) {
     return this.service.googleAuth(credential, tenantId);
   }
+
+  // ─── §10 CA-2: Búsquedas guardadas del cliente ────────────
+
+  @Get('cliente/busquedas')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar búsquedas guardadas del cliente' })
+  getBusquedas(@Request() req: any) {
+    return this.service.getBusquedasGuardadas(req.clienteId);
+  }
+
+  @Post('cliente/busquedas')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Guardar una búsqueda' })
+  saveBusqueda(@Request() req: any, @Body() body: { nombre: string; filtros: Record<string, unknown>; alertas?: boolean }) {
+    return this.service.saveBusquedaGuardada(req.clienteId, req.clienteTenantId, body.nombre, body.filtros, body.alertas);
+  }
+
+  @Delete('cliente/busquedas/:id')
+  @UseGuards(ClienteJwtGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar búsqueda guardada' })
+  deleteBusqueda(@Request() req: any, @Param('id') id: string) {
+    return this.service.deleteBusquedaGuardada(req.clienteId, id);
+  }
 }

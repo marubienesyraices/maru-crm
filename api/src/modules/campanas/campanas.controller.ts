@@ -44,7 +44,7 @@ export class CampanasController {
   @Put('plantillas/:id')
   @ApiOperation({ summary: 'Actualizar plantilla' })
   updatePlantilla(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdatePlantillaDto) {
-    return this.svc.updatePlantilla(user.tenantId, id, dto);
+    return this.svc.updatePlantilla(user.tenantId, id, dto, user.sub);
   }
 
   @Delete('plantillas/:id')

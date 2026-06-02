@@ -5,6 +5,7 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 
 const UMBRALES = [30, 45, 60]; // días sin actividad → sugerencia escalada
 const DEDUP_WINDOW_DAYS = 7;
+const DIAS_AUTO_PUBLICACION = 7; // BORRADOR → DISPONIBLE automático tras N días
 
 const SUGERENCIA_POR_UMBRAL: Record<number, string> = {
   30: 'Considera reducir el precio de la propiedad o mejorar las fotografías para aumentar la visibilidad.',
@@ -20,6 +21,41 @@ export class PropiedadesScheduler {
     private readonly prisma: PrismaService,
     private readonly notificaciones: NotificacionesService,
   ) {}
+
+  // RN-06: Auto-transition BORRADOR → DISPONIBLE after 7 days
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  async autoPublicarBorradores() {
+    const umbral = new Date(Date.now() - DIAS_AUTO_PUBLICACION * 86_400_000);
+
+    const borradores = await this.prisma.propiedad.findMany({
+      where: { estado: 'BORRADOR', created_at: { lte: umbral } },
+      select: { id: true, titulo: true, codigo: true, tenant_id: true, agente_id: true },
+    });
+
+    if (!borradores.length) return;
+
+    await this.prisma.propiedad.updateMany({
+      where: { id: { in: borradores.map((p) => p.id) } },
+      data: { estado: 'DISPONIBLE' },
+    });
+
+    for (const prop of borradores) {
+      if (!prop.agente_id) continue;
+      await this.notificaciones.create({
+        tenantId: prop.tenant_id,
+        userId: prop.agente_id,
+        tipo: 'SISTEMA',
+        titulo: `Propiedad publicada automáticamente: ${prop.titulo}`,
+        mensaje: `${prop.titulo} (${prop.codigo}) pasó de BORRADOR a DISPONIBLE automáticamente tras ${DIAS_AUTO_PUBLICACION} días.`,
+        entidad: 'propiedad',
+        entidadId: prop.id,
+      });
+    }
+
+    if (borradores.length > 0) {
+      this.logger.log(`📋 Auto-publicación: ${borradores.length} propiedad(es) BORRADOR → DISPONIBLE`);
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async checkPropiedadesEstancadas() {

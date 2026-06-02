@@ -31,7 +31,7 @@ const PHONE_INVALID_RE = /[a-df-wyzA-DF-WYZ]/; // letters that aren't part of an
 const DPI_RE = /^\d{13}$/;
 const YEAR_MIN = 1800;
 const MAX_CLIENTES = 500;
-const MAX_PROPIEDADES = 200;
+const MAX_PROPIEDADES = 500;
 
 // ─── CSV encoding detection ──────────────────────────────────
 
