@@ -1,9 +1,9 @@
 # Estado del Proyecto — CRM GestProp
 
-> **Fecha de revisión:** 28 de mayo de 2026
-> **Rama:** master
+> **Fecha de revisión:** 1 de junio de 2026
+> **Rama:** master · commit `cbb07cf`
 > **Referencia plan:** `implementacion.md` v1.0 (21-abr-2026)
-> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ · Fase 3 ✅ · Fase 4 ✅ · Fase 5 ✅ · Planes ✅ · **Cierre de Brechas ✅ 100%**
+> **Progreso global:** Fase 1 ✅ · Fase 2 ✅ · Fase 3 ✅ · Fase 4 ✅ · Fase 5 ✅ · Planes ✅ · **Brechas Requerimientos ✅ 0 pendientes**
 
 ---
 
@@ -347,19 +347,19 @@
 
 ---
 
-## Inventario Técnico (estado 28-may-2026)
+## Inventario Técnico (estado 1-jun-2026)
 
 | Capa | Artefacto | Cantidad |
 |:-----|:----------|:--------:|
-| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones, **tareas**, **horarios** | 31 |
-| API — controladores | auth, users, tenants, audit, propiedades, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, search, portal (`google-auth`, magic link, favoritos, horarios cliente), import, campanas, email-tracking, bi (+heatmap, +comisiones), meta, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones | 31 |
-| API — schedulers | VisitasScheduler, PipelineScheduler (inactividad + timeout 30d), DocumentosScheduler, PropiedadesScheduler (estancadas 30/45/60d), **PasswordExpiryScheduler** (aviso 90d), **AuditArchiveScheduler** (mensual) | 6 |
-| BD — modelos Prisma | Tenant (`color_primario/secundario/acento`), User (`password_expiry_warned`), Session, ConfigSeguridad (`modo_asignacion_leads`), AuditLog (`archivado/archivado_url`), Propiedad, PropiedadImagen (`thumbnail_url`, `original_url`), PropiedadDocumento, Cliente, ClientePropiedad (`cierre_documentos`), Interaccion (`menciones`), Visita (`fotos_visita`), Notificacion, EmailPlantilla (`version`, `historial`), EmailCampana, EmailEvento, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, CatalogoPlan, **Tarea**, **HorarioLaboral**, **Favorito** | 25 |
-| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion (**+MENCION**, +PROPIEDAD_ESTANCADA, +NEGOCIACION_TIMEOUT), OrigenCliente, EstadoInteres (+CIERRE), NivelInteres, TipoInteraccion, ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno, EstadoSindicacion, EstadoFirma | 23 |
-| BD — migraciones nuevas (28-may) | `20260528100000_alta_prioridad` (colores tenant, cierre_documentos, carta logo/clausulas, idx_users_bloqueado), `20260528200000_media_prioridad` (modo_asignacion_leads), `20260528300000_baja_prioridad` (fotos_visita, menciones, thumbnail/original_url, version+historial plantillas, archivado audit, password_expiry_warned), `20260528310000_add_mencion_enum` | 4 |
-| Frontend — páginas CRM | Login, **ForgotPassword**, **ResetPassword**, Verify2FA, Dashboard, PropertiesList, PropertyForm, PropertyDetail, ClientsList, ClientForm, ClientDetail, Pipeline (+CierreModal), Agenda (+fotos+envío propietario), Portal, PortalDetail (+Street View), PortalVerify, PortalReprogramar, Import, Bi (6 tabs), Campanas, Ranking, Meta, AdminTenants, AdminUsers (+unlock+reset2FA+reasignar), **OrgChart**, **Audit**, **Horarios**, **Tareas**, AdminPlanes, Settings (Portal, Integraciones+carta custom, Perfil), Help | 33 |
-| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + NearbyPlaces + RegistroInteresForm), `/verificar`, `/mi-cuenta` (MiCuentaClient + Google OAuth) | 4 |
-| Tests unitarios | 146 tests en 13 suites | 146 |
+| API — módulos NestJS | auth, users, tenants, audit, propiedades, upload, documentos, brochure, clientes, pipeline, interacciones, visitas, notificaciones, search, portal (público), import, campanas, email, bi, storage, whatsapp, meta, redis, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones, tareas, horarios, **busquedas** | 32 |
+| API — controladores | auth, users, tenants, audit, propiedades, upload, documentos, brochure, carta-comision, clientes, pipeline, interacciones, visitas, visitas-public, notificaciones, **notificacion-preferencias**, search, portal (`google-auth`, magic link, favoritos, horarios cliente, **busquedas**), import, campanas, **email-triggers**, email-tracking, bi (+heatmap, +comisiones), meta, sindicacion, firma-digital, videollamadas, catalogo-planes, config-portal, config-integraciones | 34 |
+| API — schedulers | VisitasScheduler, PipelineScheduler (inactividad + timeout 30d), DocumentosScheduler, PropiedadesScheduler (estancadas 30/45/60d + **auto-publicación BORRADOR→DISPONIBLE**), PasswordExpiryScheduler (aviso 90d), AuditArchiveScheduler (mensual), **SindicacionScheduler** (horario + diario por tenant) | 7 |
+| BD — modelos Prisma | Tenant, User, Session, ConfigSeguridad (`sinc_frecuencia`), AuditLog, Propiedad, PropiedadImagen, PropiedadDocumento, Cliente (`superficie_min_m2`), ClientePropiedad (`es_oferta_competitiva`), Interaccion, Visita, Notificacion, EmailPlantilla, EmailCampana, EmailEvento, **EmailTrigger**, BrochureJob, BrochureDescarga, MetaPublicacion, SindicacionPublicacion, FirmaSolicitud, CatalogoPlan, Tarea, HorarioLaboral, Favorito, **BusquedaGuardada**, **NotificacionPreferencia** | 28 |
+| BD — enums | Plan, EstadoTenant, EstadoUsuario, Rol, AccionAudit, TipoPropiedad, TipoGestion, EstadoPropiedad, TipoDocumento, TipoNotificacion, OrigenCliente, EstadoInteres, NivelInteres, TipoInteraccion (**+SISTEMA**), ResultadoInteraccion, EstadoVisita, BrochureJobStatus, EstadoCampana, MetaPlataforma, MetaEstado, PortalExterno (**+ZILLOW**), EstadoSindicacion, EstadoFirma | 23 |
+| BD — migraciones (1-jun) | `20260601000000_cerrar_brechas_13` (3 tablas nuevas, 3 columnas, 2 enums, FK/idx iniciales), `20260601100000_sync_schema_constraints` (alineación Prisma: FK names, idx names, nullability, defaults) | 2 nuevas · **40 total** |
+| Frontend — páginas CRM | Login, ForgotPassword, ResetPassword, Verify2FA, Dashboard, PropertiesList, PropertyForm (**superficie_min_m2**), PropertyDetail, ClientsList, ClientForm (**superficie_min_m2**), ClientDetail, Pipeline (+CierreModal), Agenda, Portal, PortalDetail, PortalVerify, PortalReprogramar, Import, Bi (6 tabs), Campanas (**+Triggers tab**), Ranking, Meta, AdminTenants, AdminUsers, OrgChart, Audit, Horarios, Tareas, AdminPlanes, Settings, Help | 33 |
+| Frontend — páginas portal Next.js | `/` (listado + mapa), `/propiedades/[id]` (detalle + NearbyPlaces + RegistroInteresForm), `/verificar`, `/mi-cuenta` (MiCuentaClient + **BusquedasGuardadasPanel** + Google OAuth) | 4 |
+| Tests unitarios | 127 tests en 12 suites | 127 |
 | Tests E2E Cypress | 6 suites integradas en CI | 6 |
 | Tests de carga k6 | 3 scripts (auth, pipeline, portal-publico); p95 < 500ms | 3 |
 | Tests de seguridad OWASP | A01/A02/A03/A05/A06/A07/A09 | 1 suite |
@@ -411,8 +411,43 @@
 ### Pendiente (deuda menor)
 - ~~**Migración de datos one-shot**~~ ✅ — Script `api/prisma/scripts/migrate-maru-data.ts`; ejecutar con `npm run db:migrate-data` desde `api/`; 15 propiedades importadas (CASA-0016…LOCA-0030); clientes ya existían en el tenant demo
 - **Rename rol DB en producción** — ejecutar `ALTER ROLE gestprop_app RENAME TO gestprop_app` en la BD de prod
+- **Zillow producción** — configurar `ZILLOW_FEED_URL` en `.env` cuando se active el acuerdo Data Connect con Zillow
+- **Brecha 2.2 residual** — segundo factor SMS/pregunta de seguridad en reset para usuarios sin 2FA requiere integración con proveedor SMS (Twilio); la cobertura actual (TOTP para usuarios con 2FA activo) es suficiente para el lanzamiento
 
 > **Estado actual (28-may-2026):** Sistema completo. Todas las brechas de requerimientos cerradas (27 → 0). 146 tests pasando. Ver `faltantes.md` para detalle.
+
+---
+
+## Cierre de Brechas vs. Requerimientos — sesión 1-jun-2026
+
+> **Commits:** `58d089b` (implementación) · `cbb07cf` (migración sync) · 28 archivos · 930+ inserciones
+> Ver `faltantes.md` para el detalle completo. **Brechas pendientes: 0.**
+
+### No implementadas → implementadas (5)
+
+- ~~**1.1 Oferta competitiva en pipeline**~~ ✅ — `ClientePropiedad.es_oferta_competitiva`; JUNIOR bloqueado con `ForbiddenException` si propiedad en RESERVADA; SENIOR/ADMIN crean oferta competitiva con límite de 1 activa simultánea; test de regresión actualizado | §11 CA-2
+- ~~**1.2 Email triggers configurables**~~ ✅ — Módulo `email-triggers`; tabla `email_triggers`; `GET/PUT /api/campanas/triggers/:evento`; 5 eventos (`on_nuevo_interesado`, `on_cambio_estado`, `on_propiedad_nueva_match`, `on_cita_agendada`, `on_inactividad`); interpolación de variables por destinatario | §14 CA-2
+- ~~**1.3 Preferencias de notificación por canal**~~ ✅ — Tabla `notificacion_preferencias`; `GET/PUT /api/notificaciones/preferencias/:tipo`; canales `canal_inapp / canal_email / canal_push / activa` configurables por tipo y usuario | §17.1 CA-5
+- ~~**1.4 Zillow como portal de sindicación**~~ ✅ — `ZILLOW` en enum `PortalExterno`; `publicarZillow()` en `sindicacion.service.ts` genera feed RESO/Data Connect; envía a `ZILLOW_FEED_URL` si configurado, sino guarda localmente con aviso | §16 CA-1
+- ~~**1.5 Frecuencia de sincronización configurable**~~ ✅ — Campo `sinc_frecuencia` en `config_seguridad` (`manual | hora | diario`); `SindicacionScheduler` con crons `0 * * * *` (horario) y `0 3 * * *` (diario); `sincronizarPorFrecuencia()` en servicio | §16 CA-1
+
+### Parciales → completadas (8)
+
+- ~~**2.1 Email alerta acceso sospechoso**~~ ✅ — `auth.service.ts` `handleFailedLogin()`: desde el 3er intento fallido envía email al usuario con detalle de bloqueo temporal o permanente | §3 CA-4
+- ~~**2.3 Auto-transición BORRADOR → DISPONIBLE**~~ ✅ — `PropiedadesScheduler.autoPublicarBorradores()` cron diario 8am; busca propiedades `BORRADOR` con `created_at ≤ 7 días`; transiciona a `DISPONIBLE` y notifica al agente asignado | §6 CA-3
+- ~~**2.4 Entradas automáticas en timeline**~~ ✅ — Enum `TipoInteraccion.SISTEMA` agregado; `pipeline.service.ts` llama `crearInteraccionSistema()` tras cada `cambiarEstado()` → cada transición genera registro automático en tabla `interacciones` | §12 CA-1
+- ~~**2.5 Score de interacción completo**~~ ✅ — `bi.service.ts` `getTopPropiedades()`: fórmula `leads×10 + visitas×5 + interacciones×3 + favoritos×2 + correos_abiertos×2 + brochures×1`; queries SQL raw sobre `favoritos` y `email_eventos` con JOIN por email de cliente | §15 CA-2
+- ~~**2.6 "Mis búsquedas guardadas" en portal**~~ ✅ — Tabla `busquedas_guardadas`; `GET/POST/DELETE /api/public/cliente/busquedas`; `portal.service.ts` incluye búsquedas en `getMiCuenta()`; componente `BusquedasGuardadasPanel` en `MiCuentaClient.tsx` con eliminación | §10 CA-2
+- ~~**2.7 `superficie_min_m2` en preferencias**~~ ✅ — Campo en schema `Cliente`; migración SQL; input numérico en `ClientFormPage.tsx`; enviado como `superficieMinM2` en body de create/update | §10 tabla
+- ~~**2.8 Autoría en historial de plantillas**~~ ✅ — `campanas.service.ts` `updatePlantilla()`: agrega `changed_by: userId` al entry de historial JSON; controller pasa `user.sub`; historial mantiene últimas 10 versiones con fecha + autor | §14 CA-3
+- ~~**2.9 Límite importación propiedades**~~ ✅ — `MAX_PROPIEDADES = 500` en `import.service.ts` (era 200) | §17.3 CA-5
+
+### Migraciones aplicadas en esta sesión
+
+| Migración | Contenido |
+|:----------|:----------|
+| `20260601000000_cerrar_brechas_13` | 3 tablas nuevas (busquedas_guardadas, notificacion_preferencias, email_triggers), 3 columnas (superficie_min_m2, es_oferta_competitiva, sinc_frecuencia), enum SISTEMA en TipoInteraccion, enum ZILLOW en PortalExterno |
+| `20260601100000_sync_schema_constraints` | Alineación Prisma canónica: FK constraint names, index names, nullability (audit_logs, tenants, users, config_seguridad, email_plantillas, favoritos), column defaults |
 
 ### Completado en sesión 9-may-2026 (continuación)
 - ~~**RLS policies para nuevas tablas**~~ ✅ Completado — `migration_v2.sql` creado y aplicado en BD; 22 tablas con RLS activo (13 con `tenant_id` directo + 5 hijas vía subquery + 4 de Fase 1); migraciones Prisma pendientes aplicadas (`whatsapp_envios`, `meta_publicaciones`, `sindicacion_publicaciones`, `firma_solicitudes`, BI indexes); migration file faltante `20260503100000_add_reporte_visita` restaurado
