@@ -55,7 +55,11 @@ Copy `.env.example` to `.env` at repo root. `api` reads it via `ConfigModule.for
 ## Architecture
 
 ### Multi-tenancy via PostgreSQL RLS
-Every table with `tenant_id` has a Row-Level Security policy enforced at the DB level. `TenantMiddleware` (`api/src/common/middleware/tenant.middleware.ts`) runs on every request and executes `SET app.tenant_id = '<uuid>'` before any query. SUPER_ADMIN also sets `app.bypass_rls = 'true'` to access cross-tenant data. Unauthenticated routes bypass RLS so login/onboarding can find users across tenants.
+Every table with `tenant_id` has a Row-Level Security policy enforced at the DB level. The API connects with the RLS-restricted role (`DATABASE_APP_URL`, falling back to `DATABASE_URL`).
+
+`TenantMiddleware` (`api/src/common/middleware/tenant.middleware.ts`) captures `{ tenantId, bypassRls }` from the JWT into an `AsyncLocalStorage` (`api/src/common/context/tenant-context.ts`). `PrismaService` then applies it **per query**: a client extension wraps every operation in a transaction whose first statement is `set_config('app.tenant_id', …, true)` + `set_config('app.bypass_rls', …, true)` (transaction-local, same connection — a session-level `SET` would land on one pooled connection while queries run on others). `PrismaService.$transaction` injects the same `set_config` as the first statement inside batch and interactive transactions, so atomicity is preserved.
+
+SUPER_ADMIN runs with `bypass_rls = 'true'` (cross-tenant). Unauthenticated routes also bypass RLS so login/onboarding can find users across tenants. Code outside an HTTP request (schedulers, BullMQ processors) has no context and defaults to bypass; use `runWithTenant(tenantId, fn)` from `tenant-context.ts` to scope it — and **always `await` Prisma calls inside the callback** (Prisma promises are lazy; an un-awaited promise escapes the context).
 
 ### Authentication Flow
 1. `POST /api/auth/login` → if TOTP enabled, returns `{ requires2FA: true, tempToken }`, otherwise returns tokens directly

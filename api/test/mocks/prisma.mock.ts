@@ -137,7 +137,6 @@ export function createMockPrismaService(): MockPrismaService {
     $executeRawUnsafe: jest.fn(),
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
-    setTenantContext: jest.fn(),
     onModuleInit: jest.fn(),
     onModuleDestroy: jest.fn(),
     $connect: jest.fn(),

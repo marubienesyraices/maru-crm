@@ -1,28 +1,32 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { PrismaService } from '../../prisma/prisma.service';
+import { tenantContextStorage, TenantContext } from '../context/tenant-context';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * TenantMiddleware
  *
- * Sets the PostgreSQL session variables `app.tenant_id` and `app.bypass_rls`
- * required by Row-Level Security policies.
+ * Captures the tenant context (tenantId + RLS bypass flag) into an
+ * AsyncLocalStorage store that wraps the rest of the request lifecycle.
+ * PrismaService reads this store and applies `set_config('app.tenant_id', …)`
+ * / `set_config('app.bypass_rls', …)` transaction-locally on the same
+ * connection that executes each query — a session-level `SET` on a pooled
+ * connection would not be visible to queries running on other connections.
  *
  * NestJS middleware runs BEFORE guards, so `req.user` is never populated here.
  * Instead, the JWT is decoded directly from the Authorization header to extract
  * the tenantId and rol claims. Crypto validation is left to JwtAuthGuard; we only
- * need the claims to configure the DB session.
+ * need the claims to configure the DB context.
  *
- * For unauthenticated routes (no Bearer token) the RLS bypass is enabled so that
- * login/onboarding queries can find users across tenants.
+ * For unauthenticated routes (no/invalid Bearer token) the RLS bypass is enabled
+ * so that login/onboarding queries can find users across tenants.
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  constructor(private prisma: PrismaService) {}
-
-  async use(req: Request, _res: Response, next: NextFunction) {
+  use(req: Request, _res: Response, next: NextFunction) {
     const authHeader = req.headers['authorization'];
-    let tenantId: string | undefined;
+    let tenantId: string | null = null;
     let isSuperAdmin = false;
 
     if (authHeader?.startsWith('Bearer ')) {
@@ -33,24 +37,19 @@ export class TenantMiddleware implements NestMiddleware {
         const payload = JSON.parse(
           Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'),
         );
-        tenantId = payload.tenantId;
+        if (typeof payload.tenantId === 'string' && UUID_RE.test(payload.tenantId)) {
+          tenantId = payload.tenantId;
+        }
         isSuperAdmin = payload.rol === 'SUPER_ADMIN';
       } catch {
         // Malformed token — let JwtAuthGuard reject the request
       }
     }
 
-    if (tenantId) {
-      await this.prisma.setTenantContext(tenantId);
-      await this.prisma.$executeRawUnsafe(
-        `SET app.bypass_rls = '${isSuperAdmin ? 'true' : 'false'}'`,
-      );
-    } else {
-      // Unauthenticated route: bypass RLS so login/onboarding can cross tenants
-      await this.prisma.$executeRawUnsafe(`SET app.bypass_rls = 'true'`);
-      await this.prisma.$executeRawUnsafe(`SET app.tenant_id = ''`);
-    }
+    const ctx: TenantContext = tenantId
+      ? { tenantId, bypassRls: isSuperAdmin }
+      : { tenantId: null, bypassRls: true };
 
-    next();
+    tenantContextStorage.run(ctx, () => next());
   }
 }
