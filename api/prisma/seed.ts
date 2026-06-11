@@ -3,13 +3,23 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { config } from 'dotenv';
+import { resolve } from 'path';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://gestprop_admin:gestprop_secret_2026@localhost:5432/gestprop_crm?schema=public';
+// Load .env from project root (one level up from api/)
+config({ path: resolve(__dirname, '../../.env') });
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL not found — check that ../.env exists');
+}
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  // Bypass RLS — needed because FORCE ROW LEVEL SECURITY applies even to the owner
+  await prisma.$executeRawUnsafe(`SET app.bypass_rls = 'true'`);
   console.log('🌱 Seeding database...');
 
   // ─── 0. Catálogo de planes ───────────────────────────────
@@ -34,10 +44,10 @@ async function main() {
   const superAdminTotpSecret = randomBytes(20).toString('hex');
 
   const platformTenant = await prisma.tenant.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000001' },
+    where: { id: 'b0b17723-02ed-439d-9d3a-89f1ca875063' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000001',
+      id: 'b0b17723-02ed-439d-9d3a-89f1ca875063',
       nombre: 'GestProp Platform',
       plan: 'ENTERPRISE',
       estado: 'ACTIVA',
@@ -45,10 +55,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000010' },
+    where: { id: '479e9d73-4fb0-4ec7-96a0-d631bba37e3f' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000010',
+      id: '479e9d73-4fb0-4ec7-96a0-d631bba37e3f',
       tenant_id: platformTenant.id,
       email: 'superadmin@gestprop.net',
       password_hash: superAdminPassword,
@@ -65,10 +75,10 @@ async function main() {
 
   // ─── 2. Create demo tenant ───────────────────────────────
   const demoTenant = await prisma.tenant.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000002' },
+    where: { id: '7dea080e-e0b2-4536-8422-e94897821fa3' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000002',
+      id: '7dea080e-e0b2-4536-8422-e94897821fa3',
       nombre: 'GestProp Demo',
       plan: 'PRO',
       moneda: 'GTQ',
@@ -96,10 +106,10 @@ async function main() {
   const agentPassword = await bcrypt.hash('Agent@2026', 12);
 
   await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000020' },
+    where: { id: '088dc652-b826-4927-ac8c-d5707ee52ad4' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000020',
+      id: '088dc652-b826-4927-ac8c-d5707ee52ad4',
       tenant_id: demoTenant.id,
       email: 'admin@gestprop.net',
       password_hash: adminPassword,
@@ -112,10 +122,10 @@ async function main() {
   });
 
   const senior1 = await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000030' },
+    where: { id: '5b488971-e311-4550-8ab9-ebcaf6054445' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000030',
+      id: '5b488971-e311-4550-8ab9-ebcaf6054445',
       tenant_id: demoTenant.id,
       email: 'carlos.senior@gestprop.net',
       password_hash: agentPassword,
@@ -128,10 +138,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000040' },
+    where: { id: 'caf2228d-dd2a-4e35-a3b2-1fdb01794e72' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000040',
+      id: 'caf2228d-dd2a-4e35-a3b2-1fdb01794e72',
       tenant_id: demoTenant.id,
       email: 'ana.junior@gestprop.net',
       password_hash: agentPassword,
@@ -145,10 +155,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000050' },
+    where: { id: '8ffbf068-cd84-4763-9b9b-71fba64f912b' },
     update: {},
     create: {
-      id: '00000000-0000-0000-0000-000000000050',
+      id: '8ffbf068-cd84-4763-9b9b-71fba64f912b',
       tenant_id: demoTenant.id,
       email: 'pedro.junior@gestprop.net',
       password_hash: agentPassword,

@@ -8,9 +8,8 @@ export class RedisService implements OnModuleDestroy {
   readonly client: Redis;
 
   constructor(config: ConfigService) {
-    this.client = new Redis({
-      host: config.get<string>('REDIS_HOST') ?? 'localhost',
-      port: +(config.get<string>('REDIS_PORT') ?? '6379'),
+    const redisUrl = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    this.client = new Redis(redisUrl, {
       lazyConnect: true,
       enableOfflineQueue: false,
     });

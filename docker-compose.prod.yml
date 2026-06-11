@@ -7,7 +7,7 @@ services:
   # ─── PostgreSQL ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: maru-db
+    container_name: gestprop-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -16,7 +16,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,13 +26,13 @@ services:
   # ─── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: maru-redis
+    container_name: gestprop-redis
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
-    container_name: maru-api
+    container_name: gestprop-api
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -79,7 +79,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -89,7 +89,7 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
-    container_name: maru-migrate
+    container_name: gestprop-migrate
     restart: "no"
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?schema=public
@@ -108,7 +108,7 @@ services:
       args:
         VITE_API_URL: ${APP_URL}
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
-    container_name: maru-web
+    container_name: gestprop-web
     restart: unless-stopped
     networks:
       - internal
@@ -123,7 +123,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${APP_URL}
         NEXT_PUBLIC_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
-    container_name: maru-portal
+    container_name: gestprop-portal
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${APP_URL}
@@ -135,7 +135,7 @@ services:
   # ─── Nginx reverse proxy ───────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
-    container_name: maru-nginx
+    container_name: gestprop-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -155,7 +155,7 @@ services:
   # ─── Backup (cron diario) ──────────────────────────────────────────────────
   backup:
     image: postgres:16-alpine
-    container_name: maru-backup
+    container_name: gestprop-backup
     restart: unless-stopped
     environment:
       PGPASSWORD: ${DB_PASSWORD}

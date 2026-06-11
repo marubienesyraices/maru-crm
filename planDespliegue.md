@@ -29,7 +29,9 @@ Guía completa para llevar el proyecto de desarrollo local a producción: domini
 
 ---
 
-## Visión general de la arquitectura final
+## Visión general de la arquitectura
+
+### Alternativa A — Servicios gestionados (serverless)
 
 ```
 Internet
@@ -37,13 +39,36 @@ Internet
    ▼
 Cloudflare (DNS + CDN + SSL gratuito)
    │
-   ├── www.tudominio.com  →  Portal público Next.js   (Vercel)
-   ├── crm.tudominio.com  →  CRM React               (Cloudflare Pages)
-   └── api.tudominio.com  →  API NestJS              (Railway)
+   ├── www.gestprop.net  →  Portal público Next.js   (Vercel)
+   ├── crm.gestprop.net  →  CRM React               (Cloudflare Pages)
+   └── api.gestprop.net  →  API NestJS              (Railway)
            │
            ├── PostgreSQL  →  Neon.tech
            └── Redis       →  Upstash
 ```
+
+> ⚠️ **Costo estimado: $25–60 USD/mes.** Neon y Upstash se cobran por uso; bajo carga real los costos suben rápido.
+
+### Alternativa B — VPS todo-en-uno (recomendado) ✅
+
+```
+Internet
+   │
+   ▼
+Cloudflare (DNS + CDN + SSL gratuito)
+   │
+   └── *.gestprop.net  →  VPS (DigitalOcean / Hetzner)
+                            │
+                            ├── Nginx (reverse proxy + SSL)
+                            ├── API NestJS     (Docker)
+                            ├── CRM React      (Docker + nginx)
+                            ├── Portal Next.js (Docker)
+                            ├── PostgreSQL 16  (Docker + volumen persistente)
+                            ├── Redis 7        (Docker + volumen persistente)
+                            └── Backup cron    (Docker → R2)
+```
+
+> ✅ **Costo fijo: $6–12 USD/mes.** Todo corre en un solo servidor. Sin sorpresas de facturación. Ya tienes `docker-compose.prod.yml` configurado para esto.
 
 ---
 
@@ -151,37 +176,194 @@ Al verificar el dominio en [resend.com](https://resend.com) → **Domains** → 
 
 ---
 
-## PASO 5 — Base de datos PostgreSQL en Neon
+## PASO 5 — Elegir estrategia de hosting
 
-1. Crear cuenta en [neon.tech](https://neon.tech) → **New Project** → nombre `gestprop-crm` → región más cercana (ej: `us-east-1` o `us-east-2`).
-2. En el proyecto creado → **Connection Details** → copiar la **Connection String** (tiene la forma `postgresql://usuario:password@host/db?sslmode=require`).
-3. Guardar esta URL — se usará como `DATABASE_URL` en producción.
-4. En el **SQL Editor** de Neon, ejecutar en orden:
-   ```sql
-   -- Paso 1: roles, permisos y RLS Fase 1
-   -- Pegar contenido de: api/prisma/sql/rls_policies/migration.sql
+### Alternativa A — Servicios gestionados (Neon + Upstash + Railway)
 
-   -- Paso 2: RLS Fase 2–12 (todas las tablas nuevas incluidas)
-   -- Pegar contenido de: api/prisma/sql/rls_policies/migration_v2.sql
-   ```
+Si prefieres no administrar servidores, usar los servicios ya configurados:
 
-   > `migration_v2.sql` cubre las tablas añadidas en la 4ta y 5ta entrega: `reporte_visita`, `meta_publicaciones`, `sindicacion`, `firma_digital`, `videollamadas`, `brochure_descargas`, entre otras. Siempre usar la versión más reciente del archivo.
+1. **PostgreSQL:** Neon.tech (ya configurado) — `DATABASE_URL` en `.env`
+2. **Redis:** Upstash (ya configurado) — `REDIS_URL` en `.env`
+3. **API:** Railway.app — ver PASO 7-A
+4. **CRM:** Cloudflare Pages — ver PASO 9
+5. **Portal:** Vercel — ver PASO 8
 
-5. Cambiar la contraseña del rol de base de datos inmediatamente (el rol `gestprop_app` es creado por los scripts RLS con permisos limitados de lectura/escritura, diferente al usuario administrador de la BD):
-   ```sql
-   ALTER ROLE gestprop_app PASSWORD 'contraseña-segura-aqui';
-   ```
+> ⚠️ **Advertencia de costos:** Neon cobra por compute-time y Upstash por comandos. Con BullMQ y caché activos, el consumo crece rápido. **Evalúa la Alternativa B si el costo es una prioridad.**
 
 ---
 
-## PASO 6 — Redis en Upstash
+### Alternativa B — VPS todo-en-uno (recomendado) ✅
 
-1. Crear cuenta en [upstash.com](https://upstash.com) → **Create Database**.
-2. Nombre: `gestprop-redis` → región: `us-east-1` → tipo: **Regional** → plan **Free**.
-3. En la base de datos creada → pestaña **Details** → copiar:
-   - **Endpoint** → será el `REDIS_HOST`
-   - **Port** → `6379`
-   - **Password** → no se usa en `REDIS_HOST`/`REDIS_PORT` directamente; Upstash puede requerir usar la URL completa `rediss://default:password@host:port`. En ese caso, modificar `redis.service.ts` para leer `REDIS_URL` en lugar de host/puerto separados.
+Todo el sistema corre en un solo servidor usando `docker-compose.prod.yml`. PostgreSQL, Redis, API, CRM, Portal y Nginx incluidos.
+
+#### ¿Por qué VPS?
+
+| Aspecto | Servicios gestionados | VPS |
+|---------|----------------------|-----|
+| Costo mensual | $25–60+ (variable) | $6–12 (fijo) |
+| PostgreSQL | Neon Free = 0.5 GB, cobro por compute | 16 GB ilimitado incluido |
+| Redis | Upstash Free = 10K cmds/día | Ilimitado incluido |
+| Escalabilidad | Auto-scale | Upgrade manual |
+| Administración | Cero | Mínima (Docker lo simplifica) |
+| Backups | Incluidos en Neon | Script cron incluido → R2 |
+
+#### Proveedores recomendados
+
+| Proveedor | Plan | RAM | Disco | Costo/mes |
+|-----------|------|-----|-------|----------|
+| **DigitalOcean** | Basic Droplet | 2 GB | 50 GB SSD | **$12** |
+| **Hetzner** | CX22 | 4 GB | 40 GB | **€4.35 (~$5)** |
+| **AWS Lightsail** | 2 GB | 2 GB | 60 GB SSD | **$12** |
+| **Azure B1s** | Burstable | 1 GB | 30 GB | **$7.59** |
+
+> 💡 **Recomendación:** DigitalOcean ($12/mes, 2 GB RAM) o Hetzner ($5/mes, 4 GB RAM) son las mejores opciones calidad/precio.
+
+#### Paso 5-B.1 — Crear el VPS
+
+**DigitalOcean (ejemplo):**
+
+1. Crear cuenta en [digitalocean.com](https://digitalocean.com)
+2. **Create Droplet** → Ubuntu 24.04 → Basic → Regular ($12/mes, 2 GB RAM)
+3. Región: **NYC1** o **SFO3** (la más cercana a Guatemala)
+4. Autenticación: **SSH Key** (recomendado) o password
+5. Hostname: `gestprop-prod`
+
+#### Paso 5-B.2 — Configurar el servidor
+
+Conectarse por SSH y ejecutar:
+
+```bash
+# Actualizar sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar Docker + Docker Compose
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# Instalar Certbot para SSL (si no usas Cloudflare proxy)
+sudo apt install certbot -y
+
+# Crear directorio del proyecto
+mkdir -p /opt/gestprop && cd /opt/gestprop
+```
+
+#### Paso 5-B.3 — Subir el proyecto
+
+**Opción 1 — Git clone (recomendado):**
+```bash
+cd /opt/gestprop
+git clone https://github.com/tu-usuario/tu-repo.git .
+```
+
+**Opción 2 — SCP desde tu máquina:**
+```bash
+scp -r ./* root@IP_SERVIDOR:/opt/gestprop/
+```
+
+#### Paso 5-B.4 — Crear archivo `.env.production`
+
+```bash
+cp .env.production.example .env.production
+nano .env.production
+```
+
+Contenido mínimo:
+
+```env
+# ── Base de datos (local en Docker) ──────────────────────
+DB_USER=gestprop_admin
+DB_PASSWORD=contraseña-segura-generada
+DB_NAME=gestprop_crm
+
+# ── Redis (local en Docker) ──────────────────────────────
+REDIS_PASSWORD=otra-contraseña-segura
+
+# ── JWT ──────────────────────────────────────────────────
+JWT_ACCESS_SECRET=secreto-32-chars
+JWT_REFRESH_SECRET=secreto-32-chars
+
+# ── URLs públicas ────────────────────────────────────────
+FRONTEND_URL=https://crm.gestprop.net
+APP_URL=https://api.gestprop.net
+PORTAL_URL=https://www.gestprop.net
+
+# ── Cloudflare R2 ────────────────────────────────────────
+R2_ACCOUNT_ID=tu-account-id
+R2_ACCESS_KEY_ID=tu-access-key
+R2_SECRET_ACCESS_KEY=tu-secret-key
+R2_BUCKET=gestprop-files
+R2_PUBLIC_URL=https://cdn.gestprop.net
+
+# ── Email (Resend) ───────────────────────────────────────
+RESEND_API_KEY=re_...
+EMAIL_FROM=GestProp CRM <info@gestprop.net>
+
+# ── Encryption ───────────────────────────────────────────
+MASTER_ENCRYPTION_KEY=clave-hex-64-chars
+
+# ── Mapbox ───────────────────────────────────────────────
+MAPBOX_TOKEN=pk.eyJ1...
+VITE_MAPBOX_TOKEN=pk.eyJ1...
+
+# ── Google Maps ──────────────────────────────────────────
+VITE_GOOGLE_MAPS_API_KEY=AIzaSy...
+
+# ── Portal ───────────────────────────────────────────────
+PORTAL_TENANT_ID=uuid-del-tenant
+```
+
+#### Paso 5-B.5 — Desplegar con Docker Compose
+
+```bash
+cd /opt/gestprop
+
+# Construir y levantar todos los servicios
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+
+# Verificar que todo está corriendo
+docker compose -f docker-compose.prod.yml ps
+
+# Ver logs
+docker compose -f docker-compose.prod.yml logs -f api
+```
+
+#### Paso 5-B.6 — Ejecutar migraciones y seed
+
+```bash
+# Esperar a que PostgreSQL esté listo, luego:
+docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+
+# Seed (solo la primera vez)
+docker compose -f docker-compose.prod.yml exec api npx ts-node prisma/seed.ts
+
+# Aplicar RLS policies
+docker compose -f docker-compose.prod.yml exec postgres \
+  psql -U gestprop_admin -d gestprop_crm \
+  -f /path/to/migration.sql
+```
+
+#### Paso 5-B.7 — DNS en Cloudflare
+
+Apuntar todos los subdominios al VPS:
+
+| Tipo | Nombre | Contenido | Proxy |
+|------|--------|-----------|-------|
+| A | `@` | `IP_DEL_VPS` | ✓ (naranja) |
+| A | `www` | `IP_DEL_VPS` | ✓ (naranja) |
+| A | `crm` | `IP_DEL_VPS` | ✓ (naranja) |
+| A | `api` | `IP_DEL_VPS` | ✓ (naranja) |
+| CNAME | `cdn` | *(R2 custom domain)* | ✓ (naranja) |
+
+> Con Cloudflare proxy activado (nube naranja), SSL se maneja automáticamente. No necesitas Certbot.
+
+#### Paso 5-B.8 — Actualizaciones futuras
+
+```bash
+cd /opt/gestprop
+git pull origin master
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
+```
 
 ---
 
@@ -378,9 +560,9 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 
 ---
 
-## Costos estimados mensuales
+## Comparativa de costos mensuales
 
-### Servicios base (obligatorios)
+### Alternativa A — Servicios gestionados
 
 | Servicio | Plan | Costo USD/mes |
 |----------|------|---------------|
@@ -390,13 +572,41 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 | Vercel (portal Next.js) | Hobby | $0 |
 | Railway (API NestJS) | Starter | $5–20 |
 | Neon PostgreSQL | Free / Launch | $0–19 |
-| Upstash Redis | Free / Pay-as-you-go | $0–5 |
+| Upstash Redis | Free / Pay-as-you-go | $0–10 |
 | Cloudflare R2 (10 GB) | — | $0–1.5 |
 | Resend emails (3 000/mes) | Free | $0 |
 | Google Workspace (2 usuarios) | Starter | $12 |
-| **Subtotal base** | | **$18–58** |
+| **Subtotal** | | **$18–63** |
 
-### Integraciones opcionales
+> ⚠️ Los costos de Neon, Upstash y Railway son **variables** y suben con el uso real. BullMQ genera muchos comandos Redis y Neon cobra por compute-time activo.
+
+### Alternativa B — VPS todo-en-uno (recomendado) ✅
+
+| Servicio | Plan | Costo USD/mes |
+|----------|------|---------------|
+| Dominio `.com` | — | ~$1 |
+| Cloudflare DNS + CDN + R2 | Free + R2 | $0–1.5 |
+| **VPS (todo incluido)** | DigitalOcean 2 GB | **$12** |
+| Resend emails (3 000/mes) | Free | $0 |
+| Google Workspace (2 usuarios) | Starter | $12 |
+| **Subtotal** | | **$25–27** |
+
+> ✅ **Costo fijo y predecible.** PostgreSQL y Redis corren dentro del VPS sin límites de uso. No hay sorpresas de facturación.
+
+### Comparativa directa
+
+| Concepto | Alt. A (Managed) | Alt. B (VPS) |
+|----------|------------------|--------------|
+| Costo base | $18/mes | $13/mes |
+| Costo realista (uso medio) | **$40–60/mes** | **$25–27/mes** |
+| PostgreSQL | 0.5 GB free, luego $19+ | Ilimitado |
+| Redis | 10K cmds/día free | Ilimitado |
+| Backups DB | Incluidos (Neon) | Script cron → R2 |
+| Escalabilidad | Auto | Upgrade droplet |
+| Administración | Cero | Docker updates |
+| Complejidad deploy | Múltiples dashboards | Un solo `docker compose up` |
+
+### Integraciones opcionales (aplica a ambas)
 
 | Servicio | Plan | Costo USD/mes |
 |----------|------|---------------|
@@ -407,7 +617,6 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 | Encuentra24 (sindicación) | Por acuerdo | variable |
 | MercadoLibre (sindicación) | Por acuerdo | variable |
 | Mapbox | Free 50 000 req/mes | $0–50 |
-| **Total estimado con opcionales** | | **$18–159+** |
 
 ---
 

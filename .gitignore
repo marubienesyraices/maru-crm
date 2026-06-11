@@ -10,3 +10,26 @@ coverage/
 .turbo/
 .next/
 presentacion/
+
+# Runtime / build artifacts
+api/uploads/
+*.tsbuildinfo
+.expo/
+
+# Data files (pueden contener PII: nombres, email, teléfono, DPI)
+*.csv
+
+# Local tooling / agent config
+.agents/
+.claude/
+skills-lock.json
+
+# Loose assets / scratch
+GestPro.png
+logo.jpg
+comisionsugerida.jpg
+portal/portal_err.txt
+portal/portal_out.txt
+
+# Runbook personal con credenciales reales — NUNCA versionar
+despliegueVPS.md

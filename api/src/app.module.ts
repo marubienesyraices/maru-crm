@@ -54,12 +54,18 @@ import { BusquedasModule } from './modules/busquedas/busquedas.module';
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('REDIS_HOST') ?? 'localhost',
-          port: config.get<number>('REDIS_PORT') ?? 6379,
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+        const parsed = new URL(redisUrl);
+        return {
+          connection: {
+            host: parsed.hostname,
+            port: Number(parsed.port) || 6379,
+            password: parsed.password || undefined,
+            tls: parsed.protocol === 'rediss:' ? {} : undefined,
+          },
+        };
+      },
     }),
     EncryptionModule,
     RedisModule,
