@@ -38,14 +38,34 @@ function isLight(hex: string): boolean {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 160;
 }
 
-/** Draw one image clipped to a rectangle; silently skips if file missing or load fails. */
-function drawImg(doc: any, storage: StorageService, imgUrl: string, x: number, y: number, w: number, h: number) {
+/** Fetch image buffer: local path or remote URL */
+async function fetchImageBuffer(storage: StorageService, imgUrl: string): Promise<Buffer | null> {
+  // Try local path first
   const p = storage.localPath(imgUrl);
-  if (!p || !existsSync(p)) return false;
+  if (p && existsSync(p)) {
+    const { readFile } = require('fs/promises');
+    return readFile(p);
+  }
+  // Remote URL (R2/CDN) — fetch via HTTP
+  if (imgUrl.startsWith('http')) {
+    try {
+      const res = await fetch(imgUrl);
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Draw one image clipped to a rectangle; silently skips if load fails. */
+function drawImg(doc: any, imgBuffer: Buffer | null, x: number, y: number, w: number, h: number): boolean {
+  if (!imgBuffer) return false;
   try {
     doc.save();
     doc.rect(x, y, w, h).clip();
-    doc.image(p, x, y, { width: w, height: h, cover: [w, h] });
+    doc.image(imgBuffer, x, y, { width: w, height: h, cover: [w, h] });
     doc.restore();
     return true;
   } catch {
@@ -62,15 +82,21 @@ export class BrochureService {
   ) {}
 
   async generateBuffer(propiedadId: string, tenantId: string): Promise<{ buffer: Buffer; codigo: string }> {
-    const propiedad = await this.prisma.propiedad.findFirst({
-      where: { id: propiedadId, tenant_id: tenantId },
-      include: {
-        propietario: { select: { nombre: true, telefono: true } },
-        agente: { select: { nombre: true, email: true } },
-        imagenes: { orderBy: { orden: 'asc' }, take: 20 },
-        tenant: { select: { nombre: true, moneda: true, color_primario: true, logo_url: true } },
-      },
-    });
+    const [propiedad, configIntegraciones] = await Promise.all([
+      this.prisma.propiedad.findFirst({
+        where: { id: propiedadId, tenant_id: tenantId },
+        include: {
+          propietario: { select: { nombre: true, telefono: true } },
+          agente: { select: { nombre: true, email: true } },
+          imagenes: { orderBy: { orden: 'asc' }, take: 20 },
+          tenant: { select: { nombre: true, moneda: true, color_primario: true, logo_url: true } },
+        },
+      }),
+      this.prisma.configIntegraciones.findUnique({
+        where: { tenant_id: tenantId },
+        select: { carta_color_primario: true, carta_tagline: true, carta_logo_url: true },
+      }),
+    ]);
 
     if (!propiedad) throw new NotFoundException('Propiedad no encontrada');
 
@@ -79,7 +105,8 @@ export class BrochureService {
     const MARGIN = 40;
     const CONTENT_W = W - MARGIN * 2;
 
-    const primary = (propiedad.tenant as any).color_primario || '#2563eb';
+    // Carta config overrides tenant defaults for visual consistency across all PDFs
+    const primary = configIntegraciones?.carta_color_primario || (propiedad.tenant as any).color_primario || '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
     const currency = propiedad.tenant.moneda || 'GTQ';
@@ -98,6 +125,19 @@ export class BrochureService {
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
+    // Pre-fetch all image buffers (local or R2/CDN)
+    // Carta logo takes priority over tenant logo
+    const tenantLogoUrl = configIntegraciones?.carta_logo_url
+      || (propiedad.tenant as any).logo_url as string | null;
+    const imgCache = new Map<string, Buffer | null>();
+    const allImgUrls = propiedad.imagenes.map(i => i.url);
+    if (tenantLogoUrl) allImgUrls.push(tenantLogoUrl);
+    await Promise.all(
+      allImgUrls.map(async (url) => {
+        imgCache.set(url, await fetchImageBuffer(this.storage, url));
+      }),
+    );
+
     // ════════════════════════════════════════════════════════════
     // PAGE 1
     // ════════════════════════════════════════════════════════════
@@ -109,14 +149,15 @@ export class BrochureService {
     doc.rect(0, 0, W, 4).fill(primaryDark);
 
     // Try to draw tenant logo; fall back to text name
-    const tenantLogoUrl = (propiedad.tenant as any).logo_url as string | null;
-    const logoPath = tenantLogoUrl ? this.storage.localPath(tenantLogoUrl) : null;
     let drewLogo = false;
-    if (logoPath && existsSync(logoPath)) {
-      try {
-        doc.image(logoPath, MARGIN, 12, { height: 56, fit: [160, 56] });
-        drewLogo = true;
-      } catch { /* fall back to text */ }
+    if (tenantLogoUrl) {
+      const logoBuf = imgCache.get(tenantLogoUrl);
+      if (logoBuf) {
+        try {
+          doc.image(logoBuf, MARGIN, 12, { height: 56, fit: [160, 56] });
+          drewLogo = true;
+        } catch { /* fall back to text */ }
+      }
     }
     if (!drewLogo) {
       doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(20)
@@ -130,8 +171,16 @@ export class BrochureService {
       .text(gestionLabel, badgeX, 25, { width: badgeW, align: 'center', lineBreak: false });
 
     doc.fillColor(onPrimary).font('Helvetica').fontSize(10).opacity(0.8)
-      .text(`${tipoLabel}  ·  ${propiedad.codigo}`, MARGIN, 47, { width: CONTENT_W })
+      .text(`${tipoLabel}  ·  ${propiedad.codigo}`, MARGIN, drewLogo ? 47 : 44, { width: CONTENT_W })
       .opacity(1);
+
+    // Tagline from carta config (shown below header if logo is present)
+    const tagline = configIntegraciones?.carta_tagline;
+    if (tagline && drewLogo) {
+      doc.fillColor(onPrimary).font('Helvetica').fontSize(8).opacity(0.7)
+        .text(tagline, MARGIN, 72, { width: CONTENT_W - 110, lineBreak: false })
+        .opacity(1);
+    }
 
     // ─── Hero image section (90–290) ─────────────────────────────
     // Layout: cover image takes left 63%, two side images stack on right 37%
@@ -143,7 +192,7 @@ export class BrochureService {
 
     let heroRendered = false;
     if (coverImg) {
-      heroRendered = drawImg(doc, this.storage, coverImg.url, 0, HERO_Y, MAIN_W, HERO_H);
+      heroRendered = drawImg(doc, imgCache.get(coverImg.url) ?? null, 0, HERO_Y, MAIN_W, HERO_H);
     }
     if (!heroRendered) {
       doc.rect(0, HERO_Y, MAIN_W, HERO_H).fill('#cbd5e1');
@@ -154,7 +203,7 @@ export class BrochureService {
     // Side images (stacked)
     heroSide.forEach((img, i) => {
       const sy = HERO_Y + i * (SIDE_H + 2);
-      const rendered = drawImg(doc, this.storage, img.url, MAIN_W + 1, sy, SIDE_W - 1, SIDE_H);
+      const rendered = drawImg(doc, imgCache.get(img.url) ?? null, MAIN_W + 1, sy, SIDE_W - 1, SIDE_H);
       if (!rendered) {
         doc.rect(MAIN_W + 1, sy, SIDE_W - 1, SIDE_H).fill('#e2e8f0');
       }
@@ -332,7 +381,7 @@ export class BrochureService {
 
         galleryRow.forEach((img, i) => {
           const tx = MARGIN + i * (thumbW + gap);
-          const rendered = drawImg(doc, this.storage, img.url, tx, thumbY, thumbW, GALLERY_H);
+          const rendered = drawImg(doc, imgCache.get(img.url) ?? null, tx, thumbY, thumbW, GALLERY_H);
           if (!rendered) {
             doc.rect(tx, thumbY, thumbW, GALLERY_H).fill('#e2e8f0');
           }
@@ -389,7 +438,7 @@ export class BrochureService {
 
         if (gy + GRID_IMG_H > FOOTER_Y - 10) return; // don't overflow footer
 
-        const rendered = drawImg(doc, this.storage, img.url, gx, gy, GRID_IMG_W, GRID_IMG_H);
+        const rendered = drawImg(doc, imgCache.get(img.url) ?? null, gx, gy, GRID_IMG_W, GRID_IMG_H);
         if (!rendered) {
           doc.rect(gx, gy, GRID_IMG_W, GRID_IMG_H).fill('#e2e8f0');
           doc.fillColor('#94a3b8').font('Helvetica').fontSize(9)

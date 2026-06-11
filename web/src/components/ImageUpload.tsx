@@ -28,6 +28,9 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const MAX_IMAGENES = 30;
 const MAX_VIDEOS   = 3;
 
+/** If the URL is already absolute (R2/CDN), use it as-is; otherwise prefix with API base */
+const resolveUrl = (url: string) => url.startsWith('http') ? url : `${API}${url}`;
+
 function SortableThumb({
   img, idx, onSetPortada, onDelete, onOpen,
 }: {
@@ -53,7 +56,7 @@ function SortableThumb({
       {...listeners}
     >
       <img
-        src={`${API}${img.url}`}
+        src={resolveUrl(img.url)}
         alt={img.nombre || 'Imagen'}
         draggable={false}
         onClick={() => onOpen(idx)}
@@ -343,7 +346,7 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
           {videos.map((vid) => (
             <div key={vid.id} className="img-video-item">
               <video
-                src={`${API}${vid.url}`}
+                src={resolveUrl(vid.url)}
                 controls
                 preload="metadata"
                 className="img-video-player"
@@ -365,7 +368,7 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
       {currentImage && (
         <div className="img-lightbox" onClick={() => setLightboxIndex(null)}>
           <img
-            src={`${API}${currentImage.url}`}
+            src={resolveUrl(currentImage.url)}
             alt={currentImage.nombre || 'Vista ampliada'}
             onClick={(e) => e.stopPropagation()}
           />
