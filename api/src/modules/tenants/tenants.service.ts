@@ -160,4 +160,51 @@ export class TenantsService {
 
     return updated;
   }
+
+  async cancelTenant(id: string) {
+    await this.findOne(id);
+    await this.prisma.session.deleteMany({ where: { tenant_id: id } });
+    await this.redis.set(`tenant:status:${id}`, 'CANCELADA', 60);
+    return this.prisma.tenant.update({
+      where: { id },
+      data: { estado: 'CANCELADA' },
+    });
+  }
+
+  async hardDeleteTenant(id: string) {
+    await this.findOne(id);
+
+    await this.prisma.$transaction(async (tx) => {
+      const tid = id;
+      // 1. Leaf tables with tenant_id (must go before their FK parents)
+      await tx.$executeRaw`DELETE FROM email_eventos WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM whatsapp_envios WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM email_campanas WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM email_plantillas WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM email_triggers WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM brochure_jobs WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM meta_publicaciones WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM favoritos WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM busquedas_guardadas WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM notificacion_preferencias WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM notificaciones WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM tareas WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM horarios_laborales WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM audit_logs WHERE tenant_id = ${tid}::uuid`;
+      // 2. propiedades CASCADE → propiedad_imagenes/documentos/sindicacion/firma/cliente_propiedades → interacciones/visitas
+      await tx.$executeRaw`DELETE FROM propiedades WHERE tenant_id = ${tid}::uuid`;
+      // 3. clientes (remaining cliente_propiedades already gone via step 2 cascade)
+      await tx.$executeRaw`DELETE FROM clientes WHERE tenant_id = ${tid}::uuid`;
+      // 4. sessions before users
+      await tx.$executeRaw`DELETE FROM sessions WHERE tenant_id = ${tid}::uuid`;
+      // 5. users
+      await tx.$executeRaw`DELETE FROM users WHERE tenant_id = ${tid}::uuid`;
+      // 6. config tables (Prisma schema says CASCADE but DB constraint may differ)
+      await tx.$executeRaw`DELETE FROM config_seguridad WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM config_integraciones WHERE tenant_id = ${tid}::uuid`;
+      await tx.$executeRaw`DELETE FROM config_portal WHERE tenant_id = ${tid}::uuid`;
+      // 7. tenant
+      await tx.tenant.delete({ where: { id } });
+    }, { timeout: 30000 });
+  }
 }

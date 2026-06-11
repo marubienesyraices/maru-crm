@@ -135,8 +135,9 @@ export default function AdminUsersPage() {
   };
 
   const handleSave = async () => {
-    if (isSuperAdmin && !form.tenantId) {
-      setError('Debes seleccionar una empresa');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (isSuperAdmin && (!form.tenantId || !uuidRegex.test(form.tenantId))) {
+      setError('Debes seleccionar una empresa válida');
       return;
     }
     setSaving(true);
@@ -144,7 +145,7 @@ export default function AdminUsersPage() {
     try {
       if (isSuperAdmin) {
         const body: any = { email: form.email, nombre: form.nombre, tenantId: form.tenantId };
-        if (form.estado) body.estado = form.estado;
+        if (editing && form.estado) body.estado = form.estado;
         if (editing) {
           await apiRequest(`/api/users/admins/${editing.id}`, { method: 'PUT', body, token: accessToken! });
         } else {
@@ -462,9 +463,13 @@ export default function AdminUsersPage() {
             {isSuperAdmin ? (
               <div className="input-group" style={{ marginTop: 12 }}>
                 <label>Empresa *</label>
-                <select className="input-field" value={form.tenantId} onChange={(e) => updateField('tenantId', e.target.value)}>
+                <select className="input-field" value={form.tenantId} onChange={(e) => {
+                  const val = e.target.value;
+                  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                  updateField('tenantId', uuidRe.test(val) ? val : '');
+                }}>
                   <option value="">— Seleccionar empresa —</option>
-                  {tenants.map(t => {
+                  {tenants.filter(t => t.id).map(t => {
                     const ocupada = tenantsConAdmin.has(t.id);
                     return (
                       <option key={t.id} value={t.id} disabled={ocupada}>
@@ -473,6 +478,7 @@ export default function AdminUsersPage() {
                     );
                   })}
                 </select>
+
               </div>
             ) : (
               <div className="admin-form-row" style={{ marginTop: 12 }}>

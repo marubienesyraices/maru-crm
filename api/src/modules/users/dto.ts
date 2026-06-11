@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum, IsIn } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum, IsIn, IsUUID } from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
@@ -43,7 +43,7 @@ export class CreateAdminDto {
   @IsString() @IsNotEmpty()
   nombre: string;
 
-  @IsString() @IsNotEmpty()
+  @IsUUID('all')
   tenantId: string;
 }
 

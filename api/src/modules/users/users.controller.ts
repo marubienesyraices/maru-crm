@@ -81,7 +81,7 @@ export class UsersController {
   @Put('admins/:id')
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Actualizar administrador de empresa (Solo Super Admin)' })
-  updateAdmin(@Param('id') id: string, @Body() dto: UpdateAdminDto) {
+  updateAdmin(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateAdminDto) {
     return this.usersService.updateAdmin(id, dto);
   }
 
@@ -107,8 +107,12 @@ export class UsersController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reenviar correo de activación a usuario pendiente' })
-  resendActivation(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
-    return this.usersService.resendActivation(tenantId, id);
+  resendActivation(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('rol') rol: string,
+    @Param('id') id: string,
+  ) {
+    return this.usersService.resendActivation(rol === 'SUPER_ADMIN' ? null : tenantId, id);
   }
 
   @Put(':id')

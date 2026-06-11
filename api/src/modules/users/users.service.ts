@@ -327,9 +327,9 @@ export class UsersService {
     });
   }
 
-  async resendActivation(tenantId: string, id: string) {
+  async resendActivation(tenantId: string | null, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenant_id: tenantId },
+      where: { id, ...(tenantId ? { tenant_id: tenantId } : {}) },
       include: { tenant: { select: { nombre: true } } },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');

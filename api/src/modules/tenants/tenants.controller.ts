@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
@@ -60,5 +60,21 @@ export class TenantsController {
   @ApiOperation({ summary: 'Actualizar datos de la empresa' })
   update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
     return this.tenantsService.update(id, dto);
+  }
+
+  @Patch(':id/cancelar')
+  @Roles('SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Baja lógica: marca la empresa como CANCELADA y expulsa sesiones' })
+  cancelar(@Param('id') id: string) {
+    return this.tenantsService.cancelTenant(id);
+  }
+
+  @Delete(':id')
+  @Roles('SUPER_ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar empresa y todos sus datos de forma permanente (IRREVERSIBLE)' })
+  hardDelete(@Param('id') id: string) {
+    return this.tenantsService.hardDeleteTenant(id);
   }
 }

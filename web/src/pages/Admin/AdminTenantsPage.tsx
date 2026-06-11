@@ -52,6 +52,7 @@ export default function AdminTenantsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [catalogoPlanes, setCatalogoPlanes] = useState<CatalogoPlan[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchTenants = useCallback(async () => {
     setIsError(false);
@@ -138,6 +139,39 @@ export default function AdminTenantsPage() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCancelar = async (t: Tenant) => {
+    if (!confirm(`¿Dar de baja a "${t.nombre}"? Se marcará como CANCELADA y se cerrarán todas sus sesiones activas.`)) return;
+    setActionLoading(t.id + '-cancelar');
+    try {
+      await apiRequest(`/api/tenants/${t.id}/cancelar`, { method: 'PATCH', token: accessToken! });
+      fetchTenants();
+    } catch (err: any) {
+      alert(err.message ?? 'Error al cancelar empresa');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleHardDelete = async (t: Tenant) => {
+    const confirmText = t.nombre;
+    const input = window.prompt(
+      `ELIMINAR PERMANENTEMENTE "${t.nombre}"\n\nEsta acción eliminará TODOS los datos de la empresa (usuarios, propiedades, clientes, etc.) y NO puede deshacerse.\n\nEscribe el nombre de la empresa para confirmar:`,
+    );
+    if (input !== confirmText) {
+      if (input !== null) alert('Nombre incorrecto. Operación cancelada.');
+      return;
+    }
+    setActionLoading(t.id + '-delete');
+    try {
+      await apiRequest(`/api/tenants/${t.id}`, { method: 'DELETE', token: accessToken! });
+      fetchTenants();
+    } catch (err: any) {
+      alert(err.message ?? 'Error al eliminar empresa');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -278,6 +312,23 @@ export default function AdminTenantsPage() {
                   <td>
                     <div className="admin-table-actions">
                       <button onClick={() => openEdit(t)}>Editar</button>
+                      {t.estado !== 'CANCELADA' && (
+                        <button
+                          disabled={actionLoading === t.id + '-cancelar'}
+                          onClick={() => handleCancelar(t)}
+                          title="Baja lógica: marca como CANCELADA y expulsa sesiones"
+                        >
+                          {actionLoading === t.id + '-cancelar' ? '...' : 'Dar de baja'}
+                        </button>
+                      )}
+                      <button
+                        className="btn-danger-outline"
+                        disabled={actionLoading === t.id + '-delete'}
+                        onClick={() => handleHardDelete(t)}
+                        title="Elimina permanentemente la empresa y todos sus datos"
+                      >
+                        {actionLoading === t.id + '-delete' ? '...' : 'Eliminar'}
+                      </button>
                     </div>
                   </td>
                 </tr>
