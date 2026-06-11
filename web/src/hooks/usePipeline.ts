@@ -31,12 +31,18 @@ export function useMovePipeline() {
       motivoPerdida,
       precioAcordado,
       cierreDocumentos,
+      tipoOperacionCierre,
+      duracionContratoMeses,
+      comisionAcordada,
     }: {
       id: string;
       nuevoEstado: string;
       motivoPerdida?: string;
       precioAcordado?: number;
       cierreDocumentos?: string[];
+      tipoOperacionCierre?: string;
+      duracionContratoMeses?: number;
+      comisionAcordada?: number;
     }) =>
       apiRequest(`/api/pipeline/${id}/estado`, {
         method: 'PATCH',
@@ -45,6 +51,9 @@ export function useMovePipeline() {
           ...(motivoPerdida ? { motivoPerdida } : {}),
           ...(precioAcordado != null ? { precioAcordado } : {}),
           ...(cierreDocumentos?.length ? { cierreDocumentos } : {}),
+          ...(tipoOperacionCierre ? { tipoOperacionCierre } : {}),
+          ...(duracionContratoMeses != null ? { duracionContratoMeses } : {}),
+          ...(comisionAcordada != null ? { comisionAcordada } : {}),
         },
         token: accessToken!,
       }),

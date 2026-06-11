@@ -102,12 +102,21 @@ function DraggableCard({
         <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border-subtle)', fontSize: '0.75rem' }}>
           {item.precio_cierre && (
             <div style={{ color: 'var(--text-muted)' }}>
+              {item.tipo_operacion_cierre ? `[${item.tipo_operacion_cierre}] ` : ''}
               Precio: <strong>{item.propiedad?.moneda || 'GTQ'} {fmtNum(Number(item.precio_cierre))}</strong>
+            </div>
+          )}
+          {item.duracion_contrato_meses && (
+            <div style={{ color: 'var(--text-muted)' }}>
+              Contrato: <strong>{item.duracion_contrato_meses} meses</strong>
             </div>
           )}
           {item.comision_calculada && (
             <div style={{ color: '#22c55e' }}>
               Comisión: <strong>{item.propiedad?.moneda || 'GTQ'} {fmtNum(Number(item.comision_calculada))}</strong>
+              {item.comision_sugerida_venta && item.comision_sugerida_renta && (
+                <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>(acordada)</span>
+              )}
             </div>
           )}
         </div>
@@ -257,36 +266,181 @@ function CierreModal({ onConfirm, onCancel }: { onConfirm: (docs: string[]) => v
   );
 }
 
+// ─── Helpers comisiones CBR (mirror del backend) ──────────────
+
+function comisionRentaCBR(rentaMensual: number, meses: number): number {
+  if (meses <= 1)  return round2(rentaMensual * meses * 0.10);
+  if (meses < 12)  return round2(rentaMensual * (meses / 12));
+  const años = meses / 12;
+  if (años <= 5)   return round2(rentaMensual);
+  return round2(rentaMensual * Math.ceil(años / 5));
+}
+function round2(n: number) { return Math.round(n * 100) / 100; }
+
+function labelCBR(meses: number): string {
+  if (meses <= 1)  return `10% del monto total (≤1 mes)`;
+  if (meses < 12)  return `Proporcional: ${(meses / 12).toFixed(2)} rentas (CBR)`;
+  const años = meses / 12;
+  if (años <= 5)   return `1 mes de renta — contrato ${meses}m (CBR)`;
+  return `${Math.ceil(años / 5)} renta(s) — 1 por cada 5 años (CBR)`;
+}
+
 // ─── GANADO Modal ─────────────────────────────────────────────
 
-function GanadoModal({ item, onConfirm, onCancel }: { item: any; onConfirm: (precioAcordado: number) => void; onCancel: () => void }) {
+function GanadoModal({ item, onConfirm, onCancel }: {
+  item: any;
+  onConfirm: (args: { precioAcordado: number; tipoOperacionCierre?: string; duracionContratoMeses?: number; comisionAcordada?: number }) => void;
+  onCancel: () => void;
+}) {
   const moneda = item.propiedad?.moneda || 'GTQ';
-  const precioLista = item.propiedad?.gestion === 'RENTA'
-    ? Number(item.propiedad?.precio_renta ?? 0)
-    : Number(item.propiedad?.precio_venta ?? 0);
-  const comisionPct = item.propiedad?.comision_porcentaje != null ? Number(item.propiedad.comision_porcentaje) : null;
-  const [precio, setPrecio] = useState(precioLista > 0 ? String(precioLista) : '');
+  const gestion: string = item.propiedad?.gestion ?? 'VENTA';
+  const precioVenta = Number(item.propiedad?.precio_venta ?? 0);
+  const precioRenta = Number(item.propiedad?.precio_renta ?? 0);
+  const comisionPct = item.propiedad?.comision_porcentaje != null ? Number(item.propiedad.comision_porcentaje) : 5.6;
+
+  // Para AMBAS: el agente elige qué operación se concretó
+  const [tipoOp, setTipoOp] = useState<'VENTA' | 'RENTA'>(gestion === 'RENTA' ? 'RENTA' : 'VENTA');
+  const esRenta = gestion === 'RENTA' || (gestion === 'AMBAS' && tipoOp === 'RENTA');
+
+  const precioDefault = esRenta ? precioRenta : precioVenta;
+  const [precio, setPrecio] = useState(precioDefault > 0 ? String(precioDefault) : '');
+  const [meses, setMeses] = useState('12');
+  const [overrideComision, setOverrideComision] = useState('');
+  const [editandoComision, setEditandoComision] = useState(false);
+
   const precioNum = parseFloat(precio) || 0;
-  const comision = comisionPct != null && precioNum > 0 ? Math.round(precioNum * (comisionPct / 100) * 100) / 100 : null;
+  const mesesNum = parseInt(meses) || 0;
+
+  // Comisión sugerida
+  const sugeridaVenta = precioNum > 0 ? round2(precioNum * (comisionPct / 100)) : null;
+  const sugeridaRenta = precioRenta > 0 && mesesNum > 0 ? comisionRentaCBR(precioRenta, mesesNum) : null;
+  const sugerida = esRenta ? sugeridaRenta : sugeridaVenta;
+
+  // Comisión final: override si editando, si no, sugerida
+  const comisionFinal = editandoComision && overrideComision !== ''
+    ? (parseFloat(overrideComision) || 0)
+    : sugerida;
+
+  // Cuando cambia tipo operación, resetear precio
+  const handleTipoOp = (t: 'VENTA' | 'RENTA') => {
+    setTipoOp(t);
+    const p = t === 'RENTA' ? precioRenta : precioVenta;
+    setPrecio(p > 0 ? String(p) : '');
+    setOverrideComision('');
+    setEditandoComision(false);
+  };
+
+  const canConfirm = precioNum > 0 && (!esRenta || mesesNum > 0);
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    onConfirm({
+      precioAcordado: precioNum,
+      tipoOperacionCierre: gestion === 'AMBAS' ? tipoOp : undefined,
+      duracionContratoMeses: esRenta ? mesesNum : undefined,
+      comisionAcordada: editandoComision && overrideComision !== '' ? parseFloat(overrideComision) || undefined : undefined,
+    });
+  };
 
   return (
-    <Modal isOpen onClose={onCancel} title="Confirmar cierre del trámite" width={440}>
+    <Modal isOpen onClose={onCancel} title="Confirmar cierre del trámite" width={500}>
       <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 16 }}>
         {item.propiedad?.codigo} — {item.propiedad?.titulo}
       </p>
-      <div className="input-group" style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Precio de cierre ({moneda})</label>
-        <input type="number" className="input-field" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="Ej. 450000" autoFocus min={0} />
-      </div>
-      {comisionPct != null && (
-        <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, fontSize: '0.875rem' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Comisión ({comisionPct}%): </span>
-          <strong style={{ color: '#22c55e' }}>{comision != null ? `${moneda} ${fmtNum(comision)}` : '—'}</strong>
+
+      {/* Tipo operación — solo para AMBAS */}
+      {gestion === 'AMBAS' && (
+        <div className="input-group" style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Tipo de operación</label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {(['VENTA', 'RENTA'] as const).map(t => (
+              <button key={t} onClick={() => handleTipoOp(t)} style={{
+                flex: 1, padding: '8px 0', borderRadius: 8, border: `2px solid ${tipoOp === t ? '#22c55e' : 'var(--border)'}`,
+                background: tipoOp === t ? 'rgba(34,197,94,0.1)' : 'transparent',
+                color: tipoOp === t ? '#22c55e' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer',
+              }}>
+                {t === 'VENTA' ? '🏠 Venta' : '🔑 Renta'}
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Precio de cierre */}
+      <div className="input-group" style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          {esRenta ? `Precio de renta mensual (${moneda})` : `Precio de cierre (${moneda})`}
+        </label>
+        <input type="number" className="input-field" value={precio}
+          onChange={(e) => { setPrecio(e.target.value); setOverrideComision(''); setEditandoComision(false); }}
+          placeholder={esRenta ? 'Ej. 5000' : 'Ej. 450000'} autoFocus min={0} />
+      </div>
+
+      {/* Duración contrato — solo RENTA */}
+      {esRenta && (
+        <div className="input-group" style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Duración del contrato (meses)</label>
+          <input type="number" className="input-field" value={meses}
+            onChange={(e) => { setMeses(e.target.value); setOverrideComision(''); setEditandoComision(false); }}
+            placeholder="Ej. 24" min={1} />
+          {mesesNum > 0 && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+              {labelCBR(mesesNum)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Comisión sugerida + override */}
+      {sugerida != null && (
+        <div style={{ padding: '12px 14px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, fontSize: '0.875rem', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: esRenta ? 6 : 0 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Comisión sugerida (CBR):</span>
+            <strong style={{ color: '#22c55e' }}>{moneda} {fmtNum(sugerida)}</strong>
+          </div>
+          {/* Mostrar ambas cuando gestion=AMBAS */}
+          {gestion === 'AMBAS' && sugeridaVenta != null && sugeridaRenta != null && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+              Ref venta: {moneda} {fmtNum(sugeridaVenta)} ({comisionPct}%) &nbsp;|&nbsp; Ref renta: {moneda} {fmtNum(sugeridaRenta)}
+            </div>
+          )}
+          {!editandoComision ? (
+            <button onClick={() => { setEditandoComision(true); setOverrideComision(String(sugerida)); }}
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+              ✏️ Modificar comisión acordada
+            </button>
+          ) : (
+            <div style={{ marginTop: 8 }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+                Comisión acordada ({moneda}) — override manual:
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="number" className="input-field" value={overrideComision}
+                  onChange={(e) => setOverrideComision(e.target.value)} min={0}
+                  style={{ flex: 1, fontSize: '0.875rem' }} />
+                <button onClick={() => { setEditandoComision(false); setOverrideComision(''); }}
+                  style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Comisión final */}
+      {comisionFinal != null && (
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+          Comisión final: <strong style={{ color: editandoComision ? '#f59e0b' : '#22c55e' }}>
+            {moneda} {fmtNum(comisionFinal)}
+          </strong>
+          {editandoComision && <span style={{ marginLeft: 6, fontSize: '0.7rem', color: '#f59e0b' }}>⚠ valor manual</span>}
+        </div>
+      )}
+
       <div className="modal-footer">
         <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-        <button className="btn btn-primary" disabled={precioNum <= 0} onClick={() => { if (precioNum > 0) onConfirm(precioNum); }}>
+        <button className="btn btn-primary" disabled={!canConfirm} onClick={handleConfirm}>
           Confirmar cierre ✓
         </button>
       </div>
@@ -316,9 +470,9 @@ export default function PipelinePage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const doMove = (id: string, nuevoEstado: string, motivoPerdida?: string, precioAcordado?: number, cierreDocumentos?: string[]) => {
+  const doMove = (id: string, nuevoEstado: string, motivoPerdida?: string, precioAcordado?: number, cierreDocumentos?: string[], tipoOperacionCierre?: string, duracionContratoMeses?: number, comisionAcordada?: number) => {
     moveMutation.mutate(
-      { id, nuevoEstado, motivoPerdida, precioAcordado, cierreDocumentos },
+      { id, nuevoEstado, motivoPerdida, precioAcordado, cierreDocumentos, tipoOperacionCierre, duracionContratoMeses, comisionAcordada },
       {
         onSuccess: () => toast.success('Lead actualizado'),
         onError: (err: any) => toast.error(err.message ?? 'Error al mover el lead'),
@@ -434,8 +588,8 @@ export default function PipelinePage() {
       {pendingGanado && (
         <GanadoModal
           item={pendingGanado.item}
-          onConfirm={(precio) => {
-            doMove(pendingGanado.id, 'GANADO', undefined, precio);
+          onConfirm={({ precioAcordado, tipoOperacionCierre, duracionContratoMeses, comisionAcordada }) => {
+            doMove(pendingGanado.id, 'GANADO', undefined, precioAcordado, undefined, tipoOperacionCierre, duracionContratoMeses, comisionAcordada);
             setPendingGanado(null);
           }}
           onCancel={() => setPendingGanado(null)}

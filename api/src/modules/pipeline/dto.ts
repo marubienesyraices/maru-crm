@@ -15,6 +15,10 @@ export class CambiarEstadoInteresDto {
   @IsOptional() @IsString() motivoPerdida?: string;
   @IsOptional() @IsNumber() precioAcordado?: number;
   @IsOptional() cierreDocumentos?: string[]; // F-16: required when moving to CIERRE
+  // Comisiones CBR
+  @IsOptional() @IsString() tipoOperacionCierre?: string;   // 'VENTA' | 'RENTA' para gestion=AMBAS
+  @IsOptional() @IsInt() @Min(1) duracionContratoMeses?: number; // RENTA: meses acordados
+  @IsOptional() @IsNumber() comisionAcordada?: number;      // override manual del agente
 }
 
 export class UpdateInteresDto {

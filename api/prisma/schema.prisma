@@ -281,11 +281,12 @@ model ConfigSeguridad {
   tenant_id               String  @unique
   geo_paises              Json?
   ips_permitidas          Json?
-  dias_inactividad_lead   Int     @default(21)
-  senior_puede_ver_upline Boolean @default(false)
-  buffer_entre_citas_min  Int     @default(30)
-  modo_asignacion_leads   String  @default("Manual")
-  sinc_frecuencia         String  @default("manual") // brecha 1.5: manual | hora | diario
+  dias_inactividad_lead       Int     @default(21)
+  senior_puede_ver_upline     Boolean @default(false)
+  buffer_entre_citas_min      Int     @default(30)
+  modo_asignacion_leads       String  @default("Manual")
+  sinc_frecuencia             String  @default("manual") // brecha 1.5: manual | hora | diario
+  comision_pct_venta_default  Decimal @default(5.60) @db.Decimal(5, 2) // CBR sugerido: 5.6%
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 
@@ -580,7 +581,12 @@ model ClientePropiedad {
   fecha_contacto  DateTime?
   fecha_cierre         DateTime?
   precio_cierre        Decimal?  @db.Decimal(14, 2)
-  comision_calculada   Decimal?  @db.Decimal(14, 2)
+  // Comisiones: sugeridas (auto-calculadas) + calculada = valor acordado final (override)
+  tipo_operacion_cierre   String?           // 'VENTA' | 'RENTA' — para propiedades con gestion=AMBAS
+  duracion_contrato_meses Int?              // RENTA: meses acordados al momento del cierre
+  comision_sugerida_venta Decimal?          @db.Decimal(14, 2) // CBR: precio_cierre × %
+  comision_sugerida_renta Decimal?          @db.Decimal(14, 2) // CBR: tabla meses/años
+  comision_calculada      Decimal?          @db.Decimal(14, 2) // valor final acordado (puede ser override)
   es_oferta_competitiva Boolean  @default(false) // brecha 1.1
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt

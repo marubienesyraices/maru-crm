@@ -6,6 +6,26 @@ import { EstadoInteres, NivelInteres } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { CreateInteresDto, CambiarEstadoInteresDto, UpdateInteresDto, FiltrosPipelineDto } from './dto';
 
+// ─── Helpers comisiones CBR ──────────────────────────────────
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Tabla CBR Guatemala — honorarios sugeridos para alquiler:
+ *  ≤ 1 mes          → 10% del monto total del contrato
+ *  > 1 mes < 1 año  → proporcional: (meses/12) × 1 renta mensual
+ *  1–5 años         → 1 mes de renta (100% primera renta)
+ *  > 5 años         → 1 renta por cada 5 años: ⌈años/5⌉ rentas
+ */
+function calcularComisionRentaCBR(rentaMensual: number, meses: number): number {
+  if (meses <= 1)   return rentaMensual * meses * 0.10;
+  if (meses < 12)   return rentaMensual * (meses / 12);
+  const años = meses / 12;
+  if (años <= 5)    return rentaMensual;
+  return rentaMensual * Math.ceil(años / 5);
+}
+
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   NUEVO: ['CONTACTADO', 'PERDIDO'],
   CONTACTADO: ['INTERESADO', 'PERDIDO'],
@@ -186,21 +206,65 @@ export class PipelineService {
       updated = await this.prisma.$transaction(async (tx) => {
         const prop = await tx.propiedad.findUnique({
           where: { id: propiedadId },
-          select: { gestion: true, precio_venta: true, precio_renta: true, comision_porcentaje: true },
+          select: { gestion: true, precio_venta: true, precio_renta: true, comision_porcentaje: true, tenant_id: true },
         });
 
-        const estadoPropFinal = prop?.gestion === 'RENTA' ? 'RENTADA' : 'VENDIDA';
+        // Resolve tipo operacion for AMBAS properties
+        const tipoOp: string = prop?.gestion === 'AMBAS'
+          ? (dto.tipoOperacionCierre ?? 'VENTA')
+          : (prop?.gestion ?? 'VENTA');
 
-        const precioLista = prop?.gestion === 'RENTA' ? prop?.precio_renta : prop?.precio_venta;
+        const estadoPropFinal = tipoOp === 'RENTA' ? 'RENTADA' : 'VENDIDA';
+
+        // Precio de cierre
+        const precioLista = tipoOp === 'RENTA' ? prop?.precio_renta : prop?.precio_venta;
         const precioCierre = dto.precioAcordado != null
           ? dto.precioAcordado
           : precioLista != null ? Number(precioLista) : null;
 
         if (precioCierre != null) pipelineData.precio_cierre = precioCierre;
+        if (prop?.gestion === 'AMBAS') pipelineData.tipo_operacion_cierre = tipoOp;
 
-        if (precioCierre != null && prop?.comision_porcentaje != null) {
-          const pct = Number(prop.comision_porcentaje);
-          pipelineData.comision_calculada = Math.round(precioCierre * (pct / 100) * 100) / 100;
+        // Duración contrato para RENTA
+        const meses = dto.duracionContratoMeses ?? null;
+        if (meses != null) pipelineData.duracion_contrato_meses = meses;
+
+        // Obtener % default del tenant para VENTA
+        const configSeg = await tx.configSeguridad.findUnique({
+          where: { tenant_id: prop?.tenant_id },
+          select: { comision_pct_venta_default: true },
+        });
+        const pctVentaDefault = configSeg?.comision_pct_venta_default
+          ? Number(configSeg.comision_pct_venta_default)
+          : 5.6;
+
+        // ── Calcular comisiones sugeridas (CBR) ──────────────────
+        const precioVenta = prop?.precio_venta ? Number(prop.precio_venta) : null;
+        const precioRenta = prop?.precio_renta ? Number(prop.precio_renta) : null;
+        const pctVenta = prop?.comision_porcentaje ? Number(prop.comision_porcentaje) : pctVentaDefault;
+
+        // Sugerida VENTA: precio_cierre (o precio_venta) × %
+        if (precioVenta != null || precioCierre != null) {
+          const baseVenta = tipoOp === 'VENTA' && precioCierre != null ? precioCierre : (precioVenta ?? 0);
+          pipelineData.comision_sugerida_venta = round2(baseVenta * (pctVenta / 100));
+        }
+
+        // Sugerida RENTA: tabla CBR
+        if (precioRenta != null && meses != null) {
+          pipelineData.comision_sugerida_renta = round2(calcularComisionRentaCBR(precioRenta, meses));
+        }
+
+        // ── Comisión final (acordada) ─────────────────────────────
+        if (dto.comisionAcordada != null) {
+          // Agente/cliente pactaron un valor diferente
+          pipelineData.comision_calculada = round2(dto.comisionAcordada);
+        } else {
+          // Usar la sugerida del tipo de operación real
+          if (tipoOp === 'RENTA' && pipelineData.comision_sugerida_renta != null) {
+            pipelineData.comision_calculada = pipelineData.comision_sugerida_renta;
+          } else if (pipelineData.comision_sugerida_venta != null) {
+            pipelineData.comision_calculada = pipelineData.comision_sugerida_venta;
+          }
         }
 
         await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: estadoPropFinal } });

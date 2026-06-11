@@ -470,14 +470,22 @@ export class BiService implements OnModuleInit {
     });
 
     let proyectadas = 0;
-    const detalleProyectado: Array<{ titulo: string; codigo: string; monto: number; estado: string }> = [];
+    const detalleProyectado: Array<{ titulo: string; codigo: string; monto: number; estado: string; tipo: string }> = [];
     for (const ep of enProceso) {
       const p = ep.propiedad;
-      const precio = p.gestion === 'RENTA' ? p.precio_renta : p.precio_venta;
-      const pct = p.comision_porcentaje ? Number(p.comision_porcentaje) : 0;
-      const monto = precio && pct ? Math.round(Number(precio) * (pct / 100) * 100) / 100 : 0;
+      let monto = 0;
+      let tipo = p.gestion;
+      if (p.gestion === 'RENTA') {
+        // CBR: proyección conservadora = 1 mes de renta (contrato 1-5 años)
+        monto = p.precio_renta ? Math.round(Number(p.precio_renta) * 100) / 100 : 0;
+      } else {
+        // VENTA o AMBAS: usar % sobre precio de venta
+        const precio = p.precio_venta;
+        const pct = p.comision_porcentaje ? Number(p.comision_porcentaje) : 5.6;
+        monto = precio ? Math.round(Number(precio) * (pct / 100) * 100) / 100 : 0;
+      }
       proyectadas += monto;
-      detalleProyectado.push({ titulo: p.titulo, codigo: p.codigo, monto, estado: ep.estado });
+      detalleProyectado.push({ titulo: p.titulo, codigo: p.codigo, monto, estado: ep.estado, tipo });
     }
 
     const result = {
