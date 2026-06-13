@@ -37,6 +37,7 @@ COPY shared/package*.json ./shared/
 RUN npm ci --workspace=api --workspace=shared
 
 COPY api/prisma ./api/prisma
+COPY api/prisma.config.ts ./api/prisma.config.ts
 COPY shared/ ./shared/
 
 WORKDIR /app/api
