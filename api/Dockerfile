@@ -24,14 +24,22 @@ RUN npx prisma generate
 RUN npm run build
 
 # ─── Stage 3: migrator (one-shot) ────────────────────────────────────────────
-# Imagen dedicada a `prisma migrate deploy`. Conserva el CLI de Prisma (devDep)
-# y fuerza la descarga del schema-engine en build time, para que las migraciones
-# corran sin acceso a internet (la red `internal` del compose no tiene salida).
-FROM builder AS migrator
+# Imagen dedicada a `prisma migrate deploy`. Instala deps SIN --ignore-scripts
+# para que el postinstall de Prisma descargue el schema-engine en build time
+# (la red `internal` del compose no tiene salida a internet en runtime).
+FROM node:20-alpine AS migrator
+WORKDIR /app
+
+COPY package*.json ./
+COPY api/package*.json ./api/
+COPY shared/package*.json ./shared/
+# Sin --ignore-scripts: Prisma descarga schema-engine + query-engine en build
+RUN npm ci --workspace=api --workspace=shared
+
+COPY api/prisma ./api/prisma
+COPY shared/ ./shared/
+
 WORKDIR /app/api
-# Invoca el schema-engine en build para que su binario quede cacheado en la imagen
-RUN npx prisma migrate diff --from-empty \
-      --to-schema prisma/schema.prisma --script > /dev/null
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
