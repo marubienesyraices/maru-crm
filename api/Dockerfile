@@ -41,6 +41,8 @@ COPY api/prisma.config.ts ./api/prisma.config.ts
 COPY shared/ ./shared/
 
 WORKDIR /app/api
+RUN npx prisma generate
+
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # ─── Stage 4: runner ─────────────────────────────────────────────────────────
