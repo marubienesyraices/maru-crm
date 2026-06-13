@@ -11,6 +11,12 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
+function getClientIp(req: any): string {
+  const forwarded = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
+  if (forwarded) return (forwarded as string).split(',')[0].trim();
+  return req.ip || '127.0.0.1';
+}
+
 @ApiTags('Autenticación')
 @SkipAudit()
 @Controller('api/auth')
@@ -25,7 +31,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Token de acceso o solicitud de 2FA' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(@Body() dto: LoginDto, @Req() req: any) {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1';
+    const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     return this.authService.login(dto, ip, userAgent);
   }
@@ -37,7 +43,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Paso 2 de login: verificar código TOTP' })
   @ApiResponse({ status: 200, description: 'Token de acceso completo' })
   async verify2FA(@Body() dto: Verify2FADto, @Req() req: any) {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1';
+    const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     return this.authService.verify2FA(dto, ip, userAgent);
   }
@@ -94,7 +100,7 @@ export class AuthController {
     @CurrentUser() user: any,
     @Req() req: any,
   ) {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1';
+    const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     return this.authService.logout(refreshToken, user.sub, user.tenantId, ip, userAgent);
   }
