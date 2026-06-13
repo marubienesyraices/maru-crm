@@ -1,0 +1,61 @@
+@startuml Componentes_GestPro
+skinparam componentBackgroundColor #E8F4FD
+skinparam componentBorderColor #1168BD
+skinparam componentFontSize 12
+skinparam interfaceBackgroundColor #FFFFFF
+skinparam interfaceBorderColor #1168BD
+skinparam packageBackgroundColor #F5F5F5
+skinparam packageBorderColor #999999
+skinparam databaseBackgroundColor #D0E8FF
+skinparam databaseBorderColor #1168BD
+skinparam arrowColor #1168BD
+skinparam arrowFontSize 10
+
+title Diagrama de Componentes — GestPro CRM Inmobiliario
+
+' ── CLIENTES ──────────────────────────────────
+package "Clientes" {
+    [CRM Web\nReact + Vite]     as web
+    [Portal Público\nNext.js 14] as portal
+    [App Móvil\nReact Native]    as mobile
+}
+
+' ── BACKEND ───────────────────────────────────
+package "Backend" {
+    [API REST\nNestJS]           as api
+    [Worker de Jobs\nBullMQ]     as worker
+}
+
+' ── ALMACENAMIENTO ────────────────────────────
+package "Almacenamiento" {
+    database [PostgreSQL 16\n+ PostGIS] as db
+    database [Redis 7]                  as redis
+    [Cloudflare R2]                     as r2
+}
+
+' ── SERVICIOS EXTERNOS ────────────────────────
+package "Servicios Externos" {
+    [Meta Graph API]     as meta
+    [Resend / SendGrid]  as email
+    [Mapbox / Google Maps] as mapbox
+    [Portales Externos]  as portales
+}
+
+' ── RELACIONES ────────────────────────────────
+web    --> api : REST / JSON
+portal --> api : REST / JSON (SSR)
+mobile --> api : REST / JSON
+
+api --> db     : Prisma ORM + RLS
+api --> redis  : cache + sesiones
+api --> r2     : multimedia
+api --> worker : encola jobs
+
+worker --> meta     : publica posts
+worker --> email    : notificaciones
+worker --> portales : sincroniza inventario
+
+api --> mapbox : geocodificación
+api --> email  : emails transaccionales
+
+@enduml

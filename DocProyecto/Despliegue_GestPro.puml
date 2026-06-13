@@ -1,0 +1,59 @@
+@startuml Despliegue_GestPro
+skinparam nodeBackgroundColor #E8F4FD
+skinparam nodeBorderColor #1168BD
+skinparam nodeFontColor #000000
+skinparam nodeFontSize 12
+skinparam componentBackgroundColor #BEDBFF
+skinparam componentBorderColor #1168BD
+skinparam databaseBackgroundColor #D0E8FF
+skinparam databaseBorderColor #1168BD
+skinparam arrowColor #1168BD
+skinparam arrowFontSize 10
+
+title Diagrama de Despliegue — GestPro CRM Inmobiliario
+
+' ── CLIENTES ──────────────────────────────────
+node "Navegador / Dispositivo Móvil" as cliente {
+    component [CRM Web\nReact + Vite] as webApp
+    component [App Móvil\nReact Native] as mobileApp
+}
+
+' ── CDN / WAF ─────────────────────────────────
+node "Cloudflare\n(CDN + WAF)" as cloudflare {
+}
+
+' ── SERVIDOR DE APLICACIONES ──────────────────
+node "Servidor de Aplicaciones\n(Docker Compose / VPS)" as appServer {
+    component [Nginx\nReverse Proxy :80/:443] as nginx
+    component [API NestJS\n:3000] as api
+    component [Portal Next.js\n:3001] as portalSSR
+    component [Worker BullMQ] as worker
+}
+
+' ── DATOS ─────────────────────────────────────
+node "Capa de Datos" as datos {
+    database [PostgreSQL 16\n+ PostGIS] as postgres
+    database [Redis 7] as redis
+}
+
+' ── ALMACENAMIENTO ────────────────────────────
+node "Cloudflare R2\n(Object Storage)" as r2 {
+}
+
+' ── RELACIONES ────────────────────────────────
+webApp    --> cloudflare  : HTTPS
+mobileApp --> cloudflare  : HTTPS
+cloudflare --> nginx      : proxy
+
+nginx --> api       : /api/*
+nginx --> portalSSR : /*
+
+api --> postgres
+api --> redis
+api --> r2       : PUT / GET archivos
+api --> worker   : encola jobs
+
+worker --> postgres
+worker --> redis
+
+@enduml

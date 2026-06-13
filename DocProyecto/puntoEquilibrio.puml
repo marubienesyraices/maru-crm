@@ -1,0 +1,110 @@
+@startgantt
+
+' ─────────────────────────────────────────────────────────────────────────────
+'  Estilos — paleta C4_Nivel1_Contexto
+'    #08427B  azul marino  (Person / System en C4)
+'    #1168BD  azul medio   (System boundary)
+'    #5B8FD9  azul borde   (borderColor external_system)
+'    #BEDBFF  azul claro   (bgColor external_system)
+'
+'  Semáforo financiero:
+'    #C0392B  rojo   — período en pérdida acumulada
+'    #E67E22  naranja — período casi en equilibrio (< $500 de distancia)
+'    #27AE60  verde  — mes en que se cruza el punto de equilibrio
+'    #1168BD  azul   — crecimiento en zona positiva (amort. vigente)
+'    #08427B  marino — crecimiento consolidado (amort. completada)
+' ─────────────────────────────────────────────────────────────────────────────
+
+<style>
+ganttDiagram {
+  task {
+    FontColor    white
+    FontSize     10
+    FontStyle    bold
+    LineColor    #5B8FD9
+  }
+  milestone {
+    BackGroundColor #27AE60
+    FontColor       white
+    FontSize        11
+    FontStyle       bold
+  }
+  separator {
+    BackGroundColor #BEDBFF
+    LineColor       #5B8FD9
+    FontColor       #08427B
+    FontSize        11
+    FontStyle       bold
+  }
+  timeline {
+    BackGroundColor #EEF6FF
+    FontColor       #08427B
+    FontSize        10
+  }
+}
+</style>
+
+title <b>GestPro CRM — Punto de Equilibrio (USD)</b>\n<size:10>Inversión inicial de desarrollo $20,570 amortizada en línea recta a 3 años ($6,857 / año)\nUtilidad neta acumulada por trimestre  ·  Lanzamiento: Jul 2026</size>\n\n<back:#C0392B><color:white> Pérdida acumulada </color></back>  <back:#E67E22><color:white> Casi equilibrio </color></back>  <back:#27AE60><color:white> Punto de equilibrio </color></back>  <back:#1168BD><color:white> Ganancia (amort. activa) </color></back>  <back:#08427B><color:white> Ganancia consolidada </color></back>
+
+printscale quarterly zoom 2
+Project starts 2026-07-01
+
+' ═══════════════════════════════════════════════════════════════════
+-- AÑO 1 (Jul 2026 – Jun 2027)  ·  Ingresos $7,860  ·  Mant. $3,597  ·  Amort. $6,857  ·  Neto anual −$2,594 --
+' ═══════════════════════════════════════════════════════════════════
+
+[Q1 - Acum: -$649] starts 2026-07-01 and lasts 92 days and is colored in #C0392B/white
+[Q2 - Acum: -$1,298] starts 2026-10-01 and lasts 92 days and is colored in #C0392B/white
+[Q3 - Acum: -$1,947] starts 2027-01-01 and lasts 90 days and is colored in #C0392B/white
+[Q4 - Acum: -$2,594] starts 2027-04-01 and lasts 91 days and is colored in #C0392B/white
+
+' ═══════════════════════════════════════════════════════════════════
+-- AÑO 2 (Jul 2027 – Jun 2028)  ·  Ingresos $20,712  ·  Mant. $3,707  ·  Amort. $6,857  ·  Neto anual +$10,148 --
+' ═══════════════════════════════════════════════════════════════════
+
+[Q5 - Acum: -$57  (a $57 del equilibrio)] starts 2027-07-01 and lasts 92 days and is colored in #E67E22/white
+[Q6 - PUNTO DE EQUILIBRIO aprox. Mes 16] starts 2027-10-01 and lasts 92 days and is colored in #27AE60/white
+[Q7 - Acum: +$5,017] starts 2028-01-01 and lasts 91 days and is colored in #1168BD/white
+[Q8 - Acum: +$7,554] starts 2028-04-01 and lasts 91 days and is colored in #1168BD/white
+
+' ═══════════════════════════════════════════════════════════════════
+-- AÑO 3 (Jul 2028 – Jun 2029)  ·  Ingresos $36,600  ·  Mant. $3,938  ·  Amort. $6,857  ·  Neto anual +$25,805 --
+' ═══════════════════════════════════════════════════════════════════
+
+[Q9  - Acum: +$14,005] starts 2028-07-01 and lasts 92 days and is colored in #1168BD/white
+[Q10 - Acum: +$20,456] starts 2028-10-01 and lasts 92 days and is colored in #1168BD/white
+[Q11 - Acum: +$26,907] starts 2029-01-01 and lasts 90 days and is colored in #1168BD/white
+[Q12 - Acum: +$33,359] starts 2029-04-01 and lasts 91 days and is colored in #08427B/white
+
+' ═══════════════════════════════════════════════════════════════════
+-- AÑO 4 (Jul 2029 – Jun 2030)  ·  Ingresos $53,568  ·  Mant. $4,466  ·  Amort. $0 (completada)  ·  Neto anual +$49,102 --
+' ═══════════════════════════════════════════════════════════════════
+
+[Q13 - Acum: +$45,635] starts 2029-07-01 and lasts 92 days and is colored in #08427B/white
+[Q14 - Acum: +$57,911] starts 2029-10-01 and lasts 92 days and is colored in #08427B/white
+[Q15 - Acum: +$70,187] starts 2030-01-01 and lasts 90 days and is colored in #08427B/white
+[Q16 - Acum: +$82,461] starts 2030-04-01 and lasts 91 days and is colored in #08427B/white
+
+' ═══════════════════════════════════════════════════════════════════
+-- AÑO 5 (Jul 2030 – Jun 2031)  ·  Ingresos $70,704  ·  Mant. $4,664  ·  Amort. $0  ·  Neto anual +$66,040 --
+' ═══════════════════════════════════════════════════════════════════
+
+[Q17 - Acum: +$98,971]  starts 2030-07-01 and lasts 92 days and is colored in #08427B/white
+[Q18 - Acum: +$115,481] starts 2030-10-01 and lasts 92 days and is colored in #08427B/white
+[Q19 - Acum: +$131,991] starts 2031-01-01 and lasts 90 days and is colored in #08427B/white
+[Q20 - Acum: +$148,501] starts 2031-04-01 and lasts 91 days and is colored in #08427B/white
+
+' ─────────────────────────────────────────────────────────────────────────────
+'  Hito: Punto de equilibrio
+' ─────────────────────────────────────────────────────────────────────────────
+[Equilibrio alcanzado] happens 2027-11-16
+
+' ─────────────────────────────────────────────────────────────────────────────
+'  Nota de cálculo:
+'  - Ano 1 neto trimestral: -$2,594 / 4 = -$648.50
+'  - Ano 2 neto trimestral: +$10,148 / 4 = +$2,537
+'  - Q5 finaliza con acum. -$57; el equilibrio se cruza aprox. dia 3 de Q6 (Mes 16)
+'  - Años 4–5: sin amortización; crecimiento acelerado
+' ─────────────────────────────────────────────────────────────────────────────
+
+@endgantt

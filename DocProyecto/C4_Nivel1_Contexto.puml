@@ -1,0 +1,52 @@
+@startuml C4_Nivel1_Contexto
+!include <C4/C4_Context>
+
+LAYOUT_WITH_LEGEND()
+UpdateElementStyle("external_system", $bgColor="#BEDBFF", $fontColor="black", $borderColor="#5B8FD9")
+
+title Diagrama C4 — Nivel 1: Contexto del Sistema\nCRM Inmobiliario "GestPro CRM Inmobiliario"
+
+' ─────────────────────────────────────────────
+'  PERSONAS / ACTORES
+' ─────────────────────────────────────────────
+Person(superAdmin,     "Super Administrador",  "Gestiona múltiples empresas\n(tenants) en la plataforma")
+Person(admin,          "Administrador",         "Gestiona usuarios, propiedades\ny reportes de su empresa")
+Person(agenteSenior,   "Agente Senior",         "Gestiona trámites propios y\nsupervisa el downline de Juniors")
+Person(agenteJunior,   "Agente Junior",         "Registra propiedades, clientes\ne interacciones propias")
+Person(cliente,        "Cliente / Prospecto",   "Busca propiedades en el portal\npúblico y agenda visitas")
+
+' ─────────────────────────────────────────────
+'  SISTEMA PRINCIPAL
+' ─────────────────────────────────────────────
+System(crm, "CRM Inmobiliario\nMaru Bienes y Raíces", "Plataforma SaaS multiempresa para la\ngestión de propiedades, clientes, pipeline\nde ventas, marketing y BI inmobiliario.")
+
+' ─────────────────────────────────────────────
+'  SISTEMAS EXTERNOS
+' ─────────────────────────────────────────────
+System_Ext(metaApi,       "Meta Graph API",         "Publicación automática de\npropiedades en Facebook\ne Instagram")
+System_Ext(sendgrid,      "Resend / SendGrid",       "Envío de emails transaccionales\ny campañas de marketing")
+System_Ext(mapbox,        "Mapbox / Google Maps",    "Geolocalización, visualización\nde mapas y geocodificación\nde propiedades")
+System_Ext(portales,      "Portales Externos\n(Encuentra24, MercadoLibre)", "Sindicación automática\ndel inventario de propiedades")
+System_Ext(cloudflare,    "Cloudflare\n(CDN + WAF + R2)",  "Distribución de contenido,\nprotección perimetral y\nalmacenamiento de multimedia")
+System_Ext(googleAuth,    "Google OAuth 2.0",        "Registro e inicio de sesión\nsocial para clientes\ndel portal público")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — PERSONAS → CRM
+' ─────────────────────────────────────────────
+Rel(superAdmin,    crm, "Crea y configura empresas\n(tenants); gestiona planes\ny usuarios globales")
+Rel(admin,         crm, "Administra usuarios, propiedades,\nreportes BI y configuración\nde la empresa")
+Rel(agenteSenior,  crm, "Gestiona propiedades, trámites,\ncitas, interacciones y\npublica en redes sociales")
+Rel(agenteJunior,  crm, "Registra clientes, propiedades\ne interacciones; agenda\nvisitas y reporta resultados")
+Rel(cliente,       crm, "Busca propiedades, crea perfil,\nagenda visitas y recibe\nalertas de matching")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — CRM → SISTEMAS EXTERNOS
+' ─────────────────────────────────────────────
+Rel(crm, metaApi,    "Publica y programa contenido\nen Facebook e Instagram")
+Rel(crm, sendgrid,   "Envía emails transaccionales,\nconfirmaciones y campañas")
+Rel(crm, mapbox,     "Geocodifica direcciones y\nmuestra mapas interactivos")
+Rel(crm, portales,   "Sincroniza inventario de\npropiedades bidireccionalmen")
+Rel(crm, cloudflare, "Almacena multimedia (R2),\nprotección WAF y CDN")
+Rel(crm, googleAuth, "Autentica clientes del\nportal vía OAuth 2.0")
+
+@enduml

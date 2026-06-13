@@ -1,0 +1,97 @@
+@startuml
+title **HU-05.04 — Generación de Brochure PDF y Distribución Multicanal**\n**GestPro CRM**
+skinparam backgroundColor #FAFAFA
+skinparam sequenceParticipantBorderColor #4472C4
+skinparam sequenceParticipantBackgroundColor #4472C4
+skinparam participantFontColor white
+
+skinparam sequenceLifeLineBorderColor #4472C4
+skinparam sequenceGroupBorderColor #4472C4
+skinparam sequenceDividerBackgroundColor #BEDBFF
+skinparam sequenceDividerBorderColor #4472C4
+skinparam sequenceDividerFontColor black
+
+skinparam noteBorderColor #4472C4
+skinparam noteBackgroundColor #BEDBFF
+skinparam noteFontColor black
+
+' Actor
+skinparam actorBorderColor #312C85
+skinparam actorBackgroundColor #312C85
+skinparam actorFontColor black
+
+skinparam participantFontColor black
+skinparam participantBorderColor #312C85
+skinparam databaseFontColor black
+
+actor       "**Agente / Admin**"      as AGENT
+participant "**React Web**"           as UI    #2B7FFF
+participant "**BrochureController**"  as CTRL  #2B7FFF
+database    "**PostgreSQL**"          as DB    #2B7FFF
+participant "**Redis (BullMQ)**"      as REDIS #2B7FFF
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 1: SOLICITAR GENERACIÓN DE BROCHURE
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 1: Solicitar Generación de Brochure (POST /api/propiedades/:id/brochure)** ==
+
+AGENT -> UI : Solicita generar brochure\nde una propiedad
+UI -> CTRL : POST /api/propiedades/:propiedadId/brochure
+
+CTRL -> DB : Valida propiedad (tenant_id)
+DB --> CTRL : OK / 404
+
+CTRL -> DB : INSERT brochure_jobs { status: PROCESANDO }
+CTRL -> REDIS : Encola job (3 reintentos, backoff exponencial)
+
+CTRL --> UI : HTTP 200 { jobId, status: PROCESANDO }
+UI --> AGENT : Job iniciado — puede consultar estado
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 2: PROCESAMIENTO ASÍNCRONO (WORKER)
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 2: Procesamiento Asíncrono del PDF (BullMQ Worker)** ==
+
+REDIS -> CTRL : Worker consume job { propiedadId, tenantId }
+
+CTRL -> DB : SELECT propiedad, imágenes, agente, tenant
+DB --> CTRL : datos de la propiedad
+
+CTRL -> CTRL : Genera PDF con PDFKit:\n· Branding del tenant (colores, nombre)\n· Imágenes, ficha técnica y precios\n· Datos de contacto del agente
+note right of CTRL : Sube el PDF a Cloudflare R2**\n**o a api/uploads/ (local)
+
+alt **Generación exitosa**
+  CTRL -> DB : UPDATE brochure_jobs SET status = LISTO, url = $url
+else **Error (agota reintentos)**
+  CTRL -> DB : UPDATE brochure_jobs SET status = ERROR
+end
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 3: CONSULTAR ESTADO Y DESCARGAR
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 3: Consultar Estado y Descargar (GET .../jobs/:jobId)** ==
+
+AGENT -> UI : Consulta estado del brochure**\n**(el frontend hace polling)
+UI -> CTRL : GET /api/propiedades/:id/brochure/jobs/:jobId
+CTRL -> DB : SELECT status, url FROM brochure_jobs
+DB --> CTRL : { status, url }
+
+alt **status = PROCESANDO**
+  CTRL --> UI : { status: PROCESANDO }
+  UI --> AGENT : Mostrando indicador de progreso...
+else **status = ERROR**
+  CTRL --> UI : { status: ERROR }
+  UI --> AGENT : Error en la generación
+else **status = LISTO**
+  CTRL --> UI : { status: LISTO, url }
+  UI --> AGENT : Brochure listo — descarga habilitada
+
+  AGENT -> UI : Descarga el PDF
+  UI -> CTRL : GET .../jobs/:jobId/download
+  CTRL -> DB : INSERT brochure_descargas (tracking)
+  note right of DB : Registra ip, user_id y fecha**\n**para el resumen de aperturas.
+  CTRL --> UI : { url de descarga }
+  UI --> AGENT : Inicia descarga del PDF
+end
+
+@enduml

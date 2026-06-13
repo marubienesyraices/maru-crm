@@ -1,0 +1,74 @@
+@startuml C4_Nivel2_Contenedores
+!include <C4/C4_Container>
+
+title Diagrama C4 — Nivel 2: Contenedores del Sistema\nCRM Inmobiliario "GestPro CRM Inmobiliario"
+
+LAYOUT_WITH_LEGEND()
+UpdateElementStyle("external_system", $bgColor="#BEDBFF", $fontColor="black", $borderColor="#5B8FD9")
+
+' ─────────────────────────────────────────────
+'  ACTORES EXTERNOS
+' ─────────────────────────────────────────────
+Person(agente,     "Agente Inmobiliario",  "Admin, Senior o Junior.\nGestiona propiedades, clientes y trámites.")
+Person(cliente,    "Cliente / Prospecto",  "Busca propiedades en el portal\npúblico y agenda visitas.")
+Person(superAdmin, "Super Administrador",  "Gestiona múltiples empresas\n(tenants) en la plataforma SaaS.")
+
+' ─────────────────────────────────────────────
+'  SISTEMAS EXTERNOS
+' ─────────────────────────────────────────────
+System_Ext(metaApi,     "Meta Graph API",                         "Publicación en Facebook e Instagram")
+System_Ext(sendgrid,    "Resend / SendGrid",                      "Emails transaccionales y campañas")
+System_Ext(mapbox,      "Mapbox / Google Maps",                   "Geocodificación y mapas interactivos")
+System_Ext(portales,    "Portales Externos\n(Encuentra24, MercadoLibre)", "Sindicación del inventario")
+
+' ─────────────────────────────────────────────
+'  BOUNDARY — SISTEMA CRM
+' ─────────────────────────────────────────────
+System_Boundary(crm, "GestPro CRM Inmobiliario") {
+
+    Container(webApp,    "CRM Web",          "React 18 + Vite",     "SPA para agentes y administradores.\nKanban, propiedades, clientes y BI.")
+    Container(portalSSR, "Portal Público",   "Next.js 14 SSR",      "Portal SEO para clientes.\nCatálogo, búsqueda avanzada y agendamiento.")
+    Container(mobileApp, "App Móvil",        "React Native + Expo", "App para agentes en campo.\nDashboard, agenda y modo offline básico.")
+
+    Container(api,       "API Backend",      "NestJS + TypeScript", "API REST modular.\nJWT + 2FA, RBAC jerárquico y multitenancy RLS.")
+    Container(worker,    "Worker de Jobs",   "NestJS + BullMQ",     "Jobs asincrónos: brochures PDF,\nemails y sync con portales y redes.")
+
+    ContainerDb(postgres, "Base de Datos",          "PostgreSQL 16 + PostGIS", "Fuente de verdad. RLS por tenant,\nPrisma ORM y vistas materializadas BI.")
+    ContainerDb(redis,    "Cache y Cola",            "Redis 7",                 "Cache BI (TTL 15 min),\ncola BullMQ y sesiones.")
+    ContainerDb(r2,       "Almacenamiento Archivos", "Cloudflare R2",           "Imágenes, brochures PDF\ny documentos del expediente.")
+}
+
+' ─────────────────────────────────────────────
+'  RELACIONES — ACTORES → CONTENEDORES
+' ─────────────────────────────────────────────
+Rel(agente,     webApp,    "Gestiona propiedades, trámites e interacciones")
+Rel(agente,     mobileApp, "Agenda, notificaciones y multimedia en campo")
+Rel(cliente,    portalSSR, "Busca propiedades, registra perfil y agenda citas")
+Rel(superAdmin, webApp,    "Gestiona empresas (tenants) y planes")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — CONTENEDORES INTERNOS
+' ─────────────────────────────────────────────
+Rel(webApp,    api, "Llamadas REST para todas las operaciones")
+Rel(portalSSR, api, "Fetch SSR y llamadas client-side")
+Rel(mobileApp, api, "Sincroniza datos y autenticación")
+
+Rel(api, postgres, "Lee y escribe datos via Prisma ORM + RLS")
+Rel(api, redis,    "Cache BI y gestión de sesiones")
+Rel(api, r2,       "Sube y recupera archivos multimedia")
+Rel(api, worker,   "Encola jobs asincrónos via BullMQ")
+
+Rel(worker, postgres, "Lee datos para generar contenido")
+Rel(worker, redis,    "Consume y actualiza la cola BullMQ")
+Rel(worker, r2,       "Almacena PDFs y archivos procesados")
+
+' ─────────────────────────────────────────────
+'  RELACIONES — CONTENEDORES → SISTEMAS EXTERNOS
+' ─────────────────────────────────────────────
+Rel(api, sendgrid,    "Envía emails transaccionales y campañas")
+Rel(api, mapbox,      "Geocodifica direcciones y distancias")
+
+Rel(worker, metaApi,  "Publica y programa posts en redes sociales")
+Rel(worker, portales, "Sincroniza inventario de propiedades")
+
+@enduml
