@@ -33,3 +33,9 @@ portal/portal_out.txt
 
 # Runbook personal con credenciales reales — NUNCA versionar
 despliegueVPS.md
+
+# Production env file (secretos)
+.env.production
+
+# Certificados TLS (reemplazar por reales en producción)
+infra/certs/*.pem

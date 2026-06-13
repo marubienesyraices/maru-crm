@@ -1,12 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import ChatbotWidget from '@/components/ChatbotWidget';
 import BackToTop from '@/components/BackToTop';
 import { PortalConfigProvider } from '@/components/PortalConfigProvider';
 import { getPortalConfig, displayName } from '@/lib/portal-config';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap' });
+// Fuente local (no depende de Google Fonts en build time)
+const inter = localFont({
+  src: './fonts/Inter-Variable.woff2',
+  display: 'swap',
+  weight: '100 900',
+});
 
 // ─── Dynamic metadata ─────────────────────────────────────────────────────────
 

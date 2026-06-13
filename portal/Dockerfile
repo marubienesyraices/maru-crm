@@ -1,8 +1,10 @@
 # ─── Stage 1: deps ───────────────────────────────────────────────────────────
+# El portal no depende de otros workspaces: se instala aislado para evitar
+# duplicados de react/react-dom que provoca el hoisting del monorepo.
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY portal/package*.json ./
-RUN npm ci --ignore-scripts
+COPY portal/package.json ./
+RUN npm install --ignore-scripts
 
 # ─── Stage 2: build ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
@@ -25,9 +27,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup -S maru && adduser -S maru -G maru
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.js ./next.config.js
 
 RUN chown -R maru:maru /app
 USER maru
@@ -35,4 +38,4 @@ USER maru
 EXPOSE 3001
 ENV PORT=3001
 
-CMD ["node", "server.js"]
+CMD ["npx", "next", "start", "-p", "3001"]
