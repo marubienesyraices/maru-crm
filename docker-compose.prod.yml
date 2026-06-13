@@ -76,6 +76,7 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - external
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1" ]
       interval: 30s
@@ -173,6 +174,7 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - external
 
 networks:
   internal:
