@@ -31,8 +31,9 @@ comisionsugerida.jpg
 portal/portal_err.txt
 portal/portal_out.txt
 
-# Runbook personal con credenciales reales — NUNCA versionar
+# Runbooks personales con credenciales reales — NUNCA versionar
 despliegueVPS.md
+despliegueQA.md
 
 # Production env file (secretos)
 .env.production
