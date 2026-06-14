@@ -2,7 +2,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-RUN echo "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000" > /root/.npmrc
+RUN printf "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000\n" > /root/.npmrc
 
 COPY package*.json ./
 COPY api/package*.json ./api/
@@ -32,7 +32,7 @@ RUN npm run build
 FROM node:20-alpine AS migrator
 WORKDIR /app
 
-RUN echo "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000" > /root/.npmrc
+RUN printf "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000\n" > /root/.npmrc
 
 COPY package*.json ./
 COPY api/package*.json ./api/
@@ -55,7 +55,7 @@ WORKDIR /app
 
 RUN addgroup -S maru && adduser -S maru -G maru
 
-RUN echo "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000" > /root/.npmrc
+RUN printf "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000\n" > /root/.npmrc
 
 # Solo deps de producción
 COPY package*.json ./
