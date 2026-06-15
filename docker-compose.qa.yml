@@ -159,7 +159,6 @@ services:
       - "443:443"
     volumes:
       - ./infra/nginx/nginx.qa.conf:/etc/nginx/nginx.conf:ro
-      - ./infra/certs-qa:/etc/nginx/certs-qa:ro
       - nginx_logs_qa:/var/log/nginx
     depends_on:
       - api
