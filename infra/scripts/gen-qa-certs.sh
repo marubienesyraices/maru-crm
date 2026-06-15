@@ -2,17 +2,15 @@
 # Genera certificado self-signed wildcard para QA local
 # Ejecutar en la VM Ubuntu: bash infra/scripts/gen-qa-certs.sh
 #
-# El certificado cubre: api-qa.gestprop.net, crm-qa.gestprop.net, qa.gestprop.net
+# El certificado cubre: api.gestpropqa.net, crm.gestpropqa.net, portal.gestpropqa.net
 # Válido por 825 días (límite aceptado por los browsers modernos)
 
 set -e
 
 CERTS_DIR="infra/certs-qa"
-DOMAIN="gestprop.net"
 
 mkdir -p "$CERTS_DIR"
 
-# Archivo de extensiones SAN (Subject Alternative Names)
 cat > /tmp/qa-san.cnf <<EOF
 [req]
 default_bits       = 2048
@@ -26,7 +24,7 @@ C  = GT
 ST = Guatemala
 L  = Guatemala
 O  = GestProp QA
-CN = qa.gestprop.net
+CN = gestpropqa.net
 
 [v3_req]
 subjectAltName = @alt_names
@@ -34,9 +32,9 @@ keyUsage       = digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 
 [alt_names]
-DNS.1 = api-qa.gestprop.net
-DNS.2 = crm-qa.gestprop.net
-DNS.3 = qa.gestprop.net
+DNS.1 = api.gestpropqa.net
+DNS.2 = crm.gestpropqa.net
+DNS.3 = portal.gestpropqa.net
 EOF
 
 openssl req -x509 -nodes -days 825 \
@@ -48,9 +46,10 @@ openssl req -x509 -nodes -days 825 \
 echo ""
 echo "Certificados generados en $CERTS_DIR/"
 echo ""
-echo "Siguiente paso — importar el CA en Windows para evitar el aviso del browser:"
-echo "  1. Copia $CERTS_DIR/fullchain.pem a tu máquina Windows"
-echo "  2. Renómbralo a gestprop-qa.crt"
-echo "  3. Doble clic → Instalar certificado → Equipo local → Entidades de certificación raíz de confianza"
+echo "Siguiente paso — importar el CA en Windows:"
+echo "  1. scp user@<IP_VM>:/ruta/gestprop/infra/certs-qa/fullchain.pem C:\proyectos\gestpropqa.crt"
+echo "  2. Doble clic en gestpropqa.crt → Instalar certificado → Equipo local"
+echo "     → Entidades de certificación raíz de confianza"
 echo ""
-echo "O en Chrome/Edge: chrome://flags/#allow-insecure-localhost (solo para localhost)"
+echo "Agregar al hosts de Windows (C:\Windows\System32\drivers\etc\hosts):"
+echo "  <IP_VM>  api.gestpropqa.net  crm.gestpropqa.net  portal.gestpropqa.net"
