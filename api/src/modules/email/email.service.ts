@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
+import { ConfigSistemaService } from '../config-sistema/config-sistema.service';
 
 export interface SendEmailParams {
   to: string;
@@ -20,37 +21,47 @@ export interface SendEmailParams {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly globalResend: Resend | null;
-  private readonly globalFrom: string;
   private readonly appUrl: string;
   private readonly frontendUrl: string;
+  private readonly envFallbackKey: string | null;
+  private readonly envFallbackFrom: string;
   /** Cache of per-tenant Resend clients keyed by tenantId. */
   private readonly clientCache = new Map<string, { resend: Resend | null; from: string }>();
+  /** In-memory cache for the resolved system client (TTL managed by ConfigSistemaService). */
+  private systemClientCache: { resend: Resend | null; from: string } | null = null;
+  private systemClientExpiresAt = 0;
 
   constructor(
     private config: ConfigService,
     @Optional() private readonly prisma?: PrismaService,
     @Optional() private readonly integraciones?: ConfigIntegracionesService,
+    @Optional() private readonly configSistema?: ConfigSistemaService,
   ) {
-    const apiKey = config.get<string>('RESEND_API_KEY');
-    this.globalResend = apiKey ? new Resend(apiKey) : null;
-    this.globalFrom    = config.get<string>('EMAIL_FROM') ?? 'GestProp CRM <onboarding@resend.dev>';
-    this.appUrl        = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
-    this.frontendUrl   = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.envFallbackKey  = config.get<string>('RESEND_API_KEY') ?? null;
+    this.envFallbackFrom = config.get<string>('EMAIL_FROM') ?? 'GestProp CRM <onboarding@resend.dev>';
+    this.appUrl          = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    this.frontendUrl     = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
   }
 
   get isConfigured(): boolean {
-    return this.globalResend !== null;
+    return this.envFallbackKey !== null;
   }
 
-  /** Invalidate cached client so the next send re-reads credentials from DB. */
+  /** Invalidate cached tenant client so the next send re-reads credentials from DB. */
   invalidateTenantCache(tenantId: string) {
     this.clientCache.delete(tenantId);
   }
 
-  // ─── System emails: always use global env-var credentials ──────────
-  // Use for auth flows (account activation, password reset) so they
-  // are never tied to a tenant's own Resend account.
+  /** Invalidate cached system client so the next send re-reads from DB. */
+  invalidateSystemCache() {
+    this.systemClientCache = null;
+    this.systemClientExpiresAt = 0;
+    this.configSistema?.invalidateCache();
+  }
+
+  // ─── System emails: use SUPER_ADMIN-managed credentials from DB ──────────
+  // Used for auth flows (account activation, password reset) and CRM agent
+  // notifications. Falls back to RESEND_API_KEY env var when DB has no config.
   async sendSystemEmail(params: {
     to: string;
     subject: string;
@@ -58,7 +69,8 @@ export class EmailService {
     body: string;
     cta?: { label: string; url: string };
   }): Promise<void> {
-    if (!this.globalResend) return;
+    const { resend, from } = await this.resolveSystemClient();
+    if (!resend) return;
 
     const ctaHtml = params.cta
       ? `<a href="${params.cta.url}"
@@ -104,7 +116,7 @@ export class EmailService {
 </html>`;
 
     try {
-      await this.globalResend.emails.send({ from: this.globalFrom, to: [params.to], subject: params.subject, html });
+      await resend.emails.send({ from, to: [params.to], subject: params.subject, html });
     } catch (err) {
       this.logger.error(`sendSystemEmail failed to ${params.to}: ${err}`);
     }
@@ -202,9 +214,7 @@ export class EmailService {
   }
 
   async send(params: SendEmailParams): Promise<void> {
-    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
-
-    const { resend, from } = await this.resolveClient(params.tenantId);
+    const { resend, from } = await this.resolveSystemClient();
     if (!resend) return;
 
     let eventId: string | undefined;
@@ -240,6 +250,25 @@ export class EmailService {
 
   // ─── Private helpers ────────────────────────────────────────
 
+  /** Resolves the system-level Resend client from ConfigSistema DB (60s TTL), falling back to env vars. */
+  private async resolveSystemClient(): Promise<{ resend: Resend | null; from: string }> {
+    if (this.systemClientCache && Date.now() < this.systemClientExpiresAt) {
+      return this.systemClientCache;
+    }
+
+    if (this.configSistema) {
+      const creds = await this.configSistema.getSystemCredentials();
+      const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : null;
+      this.systemClientCache = { resend, from: creds.email_from };
+    } else {
+      const resend = this.envFallbackKey ? new Resend(this.envFallbackKey) : null;
+      this.systemClientCache = { resend, from: this.envFallbackFrom };
+    }
+
+    this.systemClientExpiresAt = Date.now() + 60_000;
+    return this.systemClientCache;
+  }
+
   private async planAllowsEmail(tenantId: string): Promise<boolean> {
     if (!this.prisma) return true;
     try {
@@ -259,8 +288,10 @@ export class EmailService {
   }
 
   private async resolveClient(tenantId?: string): Promise<{ resend: Resend | null; from: string }> {
+    const envResend = this.envFallbackKey ? new Resend(this.envFallbackKey) : null;
+
     if (!tenantId || !this.integraciones) {
-      return { resend: this.globalResend, from: this.globalFrom };
+      return { resend: envResend, from: this.envFallbackFrom };
     }
 
     if (this.clientCache.has(tenantId)) {
@@ -268,8 +299,8 @@ export class EmailService {
     }
 
     const creds = await this.integraciones.getCredentials(tenantId);
-    const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : this.globalResend;
-    const from   = creds.email_from ?? this.globalFrom;
+    const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : envResend;
+    const from   = creds.email_from ?? this.envFallbackFrom;
     const entry  = { resend, from };
     this.clientCache.set(tenantId, entry);
     return entry;

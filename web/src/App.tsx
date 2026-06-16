@@ -35,6 +35,7 @@ import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPag
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
 import AuditPage from './pages/Audit/AuditPage';
 import OrgChartPage from './pages/Admin/OrgChart/OrgChartPage';
+import AdminSistemaPage from './pages/Admin/AdminSistemaPage';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/planes" element={<AdminPlanesPage />} />
           <Route path="/admin/organigrama" element={<OrgChartPage />} />
+          <Route path="/admin/sistema" element={<AdminSistemaPage />} />
           <Route path="/auditoria" element={<AuditPage />} />
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
           <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />

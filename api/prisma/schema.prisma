@@ -143,6 +143,16 @@ model ConfigIntegraciones {
   @@map("config_integraciones")
 }
 
+model ConfigSistema {
+  id             String   @id @default("singleton")
+  resend_api_key String?
+  email_from     String?
+  updated_at     DateTime @updatedAt
+  updated_by     String?
+
+  @@map("config_sistema")
+}
+
 model ConfigPortal {
   id        String @id @default(uuid())
   tenant_id String @unique

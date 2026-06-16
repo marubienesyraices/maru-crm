@@ -38,6 +38,7 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { EncryptionModule } from './common/encryption/encryption.module';
 import { ConfigIntegracionesModule } from './modules/config-integraciones/config-integraciones.module';
 import { ConfigPortalModule } from './modules/config-portal/config-portal.module';
+import { ConfigSistemaModule } from './modules/config-sistema/config-sistema.module';
 import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.module';
 import { BusquedasModule } from './modules/busquedas/busquedas.module';
 
@@ -98,6 +99,7 @@ import { BusquedasModule } from './modules/busquedas/busquedas.module';
     VideollamadasModule,
     ConfigIntegracionesModule,
     ConfigPortalModule,
+    ConfigSistemaModule,
     CatalogoPlanesModule,
     BusquedasModule,
     ServeStaticModule.forRoot({

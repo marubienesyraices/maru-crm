@@ -294,3 +294,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   config_integraciones,
   config_portal
 TO gestprop_app;
+
+-- ── config_sistema ──────────────────────────────────────────
+-- Tabla singleton sin tenant_id. Solo accesible con bypass_rls = 'true'
+-- (SUPER_ADMIN). Los agentes de tenant nunca pueden leerla ni modificarla.
+ALTER TABLE config_sistema ENABLE ROW LEVEL SECURITY;
+CREATE POLICY superadmin_only_config_sistema ON config_sistema
+  USING (current_setting('app.bypass_rls', true)::text = 'true');
+CREATE POLICY superadmin_only_insert_config_sistema ON config_sistema
+  FOR INSERT WITH CHECK (current_setting('app.bypass_rls', true)::text = 'true');
+ALTER TABLE config_sistema FORCE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE ON config_sistema TO gestprop_app;
