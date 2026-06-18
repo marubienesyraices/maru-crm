@@ -14,7 +14,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY portal/ .
 
 ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_MAPBOX_TOKEN
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
