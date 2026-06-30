@@ -81,7 +81,7 @@ const PAISES = Object.keys(REGIONES_POR_PAIS);
 export default function PropertyFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accessToken, planFeatures, rol } = useAuthStore();
+  const { accessToken, planFeatures, user } = useAuthStore();
   const toast = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -116,7 +116,7 @@ export default function PropertyFormPage() {
   });
 
   // Agentes válidos para asignación (solo visible para ADMIN/SUPER_ADMIN)
-  const canAssignAgente = rol === 'ADMIN' || rol === 'SUPER_ADMIN';
+  const canAssignAgente = user?.rol === 'ADMIN' || user?.rol === 'SUPER_ADMIN';
   const { data: agentesDisponibles = [] } = useQuery<any[]>({
     queryKey: ['agentes-propiedad'],
     queryFn: () => apiRequest('/api/users/agentes-propiedad', { token: accessToken! }),
