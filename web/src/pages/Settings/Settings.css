@@ -113,3 +113,246 @@
 
 /* Section divider */
 .settings-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 20px 0; }
+
+/* ── SettingsDocumentosPage ──────────────────────────────── */
+
+/* Template editor layout */
+.doc-editor-wrap {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .doc-editor-wrap { grid-template-columns: 1fr; }
+}
+.doc-editor-wrap textarea {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 480px;
+  resize: vertical;
+  tab-size: 2;
+}
+
+/* Variables reference panel */
+.doc-vars-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-vars-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0;
+}
+.doc-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 440px;
+  overflow-y: auto;
+}
+.doc-var-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.doc-var-item:hover { background: var(--bg-card); }
+.doc-var-tag {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+.doc-var-desc { font-size: 0.6875rem; color: var(--text-muted); }
+
+/* Brochure section list */
+.brochure-sections { display: flex; flex-direction: column; gap: 6px; }
+.brochure-section-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  transition: box-shadow 0.15s, opacity 0.15s;
+  user-select: none;
+}
+.brochure-section-row.dragging {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  opacity: 0.9;
+  z-index: 999;
+}
+.drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.12s;
+}
+.drag-handle:hover { color: var(--text-secondary); }
+.drag-handle:active { cursor: grabbing; }
+.section-label-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-input, #151b2e);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.section-label-input:focus { border-color: var(--border-focus); }
+.section-label-input:disabled { opacity: 0.45; }
+.section-id-badge {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.doc-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-settings-ghost {
+  padding: 7px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-settings-ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.btn-settings-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-settings-danger {
+  padding: 7px 16px;
+  background: transparent;
+  color: var(--accent-red, #ef4444);
+  border: 1px solid var(--accent-red, #ef4444);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-settings-danger:hover:not(:disabled) {
+  background: rgba(239,68,68,0.08);
+}
+.btn-settings-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── SettingsEmpresaPage ──────────────────────────────────── */
+.empresa-logo-area {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.empresa-logo-preview {
+  width: 160px;
+  height: 100px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.empresa-logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.empresa-logo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.empresa-logo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.empresa-drop-zone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border: 1.5px dashed var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.empresa-drop-zone:hover,
+.empresa-drop-zone.dragging {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.empresa-drop-zone:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.empresa-remove-logo {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.empresa-remove-logo:hover:not(:disabled) {
+  color: var(--accent-red, #ef4444);
+  border-color: var(--accent-red, #ef4444);
+}
+
+.empresa-remove-logo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

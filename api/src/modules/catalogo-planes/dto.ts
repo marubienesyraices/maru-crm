@@ -21,4 +21,16 @@ export class UpdateCatalogoPlanDto {
 
   @IsOptional() @IsBoolean()
   tiene_integraciones?: boolean;
+
+  @IsOptional() @IsBoolean()
+  tiene_meta?: boolean;
+
+  @IsOptional() @IsBoolean()
+  tiene_mapas?: boolean;
+
+  @IsOptional() @IsBoolean()
+  tiene_ranking?: boolean;
+
+  @IsOptional() @IsBoolean()
+  tiene_organigrama?: boolean;
 }

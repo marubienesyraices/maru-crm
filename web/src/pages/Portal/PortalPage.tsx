@@ -244,7 +244,7 @@ function MapboxMap({ properties, activeId, onSelect }: {
 
 export default function PortalPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, planFeatures } = useAuthStore();
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -371,6 +371,7 @@ export default function PortalPage() {
         </div>
 
         {/* Map */}
+        {planFeatures?.tiene_mapas && (
         <div className="portal-map-container">
           <MapboxMap
             properties={properties}
@@ -378,6 +379,7 @@ export default function PortalPage() {
             onSelect={(id) => setActiveId(id)}
           />
         </div>
+        )}
       </div>
     </div>
   );

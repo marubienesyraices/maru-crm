@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { Plan, EstadoTenant } from '@prisma/client';
-import { CreateTenantDto, UpdateTenantDto } from './dto';
+import { CreateTenantDto, UpdateTenantDto, UpdateConfigSeguridadDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
@@ -74,6 +74,7 @@ export class TenantsService {
       select: {
         tiene_correo: true, tiene_campanas: true, tiene_portal: true,
         tiene_sitio_propio: true, tiene_integraciones: true, tiene_meta: true,
+        tiene_mapas: true, tiene_ranking: true, tiene_organigrama: true,
       },
     });
 
@@ -159,6 +160,25 @@ export class TenantsService {
     }
 
     return updated;
+  }
+
+  async updateConfigSeguridad(tenantId: string, dto: UpdateConfigSeguridadDto) {
+    return this.prisma.configSeguridad.upsert({
+      where: { tenant_id: tenantId },
+      create: {
+        tenant_id: tenantId,
+        porcentaje_iva: dto.porcentaje_iva,
+        comision_pct_venta_default: dto.comision_pct_venta_default,
+        dias_inactividad_lead: dto.dias_inactividad_lead ?? 21,
+        buffer_entre_citas_min: dto.buffer_entre_citas_min ?? 30,
+      },
+      update: {
+        ...(dto.porcentaje_iva !== undefined && { porcentaje_iva: dto.porcentaje_iva }),
+        ...(dto.comision_pct_venta_default !== undefined && { comision_pct_venta_default: dto.comision_pct_venta_default }),
+        ...(dto.dias_inactividad_lead !== undefined && { dias_inactividad_lead: dto.dias_inactividad_lead }),
+        ...(dto.buffer_entre_citas_min !== undefined && { buffer_entre_citas_min: dto.buffer_entre_citas_min }),
+      },
+    });
   }
 
   async cancelTenant(id: string) {

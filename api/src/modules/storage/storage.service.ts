@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
@@ -46,7 +46,9 @@ export class StorageService {
       return `${base}/${filename}`;
     }
 
-    await writeFile(join(this.uploadDir, filename), buffer);
+    const dest = join(this.uploadDir, filename);
+    await mkdir(join(dest, '..'), { recursive: true });
+    await writeFile(dest, buffer);
     return `/uploads/${filename}`;
   }
 
@@ -77,5 +79,23 @@ export class StorageService {
     if (!this.isLocal()) return null;
     const filename = url.replace('/uploads/', '');
     return join(this.uploadDir, filename);
+  }
+
+  async readBuffer(url: string): Promise<Buffer | null> {
+    try {
+      if (this.isLocal() && !url.startsWith('http')) {
+        const path = this.localPath(url);
+        if (!path || !existsSync(path)) return null;
+        return await readFile(path);
+      }
+      if (url.startsWith('http')) {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return Buffer.from(await res.arrayBuffer());
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }

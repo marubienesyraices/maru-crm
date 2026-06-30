@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useSindicacion, usePublicarPortal, useRetirarPortal } from '../../hooks/useSindicacion';
 import { useFirmaSolicitudes, useSolicitarFirma } from '../../hooks/useFirma';
+import { useDeletePropiedad } from '../../hooks/usePropiedades';
 import ImageUpload from '../../components/ImageUpload';
 import DocumentUpload from '../../components/DocumentUpload';
 import { useToast } from '../../components/Toast';
@@ -301,10 +302,16 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate();
   const { accessToken, user, planFeatures } = useAuthStore();
   const toast = useToast();
+  const confirm = useConfirm();
+  const deletePropiedad = useDeletePropiedad();
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
   const [cartaState, setCartaState] = useState<'idle' | 'generating' | 'error'>('idle');
+
+  // Detecta si ya existe un brochure / carta en el expediente
+  const hasBrochure = propiedad?.documentos?.some((d: any) => d.nombre?.startsWith('Brochure PDF -')) ?? false;
+  const hasCarta    = propiedad?.documentos?.some((d: any) => d.nombre?.startsWith('Carta de Comisión —')) ?? false;
 
   // WhatsApp modal
   const [waOpen, setWaOpen] = useState(false);
@@ -327,6 +334,23 @@ export default function PropertyDetailPage() {
   }, [id, accessToken]);
 
   useEffect(() => { fetchProperty(); }, [fetchProperty]);
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: '¿Eliminar propiedad?',
+      message: `Se eliminará permanentemente "${propiedad.titulo}" junto con todas sus imágenes, documentos y publicaciones. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    deletePropiedad.mutate(propiedad.id, {
+      onSuccess: () => {
+        toast.success('Propiedad eliminada correctamente');
+        navigate('/propiedades');
+      },
+      onError: (err: any) => toast.error(err.message ?? 'Error al eliminar la propiedad'),
+    });
+  };
 
   const handleEstado = async (nuevoEstado: string) => {
     try {
@@ -458,6 +482,16 @@ export default function PropertyDetailPage() {
             </svg>
             Editar
           </button>
+          {user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && ['BORRADOR', 'SUSPENDIDA'].includes(propiedad.estado) && (
+            <button
+              className="btn btn-ghost"
+              style={{ color: '#ef4444', borderColor: '#ef444466' }}
+              onClick={handleDelete}
+              disabled={deletePropiedad.isPending}
+            >
+              {deletePropiedad.isPending ? '⏳ Eliminando...' : 'Eliminar'}
+            </button>
+          )}
           <span className="prop-badge-estado" style={{ background: ESTADO_COLORS[propiedad.estado], position: 'static', fontSize: '0.8125rem', padding: '6px 14px' }}>
             {propiedad.estado.replace('_', ' ')}
           </span>
@@ -686,12 +720,16 @@ export default function PropertyDetailPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
 
           {/* Brochure PDF */}
-          <div className="doc-gen-card">
+          <div className={`doc-gen-card${hasBrochure ? ' doc-gen-card-disabled' : ''}`}>
             <div className="doc-gen-card-header">
               <span className="doc-gen-icon">🏷️</span>
               <div>
                 <div className="doc-gen-title">Brochure PDF</div>
-                <div className="doc-gen-desc">Ficha de la propiedad con fotos, descripción y datos de contacto</div>
+                <div className="doc-gen-desc">
+                  {hasBrochure
+                    ? 'Ya existe un brochure en el expediente. Elimínalo para generar uno nuevo.'
+                    : 'Ficha de la propiedad con fotos, descripción y datos de contacto'}
+                </div>
               </div>
             </div>
             {brochureState === 'generating' && (
@@ -704,24 +742,27 @@ export default function PropertyDetailPage() {
             )}
             <button
               onClick={handleBrochure}
-              disabled={brochureState === 'generating'}
+              disabled={hasBrochure || brochureState === 'generating'}
               className="btn btn-ghost"
               style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
+              title={hasBrochure ? 'Elimina el brochure del expediente para generar uno nuevo' : undefined}
             >
-              {brochureState === 'generating' ? 'Generando…' : 'Generar y descargar'}
+              {brochureState === 'generating' ? 'Generando…' : hasBrochure ? 'Ya generado' : 'Generar y descargar'}
             </button>
           </div>
 
           {/* Carta de Comisión */}
-          <div className={`doc-gen-card${!propiedad.comision_porcentaje ? ' doc-gen-card-disabled' : ''}`}>
+          <div className={`doc-gen-card${(!propiedad.comision_porcentaje || hasCarta) ? ' doc-gen-card-disabled' : ''}`}>
             <div className="doc-gen-card-header">
               <span className="doc-gen-icon">📄</span>
               <div>
                 <div className="doc-gen-title">Carta de Comisión</div>
                 <div className="doc-gen-desc">
-                  {propiedad.comision_porcentaje
-                    ? `Comisión: ${propiedad.comision_porcentaje}%`
-                    : 'Requiere ingresar el porcentaje de comisión en los datos de la propiedad'}
+                  {!propiedad.comision_porcentaje
+                    ? 'Requiere ingresar el porcentaje de comisión en los datos de la propiedad'
+                    : hasCarta
+                      ? 'Ya existe una carta en el expediente. Elimínala para generar una nueva.'
+                      : `Comisión: ${propiedad.comision_porcentaje}%`}
                 </div>
               </div>
             </div>
@@ -735,12 +776,18 @@ export default function PropertyDetailPage() {
             )}
             <button
               onClick={handleCartaComision}
-              disabled={!propiedad.comision_porcentaje || cartaState === 'generating'}
+              disabled={!propiedad.comision_porcentaje || hasCarta || cartaState === 'generating'}
               className="btn btn-ghost"
               style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
-              title={!propiedad.comision_porcentaje ? 'Ingresa el % de comisión en los datos de la propiedad' : undefined}
+              title={
+                !propiedad.comision_porcentaje
+                  ? 'Ingresa el % de comisión en los datos de la propiedad'
+                  : hasCarta
+                    ? 'Elimina la carta del expediente para generar una nueva'
+                    : undefined
+              }
             >
-              {cartaState === 'generating' ? 'Generando…' : 'Generar y descargar'}
+              {cartaState === 'generating' ? 'Generando…' : hasCarta ? 'Ya generada' : 'Generar y descargar'}
             </button>
           </div>
 

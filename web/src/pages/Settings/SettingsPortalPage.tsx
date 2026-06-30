@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
@@ -69,6 +70,64 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     </div>
   );
 }
+
+function ColorField({
+  label, hint, placeholder, value, onChange,
+}: {
+  label: string; hint: string; placeholder: string;
+  value: string; onChange: (v: string) => void;
+}) {
+  const isValid = /^#[0-9A-Fa-f]{3,6}$/.test(value);
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  return (
+    <Field label={label} hint={hint}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+        <div style={{ position: 'relative' }} ref={popoverRef}>
+          <div
+            onClick={() => setOpen((o) => !o)}
+            style={{
+              width: 44, height: 36, borderRadius: 6, flexShrink: 0,
+              background: isValid ? value : 'var(--bg-secondary)',
+              border: '1px solid var(--border-subtle)',
+              cursor: 'pointer'
+            }}
+          />
+          {open && (
+            <div style={{
+              position: 'absolute', top: 40, left: 0, zIndex: 100,
+              padding: 10, background: 'var(--bg-card)', 
+              borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <HexColorPicker color={isValid ? value : '#000000'} onChange={onChange} />
+            </div>
+          )}
+        </div>
+        
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ flex: 1 }}
+        />
+      </div>
+    </Field>
+  );
+}
+
 
 function Field({
   label, hint, children, full,
@@ -316,24 +375,27 @@ export default function SettingsPortalPage() {
               <Field label="URL del logotipo" hint="URL pública de la imagen (PNG/SVG recomendado)">
                 <input value={branding.logo_url ?? ''} onChange={(e) => setBranding((b) => ({ ...b, logo_url: e.target.value || null }))} placeholder="https://..." />
               </Field>
-              <Field label="Color primario" hint="Color principal de la marca (botones, acentos). Ej: #1E3A5F">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input type="color" value={branding.color_primario || '#1E3A5F'} onChange={(e) => setBranding((b) => ({ ...b, color_primario: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
-                  <input value={branding.color_primario ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_primario: e.target.value || null }))} placeholder="#1E3A5F" style={{ flex: 1 }} />
-                </div>
-              </Field>
-              <Field label="Color secundario" hint="Color complementario. Ej: #F5A623">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input type="color" value={branding.color_secundario || '#F5A623'} onChange={(e) => setBranding((b) => ({ ...b, color_secundario: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
-                  <input value={branding.color_secundario ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_secundario: e.target.value || null }))} placeholder="#F5A623" style={{ flex: 1 }} />
-                </div>
-              </Field>
-              <Field label="Color de acento" hint="Color para destacar elementos activos. Ej: #10B981">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input type="color" value={branding.color_acento || '#10B981'} onChange={(e) => setBranding((b) => ({ ...b, color_acento: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }} />
-                  <input value={branding.color_acento ?? ''} onChange={(e) => setBranding((b) => ({ ...b, color_acento: e.target.value || null }))} placeholder="#10B981" style={{ flex: 1 }} />
-                </div>
-              </Field>
+              <ColorField
+                label="Color primario"
+                hint="Color principal de la marca (botones, acentos). Ej: #1E3A5F"
+                placeholder="#1E3A5F"
+                value={branding.color_primario || '#1E3A5F'}
+                onChange={(v) => setBranding((b) => ({ ...b, color_primario: v }))}
+              />
+              <ColorField
+                label="Color secundario"
+                hint="Color complementario. Ej: #F5A623"
+                placeholder="#F5A623"
+                value={branding.color_secundario || '#F5A623'}
+                onChange={(v) => setBranding((b) => ({ ...b, color_secundario: v }))}
+              />
+              <ColorField
+                label="Color de acento"
+                hint="Color para destacar elementos activos. Ej: #10B981"
+                placeholder="#10B981"
+                value={branding.color_acento || '#10B981'}
+                onChange={(v) => setBranding((b) => ({ ...b, color_acento: v }))}
+              />
             </div>
             <SaveBar saving={saving} msg={savedMsg} onSave={saveBranding} />
           </div>
@@ -471,22 +533,13 @@ export default function SettingsPortalPage() {
             </div>
           </div>
           <div className="settings-grid">
-            <Field label="Color primario" hint="Hex color, ej: #2563eb. Se usa en el encabezado y acentos del PDF.">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="color"
-                  value={carta.carta_color_primario || '#2563eb'}
-                  onChange={(e) => setCarta((prev) => ({ ...prev, carta_color_primario: e.target.value }))}
-                  style={{ width: 44, height: 36, padding: 2, cursor: 'pointer', borderRadius: 6 }}
-                />
-                <input
-                  value={carta.carta_color_primario}
-                  onChange={(e) => setCarta((prev) => ({ ...prev, carta_color_primario: e.target.value }))}
-                  placeholder="#2563eb"
-                  style={{ flex: 1 }}
-                />
-              </div>
-            </Field>
+            <ColorField
+              label="Color primario"
+              hint="Hex color, ej: #2563eb. Se usa en el encabezado y acentos del PDF."
+              placeholder="#2563eb"
+              value={carta.carta_color_primario || '#2563eb'}
+              onChange={(v) => setCarta((prev) => ({ ...prev, carta_color_primario: v }))}
+            />
             <Field label="Tagline / subtítulo" hint="Texto debajo del nombre de la empresa en el PDF.">
               <input
                 value={carta.carta_tagline}

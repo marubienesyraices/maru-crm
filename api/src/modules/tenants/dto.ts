@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsEnum, IsDateString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsEnum, IsDateString, IsNumber, Min, Max } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateTenantDto {
@@ -72,4 +72,18 @@ export class UpdateTenantDto {
 
   @IsOptional() @Transform(({ value }) => value || undefined) @IsDateString()
   trialHasta?: string;
+}
+
+export class UpdateConfigSeguridadDto {
+  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  porcentaje_iva?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(100)
+  comision_pct_venta_default?: number;
+
+  @IsOptional() @IsInt() @Min(1)
+  dias_inactividad_lead?: number;
+
+  @IsOptional() @IsInt() @Min(0)
+  buffer_entre_citas_min?: number;
 }

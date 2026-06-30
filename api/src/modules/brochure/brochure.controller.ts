@@ -37,6 +37,14 @@ export class BrochureController {
     });
     if (!propiedad) throw new NotFoundException('Propiedad no encontrada');
 
+    const docExistente = await this.prisma.propiedadDocumento.findFirst({
+      where: { propiedad_id: propiedadId, nombre: { startsWith: 'Brochure PDF -' } },
+      select: { id: true },
+    });
+    if (docExistente) {
+      throw new BadRequestException('Ya existe un brochure generado para esta propiedad. Elimínalo del expediente antes de generar uno nuevo.');
+    }
+
     const jobDbId = randomUUID();
 
     await this.prisma.brochureJob.create({

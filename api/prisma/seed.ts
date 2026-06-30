@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { DEFAULT_BROCHURE_SECTIONS } from '../src/modules/config-documentos/brochure-sections.default';
+import { Prisma } from '@prisma/client';
 
 // Load .env from project root (one level up from api/)
 config({ path: resolve(__dirname, '../../.env') });
@@ -24,10 +26,10 @@ async function main() {
 
   // ─── 0. Catálogo de planes ───────────────────────────────
   const catalogoPlanes = [
-    { plan: 'FREE'       as const, limite_usuarios: 1,  limite_propiedades: 5,   tiene_correo: false, tiene_campanas: false, tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false },
-    { plan: 'BASIC'      as const, limite_usuarios: 3,  limite_propiedades: 25,  tiene_correo: true,  tiene_campanas: true,  tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false },
-    { plan: 'PRO'        as const, limite_usuarios: 5,  limite_propiedades: 100, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: false, tiene_meta: true  },
-    { plan: 'ENTERPRISE' as const, limite_usuarios: 25, limite_propiedades: 500, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: true,  tiene_meta: true  },
+    { plan: 'FREE'       as const, limite_usuarios: 1,  limite_propiedades: 5,   tiene_correo: false, tiene_campanas: false, tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false, tiene_mapas: false, tiene_ranking: false, tiene_organigrama: false },
+    { plan: 'BASIC'      as const, limite_usuarios: 3,  limite_propiedades: 25,  tiene_correo: true,  tiene_campanas: true,  tiene_portal: false, tiene_sitio_propio: false, tiene_integraciones: false, tiene_meta: false, tiene_mapas: false, tiene_ranking: false, tiene_organigrama: false },
+    { plan: 'PRO'        as const, limite_usuarios: 5,  limite_propiedades: 100, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: false, tiene_meta: true,  tiene_mapas: true,  tiene_ranking: true,  tiene_organigrama: true  },
+    { plan: 'ENTERPRISE' as const, limite_usuarios: 25, limite_propiedades: 500, tiene_correo: true,  tiene_campanas: true,  tiene_portal: true,  tiene_sitio_propio: true,  tiene_integraciones: true,  tiene_meta: true,  tiene_mapas: true,  tiene_ranking: true,  tiene_organigrama: true  },
   ];
 
   for (const config of catalogoPlanes) {
@@ -98,6 +100,15 @@ async function main() {
       dias_inactividad_lead: 21,
       senior_puede_ver_upline: false,
       buffer_entre_citas_min: 30,
+    },
+  });
+
+  await prisma.configBrochure.upsert({
+    where: { tenant_id: demoTenant.id },
+    update: {},
+    create: {
+      tenant_id: demoTenant.id,
+      secciones: DEFAULT_BROCHURE_SECTIONS as unknown as Prisma.InputJsonValue,
     },
   });
 

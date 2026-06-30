@@ -39,6 +39,7 @@ import { EncryptionModule } from './common/encryption/encryption.module';
 import { ConfigIntegracionesModule } from './modules/config-integraciones/config-integraciones.module';
 import { ConfigPortalModule } from './modules/config-portal/config-portal.module';
 import { ConfigSistemaModule } from './modules/config-sistema/config-sistema.module';
+import { ConfigDocumentosModule } from './modules/config-documentos/config-documentos.module';
 import { CatalogoPlanesModule } from './modules/catalogo-planes/catalogo-planes.module';
 import { BusquedasModule } from './modules/busquedas/busquedas.module';
 
@@ -100,6 +101,7 @@ import { BusquedasModule } from './modules/busquedas/busquedas.module';
     ConfigIntegracionesModule,
     ConfigPortalModule,
     ConfigSistemaModule,
+    ConfigDocumentosModule,
     CatalogoPlanesModule,
     BusquedasModule,
     ServeStaticModule.forRoot({

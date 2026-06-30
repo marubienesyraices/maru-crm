@@ -17,6 +17,9 @@ interface PlanFeatures {
   tiene_sitio_propio: boolean;
   tiene_integraciones: boolean;
   tiene_meta: boolean;
+  tiene_mapas: boolean;
+  tiene_ranking: boolean;
+  tiene_organigrama: boolean;
 }
 
 interface AuthState {
@@ -32,13 +35,14 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
-  login:        (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
-  verify2FA:    (tempToken: string, totpCode: string) => Promise<void>;
-  logout:       () => Promise<void>;
-  refresh:      () => Promise<string | null>;
-  forceLogout:  () => void;
-  clearError:   () => void;
-  updateTema:   (tema: 'oscuro' | 'claro') => Promise<void>;
+  login:          (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
+  verify2FA:      (tempToken: string, totpCode: string) => Promise<void>;
+  logout:         () => Promise<void>;
+  refresh:        () => Promise<string | null>;
+  forceLogout:    () => void;
+  clearError:     () => void;
+  updateTema:     (tema: 'oscuro' | 'claro') => Promise<void>;
+  refreshBranding: () => Promise<void>;
 }
 
 function parseJwt(token: string): User {
@@ -68,6 +72,9 @@ interface BrandingResponse {
   tiene_sitio_propio?: boolean;
   tiene_integraciones?: boolean;
   tiene_meta?: boolean;
+  tiene_mapas?: boolean;
+  tiene_ranking?: boolean;
+  tiene_organigrama?: boolean;
 }
 
 function applyBrandingColors(info: BrandingResponse) {
@@ -89,6 +96,9 @@ function applyBranding(info: BrandingResponse) {
       tiene_sitio_propio:  info.tiene_sitio_propio  ?? false,
       tiene_integraciones: info.tiene_integraciones ?? false,
       tiene_meta:          info.tiene_meta          ?? false,
+      tiene_mapas:         info.tiene_mapas         ?? false,
+      tiene_ranking:       info.tiene_ranking       ?? false,
+      tiene_organigrama:   info.tiene_organigrama   ?? false,
     },
   });
   applyBrandingColors(info);
@@ -262,6 +272,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  // ── Refresh branding (name, logo, plan features) ─────────────────
+  refreshBranding: async () => {
+    const { accessToken } = get();
+    if (!accessToken) return;
+    try {
+      const info = await apiRequest<BrandingResponse>('/api/tenants/branding', { token: accessToken });
+      applyBranding(info);
+    } catch { /* best-effort */ }
+  },
 
   // ── Update theme preference ──────────────────────────────────────
   updateTema: async (tema) => {

@@ -5,6 +5,7 @@ import { Prisma, TipoPropiedad, TipoGestion, EstadoPropiedad } from '@prisma/cli
 import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { EmailService } from '../email/email.service';
+import { StorageService } from '../storage/storage.service';
 
 interface PrecioComparable {
   id: string;
@@ -15,6 +16,10 @@ interface PrecioComparable {
   area_construccion_m2: number | null;
   distancia_m: number | null;
 }
+
+// Roles válidos para ser asignado como agente de una propiedad según el plan
+const ROLES_AGENTE_NO_FREE = ['SENIOR'];
+const ROLES_AGENTE_FREE    = ['SENIOR', 'ADMIN'];
 
 // ─── State Machine ────────────────────────────────────────────
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
@@ -36,16 +41,60 @@ export class PropiedadesService {
     private prisma: PrismaService,
     private notificacionesService: NotificacionesService,
     private config: ConfigService,
+    private storageService: StorageService,
     @Optional() private readonly emailService?: EmailService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
   }
 
+  // ─── VALIDACIÓN DE AGENTE ────────────────────────────────────
+
+  private async validateAgenteParaPropiedad(tenantId: string, agenteId: string, plan: string): Promise<void> {
+    const agente = await this.prisma.user.findFirst({
+      where: { id: agenteId, tenant_id: tenantId },
+      select: { id: true, nombre: true, rol: true },
+    });
+    if (!agente) throw new BadRequestException('El agente indicado no pertenece a esta empresa');
+
+    const rolesPermitidos = plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
+
+    if (!rolesPermitidos.includes(agente.rol)) {
+      if (plan === 'FREE') {
+        throw new BadRequestException(
+          `Solo agentes SENIOR o ADMIN pueden ser asignados a una propiedad. "${agente.nombre}" tiene rol ${agente.rol}.`,
+        );
+      }
+      throw new BadRequestException(
+        `Solo agentes SENIOR pueden ser asignados a una propiedad. "${agente.nombre}" tiene rol ${agente.rol}.`,
+      );
+    }
+
+    // Para planes no FREE: verificar que exista al menos un SENIOR activo en el tenant
+    if (plan !== 'FREE') {
+      const seniorCount = await this.prisma.user.count({
+        where: { tenant_id: tenantId, rol: 'SENIOR', estado: 'ACTIVO' },
+      });
+      if (seniorCount === 0) {
+        throw new BadRequestException(
+          'No existe ningún agente SENIOR activo en la empresa. Crea al menos un agente SENIOR antes de registrar propiedades.',
+        );
+      }
+    }
+  }
+
   // ─── CREATE ─────────────────────────────────────────────────
 
   async create(tenantId: string, dto: CreatePropiedadDto, userId: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const [tenant, planFeatures] = await Promise.all([
+      this.prisma.tenant.findUnique({ where: { id: tenantId } }),
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } })
+        .then((t) => t ? this.prisma.catalogoPlan.findUnique({ where: { plan: t.plan }, select: { tiene_mapas: true } }) : null),
+    ]);
     if (!tenant) throw new NotFoundException('Tenant no encontrado');
+
+    // Validar que el agente a asignar tenga el rol permitido según el plan
+    const agenteIdFinal = dto.agenteId || userId;
+    await this.validateAgenteParaPropiedad(tenantId, agenteIdFinal, tenant.plan);
 
     const count = await this.prisma.propiedad.count({ where: { tenant_id: tenantId } });
     if (count >= tenant.limite_propiedades) {
@@ -59,8 +108,10 @@ export class PropiedadesService {
     let latitud = dto.latitud;
     let longitud = dto.longitud;
     if (!latitud || !longitud) {
-      const coords = await this.geocodeFromDto(dto);
-      if (coords) { latitud = coords.lat; longitud = coords.lng; }
+      if (planFeatures?.tiene_mapas) {
+        const coords = await this.geocodeFromDto(dto);
+        if (coords) { latitud = coords.lat; longitud = coords.lng; }
+      }
     }
 
     const [propiedad] = await this.prisma.$transaction([
@@ -185,7 +236,17 @@ export class PropiedadesService {
   // ─── UPDATE ─────────────────────────────────────────────────
 
   async update(tenantId: string, id: string, dto: UpdatePropiedadDto) {
-    const existing = await this.findOne(tenantId, id);
+    const [existing, tenant, planFeatures] = await Promise.all([
+      this.findOne(tenantId, id),
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } }),
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } })
+        .then((t) => t ? this.prisma.catalogoPlan.findUnique({ where: { plan: t.plan }, select: { tiene_mapas: true } }) : null),
+    ]);
+
+    // Validar rol del nuevo agente solo si se está cambiando
+    if (dto.agenteId && dto.agenteId !== existing.agente_id && tenant) {
+      await this.validateAgenteParaPropiedad(tenantId, dto.agenteId, tenant.plan);
+    }
 
     let latitud = dto.latitud;
     let longitud = dto.longitud;
@@ -194,7 +255,7 @@ export class PropiedadesService {
       dto.direccion !== undefined || dto.municipio !== undefined ||
       dto.departamento !== undefined || dto.zona !== undefined;
 
-    if (addressChanged && !latitud && !longitud) {
+    if (addressChanged && !latitud && !longitud && planFeatures?.tiene_mapas) {
       const merged = {
         direccion: dto.direccion ?? existing.direccion ?? undefined,
         zona: dto.zona ?? existing.zona ?? undefined,
@@ -460,6 +521,69 @@ export class PropiedadesService {
       area_construccion_m2:r.area_construccion_m2? Number(r.area_construccion_m2): null,
       distancia_m:         null,
     }));
+  }
+
+  // ─── DELETE ─────────────────────────────────────────────────
+
+  async delete(tenantId: string, id: string): Promise<void> {
+    const propiedad = await this.prisma.propiedad.findFirst({
+      where: { id, tenant_id: tenantId },
+      include: {
+        imagenes:  { select: { url: true, thumbnail_url: true, original_url: true } },
+        documentos: { select: { url: true } },
+        _count: { select: { interesados: true, firma_solicitudes: true } },
+      },
+    });
+
+    if (!propiedad) throw new NotFoundException('Propiedad no encontrada');
+
+    if (!['BORRADOR', 'SUSPENDIDA'].includes(propiedad.estado)) {
+      throw new BadRequestException(
+        `Solo se pueden eliminar propiedades en estado BORRADOR o SUSPENDIDA. Estado actual: ${propiedad.estado}`,
+      );
+    }
+
+    if (propiedad._count.interesados > 0) {
+      throw new BadRequestException(
+        'No se puede eliminar: la propiedad tiene clientes interesados en el pipeline.',
+      );
+    }
+
+    if (propiedad._count.firma_solicitudes > 0) {
+      throw new BadRequestException(
+        'No se puede eliminar: la propiedad tiene solicitudes de firma registradas.',
+      );
+    }
+
+    // Collect all file URLs before deletion
+    const urlsToDelete: string[] = [];
+    for (const img of propiedad.imagenes) {
+      if (img.url) urlsToDelete.push(img.url);
+      if (img.thumbnail_url) urlsToDelete.push(img.thumbnail_url);
+      if (img.original_url) urlsToDelete.push(img.original_url);
+    }
+    for (const doc of propiedad.documentos) {
+      if (doc.url) urlsToDelete.push(doc.url);
+    }
+
+    // Collect brochure PDF URLs (no FK, must be deleted manually)
+    const brochureJobs = await this.prisma.brochureJob.findMany({
+      where: { propiedad_id: id },
+      select: { url: true },
+    });
+    for (const job of brochureJobs) {
+      if (job.url) urlsToDelete.push(job.url);
+    }
+
+    // Delete orphan records (no FK) then cascade-delete the property
+    await this.prisma.$transaction(async (tx) => {
+      await tx.brochureJob.deleteMany({ where: { propiedad_id: id } });
+      await tx.whatsappEnvio.deleteMany({ where: { propiedad_id: id } });
+      await tx.propiedad.delete({ where: { id } });
+    });
+
+    // Best-effort: remove files from storage after DB commit
+    await Promise.allSettled(urlsToDelete.map((url) => this.storageService.remove(url)));
   }
 
   // ─── PRIVATE: geocoding ─────────────────────────────────────

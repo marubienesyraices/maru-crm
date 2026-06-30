@@ -76,8 +76,14 @@ export class UploadController {
       );
     }
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { nombre: true } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { nombre: true, logo_url: true },
+    });
     const tenantName = tenant?.nombre ?? 'GestProp';
+    const tenantLogoBuffer = tenant?.logo_url
+      ? await this.storage.readBuffer(tenant.logo_url).catch(() => null)
+      : null;
 
     const maxOrder = await this.prisma.propiedadImagen.aggregate({
       where: { propiedad_id: propiedadId },
@@ -92,7 +98,7 @@ export class UploadController {
     const created = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const { processed, thumbnail, original } = await this.imageService.processImageFull(file.buffer, tenantName);
+      const { processed, thumbnail, original } = await this.imageService.processImageFull(file.buffer, tenantName, tenantLogoBuffer);
       const base = randomUUID();
       const [url, thumbnailUrl, originalUrl] = await Promise.all([
         this.storage.upload(processed, `${base}.jpg`, 'image/jpeg'),

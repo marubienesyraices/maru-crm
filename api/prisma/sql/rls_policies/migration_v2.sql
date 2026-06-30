@@ -292,8 +292,19 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   firma_solicitudes,
   meta_publicaciones,
   config_integraciones,
-  config_portal
+  config_portal,
+  config_brochure
 TO gestprop_app;
+
+-- ── config_brochure ─────────────────────────────────────────
+ALTER TABLE config_brochure ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_config_brochure ON config_brochure
+  USING (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY tenant_insert_config_brochure ON config_brochure
+  FOR INSERT WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::text);
+CREATE POLICY superadmin_bypass_config_brochure ON config_brochure
+  USING (current_setting('app.bypass_rls', true)::text = 'true');
+ALTER TABLE config_brochure FORCE ROW LEVEL SECURITY;
 
 -- ── config_sistema ──────────────────────────────────────────
 -- Tabla singleton sin tenant_id. Solo accesible con bypass_rls = 'true'

@@ -48,6 +48,8 @@ function createRlsClient(base: PrismaClient) {
           return query(args);
         }
         const { tenantId, bypass } = resolveRlsSettings();
+        // Batch form guarantees setCfg and query(args) share the same connection
+        // and transaction. maxWait/timeout come from PrismaClient transactionOptions.
         const [, result] = await rlsApplied.run(true, () =>
           base.$transaction([
             base.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true), set_config('app.bypass_rls', ${bypass}, true)`,
@@ -78,8 +80,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       throw new Error('DATABASE_APP_URL or DATABASE_URL environment variable is required');
     }
 
-    this.pool = new Pool({ connectionString });
-    this.base = new PrismaClient({ adapter: new PrismaPg(this.pool) });
+    this.pool = new Pool({ connectionString, max: 25, idleTimeoutMillis: 30_000 });
+    this.base = new PrismaClient({
+      adapter: new PrismaPg(this.pool),
+      transactionOptions: { maxWait: 5_000, timeout: 10_000 },
+    });
     this.extended = createRlsClient(this.base);
 
     // Model delegates and $-methods not defined on this class are served by

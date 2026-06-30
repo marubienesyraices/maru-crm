@@ -75,6 +75,17 @@ export class UsersService {
     return { ...user, activationToken };
   }
 
+  /** Usuarios asignables como agente de propiedad según el plan del tenant */
+  async findAgentesPropiedad(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
+    const roles = (tenant?.plan === 'FREE' ? ['SENIOR', 'ADMIN'] : ['SENIOR']) as any[];
+    return this.prisma.user.findMany({
+      where: { tenant_id: tenantId, rol: { in: roles }, estado: 'ACTIVO' },
+      select: { id: true, nombre: true, email: true, rol: true },
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
   async findAll(tenantId: string) {
     return this.prisma.user.findMany({
       where: { tenant_id: tenantId },

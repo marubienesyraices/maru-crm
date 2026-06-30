@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './Portal.css';
 
@@ -193,6 +194,7 @@ function RegistroModal({ propiedadId, onClose }: { propiedadId: string; onClose:
 export default function PortalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { planFeatures } = useAuthStore();
   const [prop, setProp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -287,7 +289,7 @@ export default function PortalDetailPage() {
             </div>
           )}
 
-          {prop.latitud && prop.longitud && (
+          {planFeatures?.tiene_mapas && prop.latitud && prop.longitud && (
             <>
               <PropertyMap lat={Number(prop.latitud)} lng={Number(prop.longitud)} />
               {/* F-10: Street View embed (requires VITE_GOOGLE_MAPS_KEY) */}

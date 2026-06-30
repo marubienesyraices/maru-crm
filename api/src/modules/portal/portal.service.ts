@@ -100,10 +100,22 @@ export class PortalService {
 
     const prop = await this.prisma.propiedad.findFirst({
       where,
-      include: PUBLIC_PROPERTY_INCLUDE,
+      include: {
+        ...PUBLIC_PROPERTY_INCLUDE,
+        tenant: { select: { nombre: true, logo_url: true, plan: true } },
+      },
     });
 
     if (!prop) throw new NotFoundException('Propiedad no encontrada');
+
+    const planFeatures = await this.prisma.catalogoPlan.findUnique({
+      where: { plan: prop.tenant.plan },
+      select: { tiene_mapas: true },
+    });
+
+    if (!planFeatures?.tiene_mapas) {
+      return { ...prop, latitud: null, longitud: null };
+    }
     return prop;
   }
 

@@ -1,12 +1,16 @@
 import {
-  Controller, Get, Post, Put, Patch, Body, Param, Query,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
   UseGuards, Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PropiedadesService } from './propiedades.service';
 import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { PlanGuard } from '../../common/guards/plan.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Propiedades')
@@ -35,6 +39,8 @@ export class PropiedadesController {
   }
 
   @Get('precio-sugerido')
+  @UseGuards(PlanGuard)
+  @PlanFeature('tiene_mapas')
   @ApiOperation({
     summary: 'Precio sugerido basado en comparables cercanos (PostGIS)',
     description:
@@ -62,5 +68,14 @@ export class PropiedadesController {
   @ApiOperation({ summary: 'Cambiar estado (BORRADOR → DISPONIBLE → VENDIDA…)' })
   cambiarEstado(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: CambiarEstadoDto) {
     return this.service.cambiarEstado(user.tenantId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Eliminar propiedad (solo ADMIN). Requiere estado BORRADOR o SUSPENDIDA sin tramites.' })
+  async delete(@CurrentUser() user: any, @Param('id') id: string) {
+    await this.service.delete(user.tenantId, id);
+    return { message: 'Propiedad eliminada correctamente' };
   }
 }

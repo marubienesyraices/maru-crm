@@ -1,13 +1,15 @@
-import { Controller, Get, Param, Res, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, Res, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { ConfigDocumentosService } from '../config-documentos/config-documentos.service';
+import { PdfRenderService } from './pdf-render.service';
 import { randomUUID } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const PDFDocument = require('pdfkit');
+const Handlebars = require('handlebars');
 
 const GESTION_TEXTO: Record<string, string> = {
   VENTA: 'venta',
@@ -15,52 +17,70 @@ const GESTION_TEXTO: Record<string, string> = {
   AMBAS: 'venta o renta',
 };
 
-function hexToRgb(hex: string): [number, number, number] {
+function darken(hex: string, amount = 0.2): string {
   const n = parseInt(hex.replace('#', ''), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const r = Math.max(0, Math.round(((n >> 16) & 255) * (1 - amount)));
+  const g = Math.max(0, Math.round(((n >> 8) & 255) * (1 - amount)));
+  const b = Math.max(0, Math.round((n & 255) * (1 - amount)));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 function isLight(hex: string): boolean {
-  const [r, g, b] = hexToRgb(hex);
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
   return (0.299 * r + 0.587 * g + 0.114 * b) > 160;
 }
 
-function darken(hex: string, amount = 0.15): string {
-  const [r, g, b] = hexToRgb(hex);
-  const d = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
-  return `#${d(r).toString(16).padStart(2, '0')}${d(g).toString(16).padStart(2, '0')}${d(b).toString(16).padStart(2, '0')}`;
+function fmt(val: number, currency: string): string {
+  return `${currency} ${val.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`;
 }
 
-@ApiTags('Brochure PDF')
+@ApiTags('Carta Comisión PDF')
 @ApiBearerAuth('JWT')
 @Controller('api/propiedades/:propiedadId/carta-comision')
 @UseGuards(JwtAuthGuard)
 export class CartaComisionController {
   constructor(
-    private prisma: PrismaService,
-    private storage: StorageService,
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly configDocumentos: ConfigDocumentosService,
+    private readonly pdfRender: PdfRenderService,
   ) {}
 
   @Get()
   @ApiOperation({ summary: 'Generar carta de compromiso de comisión en PDF' })
+  @ApiQuery({ name: 'anos_contrato', required: false, description: 'Años de contrato para renta (default: 1)' })
   async generateCartaComision(
     @Param('propiedadId') propiedadId: string,
+    @Query('anos_contrato') anosContratoStr: string | undefined,
     @CurrentUser() user: any,
     @Res() res: Response,
   ) {
-    const [propiedad, configIntegraciones] = await Promise.all([
+    const [propiedad, configIntegraciones, configSeguridad, plantilla] = await Promise.all([
       this.prisma.propiedad.findFirst({
         where: { id: propiedadId, tenant_id: user.tenantId },
         include: {
           propietario: true,
           agente: { select: { nombre: true, email: true } },
-          tenant: { select: { nombre: true, moneda: true } },
+          tenant: { select: { nombre: true, moneda: true, logo_url: true, color_primario: true } },
         },
       }),
       this.prisma.configIntegraciones.findUnique({
         where: { tenant_id: user.tenantId },
-        select: { carta_color_primario: true, carta_tagline: true, carta_logo_url: true, carta_clausulas_custom: true },
+        select: {
+          carta_color_primario: true,
+          carta_tagline: true,
+          carta_logo_url: true,
+          carta_clausulas_custom: true,
+        },
       }),
+      this.prisma.configSeguridad.findUnique({
+        where: { tenant_id: user.tenantId },
+        select: { porcentaje_iva: true },
+      }),
+      this.configDocumentos.resolveCartaPlantilla(user.tenantId),
     ]);
 
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
@@ -68,216 +88,128 @@ export class CartaComisionController {
       throw new BadRequestException('La propiedad no tiene porcentaje de comisión definido');
     }
 
-    // ─── Layout constants ────────────────────────────────────────
-    const W = 612;     // LETTER width in pts
-    const H = 792;     // LETTER height in pts
-    const SIDE_BAR = 6;
-    const MARGIN_L = 56;
-    const MARGIN_R = 48;
-    const CONTENT_W = W - MARGIN_L - MARGIN_R;
+    const cartaExistente = await this.prisma.propiedadDocumento.findFirst({
+      where: { propiedad_id: propiedadId, nombre: { startsWith: 'Carta de Comisión —' } },
+      select: { id: true },
+    });
+    if (cartaExistente) {
+      throw new BadRequestException('Ya existe una carta de comisión generada para esta propiedad. Elimínala del expediente antes de generar una nueva.');
+    }
 
-    const primary = configIntegraciones?.carta_color_primario ?? '#2563eb';
-    const primaryDark = darken(primary, 0.2);
-    const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
+    // Visual overrides
+    const primary = configIntegraciones?.carta_color_primario
+      || (propiedad.tenant as any).color_primario
+      || '#2563eb';
+    const tagline = configIntegraciones?.carta_tagline ?? '';
+
+    // Logo → base64 data URI
+    const logoUrl = configIntegraciones?.carta_logo_url || (propiedad.tenant as any).logo_url || null;
+    let logoSrc = '';
+    if (logoUrl) {
+      try {
+        const buf = await this.storage.readBuffer(logoUrl);
+        if (buf) {
+          const mime = logoUrl.endsWith('.png') ? 'image/png' : 'image/jpeg';
+          logoSrc = `data:${mime};base64,${buf.toString('base64')}`;
+        }
+      } catch { /* skip */ }
+    }
+
     const currency = propiedad.tenant.moneda || 'GTQ';
+    const comisionPct = Number(propiedad.comision_porcentaje);
+    const ivaRate = configSeguridad?.porcentaje_iva ? Number(configSeguridad.porcentaje_iva) : 0.12;
+    const ivaPctDisplay = `${(ivaRate * 100).toFixed(0)}%`;
 
-    const doc = new PDFDocument({ size: 'LETTER', margin: 0 });
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const gestion = propiedad.gestion; // VENTA | RENTA | AMBAS
+    const esVenta = gestion === 'VENTA' || gestion === 'AMBAS';
+    const esRenta = gestion === 'RENTA' || gestion === 'AMBAS';
+    const esAmbas = gestion === 'AMBAS';
 
-    // ─── Background ──────────────────────────────────────────────
-    doc.rect(0, 0, W, H).fill('#ffffff');
+    // ── Cálculo VENTA ───────────────────────────────────────────────
+    let ventaVars: Record<string, any> = {};
+    if (esVenta && propiedad.precio_venta) {
+      const precioVenta = Number(propiedad.precio_venta);
+      const comisionBase = precioVenta * comisionPct / 100;
+      const ivaMonto = comisionBase * ivaRate;
+      const comisionTotal = comisionBase + ivaMonto;
+      ventaVars = {
+        venta_precio:          fmt(precioVenta, currency),
+        venta_comision_base:   fmt(comisionBase, currency),
+        venta_iva_monto:       fmt(ivaMonto, currency),
+        venta_comision_total:  fmt(comisionTotal, currency),
+      };
+    }
 
-    // ─── Left accent sidebar ──────────────────────────────────────
-    doc.rect(0, 0, SIDE_BAR, H).fill(primary);
+    // ── Cálculo RENTA ───────────────────────────────────────────────
+    // El tiempo de contrato es desconocido al generar la carta, por lo que
+    // se muestran ambos escenarios (< 5 años y >= 5 años) como referencia.
+    let rentaVars: Record<string, any> = {};
+    if (esRenta && propiedad.precio_renta) {
+      const precioRenta = Number(propiedad.precio_renta);
+      // Escenario A: contrato < 5 años → 1 renta (IVA incluido)
+      const escA_total  = precioRenta;
+      const escA_neta   = escA_total / (1 + ivaRate);
+      const escA_iva    = escA_total - escA_neta;
+      rentaVars = {
+        renta_precio:       `${fmt(precioRenta, currency)} mensuales (IVA incluido)`,
+        renta_esc_a_total:  fmt(escA_total, currency),
+        renta_esc_a_neta:   fmt(escA_neta, currency),
+        renta_esc_a_iva:    fmt(escA_iva, currency),
+      };
+    }
 
-    // ─── Header area (0–110) ─────────────────────────────────────
-    // Top bar under sidebar
-    doc.rect(SIDE_BAR, 0, W - SIDE_BAR, 3).fill(primary);
-
-    // Company name
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(22)
-      .text(propiedad.tenant.nombre, MARGIN_L, 22, { width: CONTENT_W, align: 'left' });
-
-    // Tagline / subtitle
-    const tagline = configIntegraciones?.carta_tagline ?? 'Bienes y Raíces · CRM';
-    doc.fillColor('#94a3b8').font('Helvetica').fontSize(9)
-      .text(tagline, MARGIN_L, 50, { width: CONTENT_W });
-
-    // Horizontal rule
-    doc.moveTo(MARGIN_L, 66).lineTo(W - MARGIN_R, 66).strokeColor(primary).lineWidth(1.5).stroke();
-    doc.moveTo(MARGIN_L, 68.5).lineTo(W - MARGIN_R, 68.5).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
-
-    // Document title band
-    doc.rect(MARGIN_L, 78, CONTENT_W, 26).fill(primary);
-    doc.fillColor(onPrimary).font('Helvetica-Bold').fontSize(10.5)
-      .text('CARTA DE COMPROMISO DE COMISIÓN', MARGIN_L, 85, { width: CONTENT_W, align: 'center', characterSpacing: 0.8 });
-
-    // ─── Metadata row (date + ref) ────────────────────────────────
-    const fecha = new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
-    const refNum = `CCC-${propiedad.codigo}-${new Date().getFullYear()}`;
-
-    doc.fillColor('#64748b').font('Helvetica').fontSize(8.5)
-      .text(`Ref: ${refNum}`, MARGIN_L, 116, { width: CONTENT_W / 2, align: 'left' });
-    doc.text(`Guatemala, ${fecha}`, MARGIN_L, 116, { width: CONTENT_W, align: 'right' });
-
-    // ─── Salutation ───────────────────────────────────────────────
-    let y = 140;
-    const propietarioName = propiedad.propietario?.nombre || '[Propietario no asignado]';
-    const agenteName = propiedad.agente?.nombre || '[Agente no asignado]';
-    const gestionTexto = GESTION_TEXTO[propiedad.gestion] || propiedad.gestion.toLowerCase();
-    const comision = Number(propiedad.comision_porcentaje);
-
+    // Precio de referencia (texto legacy para la tabla de datos)
     const precioBase = propiedad.precio_venta || propiedad.precio_renta;
     const precioStr = precioBase
       ? `${currency} ${Number(precioBase).toLocaleString('es-GT', { minimumFractionDigits: 2 })}${propiedad.precio_renta && !propiedad.precio_venta ? ' mensuales' : ''}`
-      : null;
-    const comisionMonto = precioBase
-      ? `${currency} ${(Number(precioBase) * comision / 100).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
-      : null;
+      : '';
 
-    // Salutation line
-    doc.fillColor('#1e293b').font('Helvetica').fontSize(10.5)
-      .text(`Señores(as):`, MARGIN_L, y, { lineGap: 2 });
-    y += 14;
-    doc.font('Helvetica-Bold').text(propiedad.tenant.nombre, MARGIN_L, y);
-    y = doc.y + 4;
-    doc.font('Helvetica').fillColor('#475569').text('Estimados(as):', MARGIN_L, y);
-    y = doc.y + 16;
+    const fecha = new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
+    const refNum = `CCC-${propiedad.codigo}-${new Date().getFullYear()}`;
+    const clausulas = configIntegraciones?.carta_clausulas_custom
+      || 'La vigencia del presente compromiso es de seis (6) meses a partir de la fecha de suscripción, '
+      + 'renovable de común acuerdo entre las partes. El presente acuerdo es exclusivo para la propiedad '
+      + 'identificada y no implica obligación de exclusividad por parte del propietario(a), salvo pacto expreso en contrario.';
 
-    // Opening paragraph
-    doc.fillColor('#1e293b').font('Helvetica').fontSize(10.5).lineGap(3)
-      .text(
-        `Yo, ${propietarioName}, con plena capacidad legal para contratar, en calidad de propietario(a) ` +
-        `del inmueble que se describe a continuación, por medio de la presente carta me comprometo ` +
-        `a reconocer y pagar la comisión acordada en caso de concretarse la ${gestionTexto} del mismo ` +
-        `a través de la intermediación de ${propiedad.tenant.nombre}.`,
-        MARGIN_L, y, { width: CONTENT_W, lineGap: 3, align: 'justify' },
-      );
-    y = doc.y + 18;
-
-    // ─── Property details box ─────────────────────────────────────
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
-      .text('DATOS DEL INMUEBLE', MARGIN_L, y, { characterSpacing: 0.5 });
-    y += 12;
-
-    // Box background
-    const BOX_PADDING = 12;
-    const rows: [string, string][] = [
-      ['Código de propiedad', propiedad.codigo],
-      ['Descripción', propiedad.titulo],
-      ['Tipo de inmueble', propiedad.tipo.replace(/_/g, ' ')],
-      ['Gestión', propiedad.gestion],
-      ['Ubicación', [propiedad.zona, propiedad.municipio, propiedad.departamento].filter(Boolean).join(', ') || 'No especificada'],
-    ];
-    if (propiedad.direccion) rows.push(['Dirección', propiedad.direccion]);
-    if (precioStr) rows.push(['Precio de referencia', precioStr]);
-
-    const ROW_H = 20;
-    const BOX_H = BOX_PADDING + rows.length * ROW_H + BOX_PADDING;
-    doc.rect(MARGIN_L, y, CONTENT_W, BOX_H).fill('#f8fafc');
-    doc.rect(MARGIN_L, y, 3, BOX_H).fill(primary);
-
-    rows.forEach(([label, value], i) => {
-      const ry = y + BOX_PADDING + i * ROW_H;
-      // Alternating row tint
-      if (i % 2 === 1) doc.rect(MARGIN_L + 3, ry, CONTENT_W - 3, ROW_H).fill('#f1f5f9');
-      const LABEL_W = 140;
-      doc.fillColor('#64748b').font('Helvetica').fontSize(8.5)
-        .text(label.toUpperCase(), MARGIN_L + BOX_PADDING, ry + 5, { width: LABEL_W, lineBreak: false });
-      doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9)
-        .text(value, MARGIN_L + BOX_PADDING + LABEL_W, ry + 5, { width: CONTENT_W - BOX_PADDING * 2 - LABEL_W, lineBreak: false });
+    const templateFn = Handlebars.compile(plantilla);
+    const html = templateFn({
+      empresa_nombre:     propiedad.tenant.nombre,
+      logo_src:           logoSrc,
+      tagline,
+      color_primario:     primary,
+      color_oscuro:       darken(primary),
+      on_primario:        isLight(primary) ? '#1e293b' : '#ffffff',
+      ref_num:            refNum,
+      fecha,
+      propietario_nombre: propiedad.propietario?.nombre || '[Propietario no asignado]',
+      agente_nombre:      propiedad.agente?.nombre || '[Agente no asignado]',
+      agente_email:       propiedad.agente?.email || '',
+      gestion_texto:      GESTION_TEXTO[gestion] || gestion.toLowerCase(),
+      codigo_propiedad:   propiedad.codigo,
+      titulo_propiedad:   propiedad.titulo,
+      tipo_inmueble:      propiedad.tipo.replace(/_/g, ' '),
+      gestion,
+      ubicacion:          [propiedad.zona, propiedad.municipio, propiedad.departamento].filter(Boolean).join(', ') || 'No especificada',
+      direccion:          propiedad.direccion || '',
+      precio_referencia:  precioStr,
+      comision_pct:       comisionPct,
+      iva_pct_display:    ivaPctDisplay,
+      // flags de gestión
+      es_venta:           esVenta,
+      es_renta:           esRenta,
+      es_ambas:           esAmbas,
+      // vars por tipo
+      ...ventaVars,
+      ...rentaVars,
+      clausulas_custom:   clausulas,
     });
 
-    y += BOX_H + 18;
+    const buffer = await this.pdfRender.renderHtml(html, 'Letter');
 
-    // ─── Commission clause ────────────────────────────────────────
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
-      .text('ACUERDO DE COMISIÓN', MARGIN_L, y, { characterSpacing: 0.5 });
-    y += 12;
-
-    let comisionClause =
-      `Me comprometo a pagar a ${propiedad.tenant.nombre}, como honorarios por la gestión de ` +
-      `${gestionTexto}, una comisión equivalente al ${comision}% del valor total de la operación, ` +
-      `pagadera al momento de la formalización o firma del contrato correspondiente.`;
-    if (comisionMonto && precioStr) {
-      comisionClause += ` Tomando como referencia el precio de ${precioStr}, el monto estimado de comisión asciende a ${comisionMonto}.`;
-    }
-
-    doc.fillColor('#1e293b').font('Helvetica').fontSize(10.5).lineGap(3)
-      .text(comisionClause, MARGIN_L, y, { width: CONTENT_W, align: 'justify', lineGap: 3 });
-    y = doc.y + 14;
-
-    // ─── Validity & terms ─────────────────────────────────────────
-    const clausulasTexto = configIntegraciones?.carta_clausulas_custom ||
-      `La vigencia del presente compromiso es de seis (6) meses a partir de la fecha de suscripción, ` +
-      `renovable de común acuerdo entre las partes. El presente acuerdo es exclusivo para la propiedad ` +
-      `identificada y no implica obligación de exclusividad por parte del propietario(a), salvo pacto expreso en contrario.`;
-    doc.fillColor('#1e293b').font('Helvetica').fontSize(10.5).lineGap(3)
-      .text(clausulasTexto, MARGIN_L, y, { width: CONTENT_W, align: 'justify', lineGap: 3 });
-    y = doc.y + 24;
-
-    // ─── Signatures ───────────────────────────────────────────────
-    const SIG_W = (CONTENT_W - 40) / 2;
-    const SIG_X2 = MARGIN_L + SIG_W + 40;
-
-    // Signature blocks
-    [MARGIN_L, SIG_X2].forEach((sx) => {
-      doc.moveTo(sx, y + 40).lineTo(sx + SIG_W, y + 40).strokeColor('#1e293b').lineWidth(0.75).stroke();
-    });
-
-    // Left signature: propietario
-    doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9.5)
-      .text(propietarioName, MARGIN_L, y + 44, { width: SIG_W });
-    doc.fillColor('#64748b').font('Helvetica').fontSize(8.5)
-      .text('Propietario(a)', MARGIN_L, doc.y + 1, { width: SIG_W });
-    if (propiedad.propietario?.telefono) {
-      doc.fillColor('#94a3b8').font('Helvetica').fontSize(8)
-        .text(`Tel: ${propiedad.propietario.telefono}`, MARGIN_L, doc.y + 1, { width: SIG_W });
-    }
-
-    // Right signature: agente
-    doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(9.5)
-      .text(agenteName, SIG_X2, y + 44, { width: SIG_W });
-    doc.fillColor('#64748b').font('Helvetica').fontSize(8.5)
-      .text(`Agente · ${propiedad.tenant.nombre}`, SIG_X2, y + 44 + 13, { width: SIG_W });
-    if (propiedad.agente?.email) {
-      doc.fillColor('#94a3b8').font('Helvetica').fontSize(8)
-        .text(propiedad.agente.email, SIG_X2, y + 44 + 26, { width: SIG_W });
-    }
-
-    // Signature date label
-    doc.fillColor('#94a3b8').font('Helvetica').fontSize(8)
-      .text('Lugar y fecha: _________________________', MARGIN_L, y + 44 + 44, { width: CONTENT_W });
-
-    // ─── Footer ───────────────────────────────────────────────────
-    const FOOTER_H = 32;
-    const FOOTER_Y = H - FOOTER_H;
-
-    doc.rect(SIDE_BAR, FOOTER_Y, W - SIDE_BAR, 0.5).fill('#e2e8f0');
-    doc.rect(SIDE_BAR, FOOTER_Y + 0.5, W - SIDE_BAR, FOOTER_H - 0.5).fill('#f8fafc');
-
-    doc.fillColor('#94a3b8').font('Helvetica').fontSize(7.5)
-      .text(
-        `Documento generado automáticamente — ${propiedad.tenant.nombre} CRM`,
-        MARGIN_L, FOOTER_Y + 9,
-        { width: CONTENT_W - 120, align: 'left', lineBreak: false },
-      );
-    doc.fillColor(primary).font('Helvetica-Bold').fontSize(7.5)
-      .text(refNum, W - MARGIN_R - 110, FOOTER_Y + 9, { width: 110, align: 'right', lineBreak: false });
-
-    // Bottom accent lines on footer
-    doc.rect(0, H - 3, W, 3).fill(primaryDark);
-    doc.rect(0, H - 3, W, 1).fill(primary);
-
-    await new Promise<void>((resolve) => { doc.on('end', resolve); doc.end(); });
-
-    const buffer = Buffer.concat(chunks);
     const fechaStr = new Date().toISOString().slice(0, 10);
     const filename = `carta-comision-${propiedad.codigo}-${randomUUID()}.pdf`;
     const url = await this.storage.upload(buffer, filename, 'application/pdf');
 
-    // P-08: Register each generation as a new versioned document (historial preserved)
     this.prisma.propiedadDocumento.create({
       data: {
         propiedad_id: propiedadId,

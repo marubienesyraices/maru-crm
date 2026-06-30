@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
@@ -80,7 +81,7 @@ const PAISES = Object.keys(REGIONES_POR_PAIS);
 export default function PropertyFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
+  const { accessToken, planFeatures, rol } = useAuthStore();
   const toast = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -111,6 +112,15 @@ export default function PropertyFormPage() {
     areaConstruccionM2: '',
     anoConstruccion: '',
     propietarioId: '',
+    agenteId: '',
+  });
+
+  // Agentes válidos para asignación (solo visible para ADMIN/SUPER_ADMIN)
+  const canAssignAgente = rol === 'ADMIN' || rol === 'SUPER_ADMIN';
+  const { data: agentesDisponibles = [] } = useQuery<any[]>({
+    queryKey: ['agentes-propiedad'],
+    queryFn: () => apiRequest('/api/users/agentes-propiedad', { token: accessToken! }),
+    enabled: !!accessToken && canAssignAgente,
   });
   const [geocoding, setGeocoding] = useState(false);
   const [geoError, setGeoError] = useState('');
@@ -171,6 +181,7 @@ export default function PropertyFormPage() {
             areaConstruccionM2: data.area_construccion_m2 ? String(data.area_construccion_m2) : '',
             anoConstruccion: data.ano_construccion ? String(data.ano_construccion) : '',
             propietarioId: data.propietario?.id || '',
+            agenteId: data.agente?.id || '',
           });
           if (data.propietario?.nombre) setPropietarioNombre(data.propietario.nombre);
         })
@@ -271,6 +282,7 @@ export default function PropertyFormPage() {
       if (form.latitud) body.latitud = Number(form.latitud);
       if (form.longitud) body.longitud = Number(form.longitud);
       if (form.propietarioId) body.propietarioId = form.propietarioId;
+      if (form.agenteId) body.agenteId = form.agenteId;
 
       if (id) {
         await apiRequest(`/api/propiedades/${id}`, {
@@ -430,6 +442,28 @@ export default function PropertyFormPage() {
                 </button>
               </span>
             </div>
+
+            {/* Agente responsable (solo ADMIN / SUPER_ADMIN) */}
+            {canAssignAgente && (
+              <div className="input-group">
+                <label>Agente responsable</label>
+                <select
+                  className="input-field"
+                  value={form.agenteId}
+                  onChange={(e) => updateField('agenteId', e.target.value)}
+                >
+                  <option value="">— Asignarme a mí mismo —</option>
+                  {agentesDisponibles.map((a: any) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nombre} ({a.rol})
+                    </option>
+                  ))}
+                </select>
+                <span className="pf-field-hint">
+                  Solo agentes SENIOR pueden ser responsables de propiedades.
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -481,6 +515,7 @@ export default function PropertyFormPage() {
             </div>
 
             {/* ── Motor de precios sugerido (PostGIS) ── */}
+            {planFeatures?.tiene_mapas && (
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>💡 Motor de Precios</span>
@@ -626,6 +661,7 @@ export default function PropertyFormPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -681,15 +717,17 @@ export default function PropertyFormPage() {
             <div className="input-group">
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>Geolocalización</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.75rem', padding: '4px 10px', height: 'auto' }}
-                  disabled={geocoding}
-                  onClick={geocodeAddress}
-                >
-                  {geocoding ? '⏳ Buscando...' : '🎯 Geocodificar desde dirección'}
-                </button>
+                {planFeatures?.tiene_mapas && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.75rem', padding: '4px 10px', height: 'auto' }}
+                    disabled={geocoding}
+                    onClick={geocodeAddress}
+                  >
+                    {geocoding ? '⏳ Buscando...' : '🎯 Geocodificar desde dirección'}
+                  </button>
+                )}
               </label>
               <div className="pf-row" style={{ gap: 8 }}>
                 <input
@@ -726,7 +764,7 @@ export default function PropertyFormPage() {
             </div>
 
             {/* ── Static map preview ── */}
-            {form.latitud && form.longitud && (() => {
+            {planFeatures?.tiene_mapas && form.latitud && form.longitud && (() => {
               const token = import.meta.env.VITE_MAPBOX_TOKEN;
               if (!token) return null;
               const lng = Number(form.longitud);

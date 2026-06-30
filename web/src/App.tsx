@@ -33,6 +33,8 @@ import HorariosPage from './pages/Horarios/HorariosPage';
 import SettingsPortalPage from './pages/Settings/SettingsPortalPage';
 import SettingsIntegracionesPage from './pages/Settings/SettingsIntegracionesPage';
 import SettingsPerfilPage from './pages/Settings/SettingsPerfilPage';
+import SettingsEmpresaPage from './pages/Settings/SettingsEmpresaPage';
+import SettingsDocumentosPage from './pages/Settings/SettingsDocumentosPage';
 import AuditPage from './pages/Audit/AuditPage';
 import OrgChartPage from './pages/Admin/OrgChart/OrgChartPage';
 import AdminSistemaPage from './pages/Admin/AdminSistemaPage';
@@ -41,7 +43,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
 import './index.css';
 
-type PlanFeatureKey = 'tiene_campanas' | 'tiene_portal' | 'tiene_integraciones' | 'tiene_meta' | 'tiene_correo' | 'tiene_sitio_propio';
+type PlanFeatureKey = 'tiene_campanas' | 'tiene_portal' | 'tiene_integraciones' | 'tiene_meta' | 'tiene_correo' | 'tiene_sitio_propio' | 'tiene_mapas' | 'tiene_ranking' | 'tiene_organigrama';
 
 function PlanRoute({ feature, children }: { feature: PlanFeatureKey; children: ReactNode }) {
   const { plan, planFeatures } = useAuthStore();
@@ -107,13 +109,15 @@ export default function App() {
           <Route path="/bi" element={<BiPage />} />
           <Route path="/campanas" element={<PlanRoute feature="tiene_campanas"><CampanasPage /></PlanRoute>} />
           <Route path="/meta" element={<MetaPage />} />
-          <Route path="/ranking" element={<RankingPage />} />
+          <Route path="/ranking" element={<PlanRoute feature="tiene_ranking"><RankingPage /></PlanRoute>} />
           <Route path="/admin/empresas" element={<AdminTenantsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/planes" element={<AdminPlanesPage />} />
-          <Route path="/admin/organigrama" element={<OrgChartPage />} />
+          <Route path="/admin/organigrama" element={<PlanRoute feature="tiene_organigrama"><OrgChartPage /></PlanRoute>} />
           <Route path="/admin/sistema" element={<AdminSistemaPage />} />
           <Route path="/auditoria" element={<AuditPage />} />
+          <Route path="/settings/empresa" element={<SettingsEmpresaPage />} />
+          <Route path="/settings/documentos" element={<SettingsDocumentosPage />} />
           <Route path="/settings/portal" element={<SettingsPortalPage />} />
           <Route path="/settings/integraciones" element={<PlanRoute feature="tiene_integraciones"><SettingsIntegracionesPage /></PlanRoute>} />
           <Route path="/settings/perfil" element={<SettingsPerfilPage />} />

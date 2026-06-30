@@ -57,6 +57,9 @@ model CatalogoPlan {
   tiene_sitio_propio  Boolean  @default(false)
   tiene_integraciones Boolean  @default(false)
   tiene_meta          Boolean  @default(false)
+  tiene_mapas         Boolean  @default(false)
+  tiene_ranking       Boolean  @default(false)
+  tiene_organigrama   Boolean  @default(false)
   updated_at          DateTime @updatedAt
 
   @@map("catalogo_planes")
@@ -83,6 +86,7 @@ model Tenant {
   config_seguridad     ConfigSeguridad?
   config_integraciones ConfigIntegraciones?
   config_portal        ConfigPortal?
+  config_brochure      ConfigBrochure?
   audit_logs       AuditLog[]
   propiedades      Propiedad[]
   clientes         Cliente[]
@@ -136,6 +140,7 @@ model ConfigIntegraciones {
   carta_tagline          String?
   carta_logo_url         String?
   carta_clausulas_custom String?
+  carta_plantilla_html   String?  @db.Text
 
   tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   updated_at DateTime @updatedAt
@@ -151,6 +156,20 @@ model ConfigSistema {
   updated_by     String?
 
   @@map("config_sistema")
+}
+
+model ConfigBrochure {
+  id               String   @id @default(uuid())
+  tenant_id        String   @unique
+  secciones        Json     @default("[]")
+  footer_texto     String?
+  watermark_texto  String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("config_brochure")
 }
 
 model ConfigPortal {
@@ -297,6 +316,7 @@ model ConfigSeguridad {
   modo_asignacion_leads       String  @default("Manual")
   sinc_frecuencia             String  @default("manual") // brecha 1.5: manual | hora | diario
   comision_pct_venta_default  Decimal @default(5.60) @db.Decimal(5, 2) // CBR sugerido: 5.6%
+  porcentaje_iva              Decimal @default(0.12) @db.Decimal(5, 4) // 0.12 = 12%, 0.07 = 7%, 0.15 = 15%
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 

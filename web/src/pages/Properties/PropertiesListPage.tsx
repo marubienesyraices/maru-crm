@@ -5,6 +5,9 @@ import ImportModal from '../../components/ImportModal';
 import { useAuthStore } from '../../stores/authStore';
 import './Properties.css';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const resolveUrl = (url: string) => url.startsWith('http') ? url : `${API}${url}`;
+
 interface Propiedad {
   id: string;
   codigo: string;
@@ -224,9 +227,9 @@ export default function PropertiesListPage() {
                 {/* Image placeholder */}
                 <div className="prop-card-img">
                   {prop.imagenes?.[0] ? (
-                    <img 
-                      src={prop.imagenes[0].url} 
-                      alt={prop.titulo} 
+                    <img
+                      src={resolveUrl(prop.imagenes[0].url)}
+                      alt={prop.titulo}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                         // Find the next sibling (which is the placeholder) and show it

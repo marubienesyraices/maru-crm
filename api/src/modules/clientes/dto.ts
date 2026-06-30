@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsEmail, IsEnum, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { IsInt, IsNumber, Min } from 'class-validator';
 
 const ORIGENES = ['PORTAL_WEB', 'REFERIDO', 'LLAMADA', 'WHATSAPP', 'REDES_SOCIALES', 'FERIA', 'OTRO'];
@@ -50,7 +50,7 @@ export class FiltrosClienteDto {
   @IsOptional() @IsString() origen?: string;
   @IsOptional() @IsString() busqueda?: string;
   @IsOptional() @IsString() agenteId?: string;
-  @IsOptional() @IsBoolean() esPropietario?: boolean;
+  @IsOptional() @Transform(({ value }) => value === 'true' || value === true) @IsBoolean() esPropietario?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) limit?: number;
 }

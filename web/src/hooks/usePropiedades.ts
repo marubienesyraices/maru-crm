@@ -88,3 +88,15 @@ export function useUpdatePropiedad(id: string) {
     },
   });
 }
+
+export function useDeletePropiedad() {
+  const { accessToken } = useAuthStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/propiedades/${id}`, { method: 'DELETE', token: accessToken! }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propiedades'] });
+    },
+  });
+}

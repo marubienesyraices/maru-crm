@@ -6,6 +6,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PlanGuard } from '../../common/guards/plan.guard';
+import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth('JWT')
@@ -57,8 +59,16 @@ export class UsersController {
     return this.usersService.findAll(tenantId);
   }
 
+  @Get('agentes-propiedad')
+  @ApiOperation({ summary: 'Listar usuarios asignables como agente de una propiedad (SENIOR y ADMIN según plan)' })
+  findAgentesPropiedad(@CurrentUser('tenantId') tenantId: string) {
+    return this.usersService.findAgentesPropiedad(tenantId);
+  }
+
   @Get('hierarchy')
   @Roles('ADMIN', 'SUPER_ADMIN')
+  @UseGuards(PlanGuard)
+  @PlanFeature('tiene_organigrama')
   @ApiOperation({ summary: 'Árbol jerárquico de usuarios (supervisores → subordinados)' })
   getHierarchy(@CurrentUser('tenantId') tenantId: string) {
     return this.usersService.getHierarchyTree(tenantId);

@@ -5,6 +5,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
+import { PlanGuard } from '../../common/guards/plan.guard';
+import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { BiService } from './bi.service';
 
 function parseDate(s?: string): Date | undefined {
@@ -63,6 +65,8 @@ export class BiController {
 
   @SkipAudit()
   @Get('ranking')
+  @UseGuards(PlanGuard)
+  @PlanFeature('tiene_ranking')
   @ApiOperation({ summary: 'Ranking de agentes con badges (nombres anónimos para no-admin)' })
   getRanking(
     @CurrentUser() user: any,
