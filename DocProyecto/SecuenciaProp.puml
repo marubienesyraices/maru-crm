@@ -1,0 +1,74 @@
+@startuml
+title **HU-05.01 — Registro y Ciclo de Vida de Propiedades**\n**GestPro CRM**
+skinparam backgroundColor #FAFAFA
+skinparam sequenceParticipantBorderColor #4472C4
+skinparam sequenceParticipantBackgroundColor #4472C4
+skinparam participantFontColor white
+
+skinparam sequenceLifeLineBorderColor #4472C4
+skinparam sequenceGroupBorderColor #4472C4
+skinparam sequenceDividerBackgroundColor #BEDBFF
+skinparam sequenceDividerBorderColor #4472C4
+skinparam sequenceDividerFontColor black
+
+skinparam noteBorderColor #4472C4
+skinparam noteBackgroundColor #BEDBFF
+skinparam noteFontColor black
+
+' Actor 
+skinparam actorBorderColor #312C85
+skinparam actorBackgroundColor #312C85
+skinparam actorFontColor black
+
+skinparam participantFontColor black
+skinparam participantBorderColor #312C85
+skinparam databaseFontColor black
+
+actor       "**Agente / Admin**"            as AGENT
+participant "**React Web**"                 as UI    #2B7FFF
+participant "**PropiedadesController**"     as CTRL  #2B7FFF
+participant "**PropiedadesService**"        as SVC   #2B7FFF
+participant "**Google Maps API**"           as GEO   #2B7FFF
+database    "**PostgreSQL**"                as DB    #2B7FFF
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 1: CREAR PROPIEDAD
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 1: Crear Propiedad (POST /api/propiedades)** ==
+
+AGENT -> UI : Completa formulario\n(tipo, gestión, ficha técnica,\nprecio, ubicación, amenidades)
+UI -> CTRL : POST /api/propiedades**\n**{ CreatePropiedadDto }
+note right of CTRL : JwtAuthGuard valida el token\ny adjunta tenantId al contexto
+
+CTRL -> SVC : create(tenantId, dto, userId)
+
+group **Validación de Límite del Plan
+  SVC -> DB : SELECT limite_propiedades FROM tenants**\n**SELECT COUNT(*) FROM propiedades
+  DB --> SVC : limite y count actuales
+  alt **count >= limite_propiedades
+    SVC --> CTRL : BadRequestException 400**\n**"Límite de propiedades alcanzado"
+    CTRL --> UI : HTTP 400
+    UI --> AGENT : Mensaje de error
+  end
+end
+
+group **Generación de Código Único**
+  SVC -> SVC : codigo = "<TIPO>-<NNNN>"\nEj: "CASA-0001", "APAR-0042"
+end
+
+group Geocodificación (si no hay coordenadas)
+  alt sin latitud / longitud en el DTO
+    SVC -> GEO : Geocodifica dirección\n(direccion, zona, municipio, departamento)
+    GEO --> SVC : { lat, lng } o null
+    note right of GEO : Fallo silencioso — la propiedad\nse crea sin coordenadas
+  end
+end
+
+SVC -> DB : INSERT INTO propiedades\n(codigo, titulo, tipo, gestion, precios,**\n**ubicacion, ficha_tecnica, estado=BORRADOR, ...)
+DB --> SVC : propiedad { id, codigo, estado: BORRADOR }
+note left of DB : Aplica tenant_id automáticamente.\nAudit log generado.
+
+SVC --> CTRL : propiedad creada
+CTRL --> UI : HTTP 201 { propiedad }
+UI --> AGENT : Propiedad registrada en estado BORRADOR
+@enduml

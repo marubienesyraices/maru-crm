@@ -1,0 +1,86 @@
+@startuml
+title **HU-10.01 — Publicación Automática en Facebook / Instagram vía Meta API**\n**GestPro CRM**
+skinparam backgroundColor #FAFAFA
+skinparam sequenceParticipantBorderColor #4472C4
+skinparam sequenceParticipantBackgroundColor #4472C4
+skinparam participantFontColor white
+
+skinparam sequenceLifeLineBorderColor #4472C4
+skinparam sequenceGroupBorderColor #4472C4
+skinparam sequenceDividerBackgroundColor #BEDBFF
+skinparam sequenceDividerBorderColor #4472C4
+skinparam sequenceDividerFontColor black
+
+skinparam noteBorderColor #4472C4
+skinparam noteBackgroundColor #BEDBFF
+skinparam noteFontColor black
+
+skinparam actorBorderColor #312C85
+skinparam actorBackgroundColor #312C85
+skinparam actorFontColor black
+
+skinparam participantFontColor black
+skinparam participantBorderColor #312C85
+skinparam databaseFontColor black
+
+actor       "**Admin / Senior**"    as AGENT
+participant "**React Web**"         as UI    #2B7FFF
+participant "**MetaController**"    as CTRL  #2B7FFF
+database    "**PostgreSQL**"        as DB    #2B7FFF
+participant "**Meta Graph API**"    as META  #2B7FFF
+participant "**Redis (BullMQ)**"    as REDIS #2B7FFF
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 1: CREAR BORRADOR
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 1: Crear Borrador (POST /api/meta)** ==
+
+AGENT -> UI : Selecciona propiedad, plataforma\n(FACEBOOK / INSTAGRAM / AMBAS)\ny redacta el mensaje
+UI -> CTRL : POST /api/meta { propiedad_id, plataforma, mensaje, imagen_url }
+note right of CTRL : Solo roles ADMIN, SENIOR\ny SUPER_ADMIN pueden publicar
+
+CTRL -> DB : Valida propiedad (tenant_id)
+CTRL -> DB : INSERT meta_publicaciones { estado: BORRADOR }
+DB --> CTRL : publicacion { id }
+CTRL --> UI : HTTP 201 { publicacion }
+UI --> AGENT : Borrador guardado
+
+' ═══════════════════════════════════════════════════════════════
+' FLUJO 2: PUBLICAR INMEDIATAMENTE
+' ═══════════════════════════════════════════════════════════════
+== **FLUJO 2: Publicar (POST /api/meta/:id/publicar)** ==
+
+AGENT -> UI : Confirma publicación inmediata
+UI -> CTRL : POST /api/meta/:id/publicar
+
+CTRL -> DB : SELECT publicacion + credenciales Meta del tenant
+DB --> CTRL : { estado, pageToken, pageId, igUserId }
+
+alt **estado != BORRADOR ni FALLIDA**
+  CTRL --> UI : HTTP 400 — estado inválido
+end
+
+group **Publicación en Facebook**
+  CTRL -> META : POST /{pageId}/photos (con imagen)\no POST /{pageId}/feed (solo texto)
+  META --> CTRL : { id: fb_post_id } o error
+end
+
+group **Publicación en Instagram (requiere imagen)**
+  CTRL -> META : POST /{igUserId}/media { image_url, caption }
+  META --> CTRL : { id: container_id }
+  CTRL -> META : POST /{igUserId}/media_publish { creation_id }
+  META --> CTRL : { id: ig_post_id } o error
+end
+
+alt **publicación **
+  CTRL -> DB : UPDATE estado = PUBLICADA\nfb_post_id, ig_post_id, publicado_at
+  CTRL --> UI : HTTP 200 { estado: PUBLICADA }
+  UI --> AGENT : Publicación exitosa
+else **error en Graph API**
+  CTRL -> DB : UPDATE estado = FALLIDA, error_msg
+  CTRL --> UI : HTTP 400 — descripción del fallo
+  UI --> AGENT : Error — puede reintentar
+end
+
+
+@enduml
