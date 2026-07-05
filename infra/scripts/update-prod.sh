@@ -28,13 +28,27 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 echo "==> git pull origin master"
-git pull origin master
+PULL_OUTPUT="$(git pull origin master)"
+echo "$PULL_OUTPUT"
+
+if echo "$PULL_OUTPUT" | grep -q "Already up to date"; then
+  echo ""
+  echo "No hay cambios nuevos en el repositorio."
+  read -r -p "¿Continuar de todas formas con rebuild + migraciones? (s/N): " CONTINUAR
+  case "$CONTINUAR" in
+    [sS]|[sS][iI]) ;;
+    *) echo "Detenido a solicitud del usuario."; exit 0 ;;
+  esac
+fi
 
 echo "==> Reconstruyendo y reiniciando contenedores (zero-downtime)"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
 
 echo "==> Aplicando migraciones de Prisma"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm migrate
+
+echo "==> Reiniciando nginx para refrescar las IPs de los contenedores"
+docker compose -f "$COMPOSE_FILE" restart nginx
 
 echo "==> Estado de los contenedores"
 docker compose -f "$COMPOSE_FILE" ps
