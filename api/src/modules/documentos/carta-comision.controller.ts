@@ -84,7 +84,10 @@ export class CartaComisionController {
     ]);
 
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
-    if (!propiedad.comision_porcentaje) {
+    // El porcentaje de comisión solo aplica al cálculo de VENTA; en RENTA la
+    // comisión se calcula como N rentas mensuales, sin depender de un %.
+    const requierePorcentaje = propiedad.gestion === 'VENTA' || propiedad.gestion === 'AMBAS';
+    if (requierePorcentaje && !propiedad.comision_porcentaje) {
       throw new BadRequestException('La propiedad no tiene porcentaje de comisión definido');
     }
 
@@ -210,7 +213,7 @@ export class CartaComisionController {
     const filename = `carta-comision-${propiedad.codigo}-${randomUUID()}.pdf`;
     const url = await this.storage.upload(buffer, filename, 'application/pdf');
 
-    this.prisma.propiedadDocumento.create({
+    await this.prisma.propiedadDocumento.create({
       data: {
         propiedad_id: propiedadId,
         tipo: 'OTRO',
@@ -221,9 +224,10 @@ export class CartaComisionController {
       },
     }).catch(() => {});
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="carta-comision-${propiedad.codigo}.pdf"`);
-    res.setHeader('Content-Length', buffer.length);
-    res.end(buffer);
+    // Devuelve la URL del PDF ya subido (igual que el flujo de brochure),
+    // en vez de transmitir los bytes crudos: un blob: URL creado en el frontend
+    // no se puede abrir de forma confiable en una pestaña nueva (Chrome
+    // particiona los blob URLs por contexto de navegación de nivel superior).
+    res.json({ url });
   }
 }

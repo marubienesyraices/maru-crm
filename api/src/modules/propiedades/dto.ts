@@ -13,11 +13,11 @@ export class CreatePropiedadDto {
   @IsOptional() @IsString() moneda?: string;
   @IsOptional() @Type(() => Number) @IsNumber() comisionPorcentaje?: number;
 
-  @IsOptional() @IsString() pais?: string;
-  @IsOptional() @IsString() departamento?: string;
-  @IsOptional() @IsString() municipio?: string;
-  @IsOptional() @IsString() zona?: string;
-  @IsOptional() @IsString() direccion?: string;
+  @IsOptional() @IsString() pais?: string | null;
+  @IsOptional() @IsString() departamento?: string | null;
+  @IsOptional() @IsString() municipio?: string | null;
+  @IsOptional() @IsString() zona?: string | null;
+  @IsOptional() @IsString() direccion?: string | null;
   @IsOptional() @Type(() => Number) @IsNumber() latitud?: number;
   @IsOptional() @Type(() => Number) @IsNumber() longitud?: number;
 
@@ -46,11 +46,11 @@ export class UpdatePropiedadDto {
   @IsOptional() @IsString() moneda?: string;
   @IsOptional() @Type(() => Number) @IsNumber() comisionPorcentaje?: number;
 
-  @IsOptional() @IsString() pais?: string;
-  @IsOptional() @IsString() departamento?: string;
-  @IsOptional() @IsString() municipio?: string;
-  @IsOptional() @IsString() zona?: string;
-  @IsOptional() @IsString() direccion?: string;
+  @IsOptional() @IsString() pais?: string | null;
+  @IsOptional() @IsString() departamento?: string | null;
+  @IsOptional() @IsString() municipio?: string | null;
+  @IsOptional() @IsString() zona?: string | null;
+  @IsOptional() @IsString() direccion?: string | null;
   @IsOptional() @Type(() => Number) @IsNumber() latitud?: number;
   @IsOptional() @Type(() => Number) @IsNumber() longitud?: number;
 

@@ -78,6 +78,18 @@ const REGIONES_POR_PAIS: Record<string, string[]> = {
 
 const PAISES = Object.keys(REGIONES_POR_PAIS);
 
+// ISO 3166-1 alpha-2, usado para restringir/sesgar la geocodificación al país correcto
+const PAIS_ISO2: Record<string, string> = {
+  Guatemala: 'gt',
+  'El Salvador': 'sv',
+  Honduras: 'hn',
+  Nicaragua: 'ni',
+  'Costa Rica': 'cr',
+  Panamá: 'pa',
+  Belice: 'bz',
+  México: 'mx',
+};
+
 export default function PropertyFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -193,15 +205,56 @@ export default function PropertyFormPage() {
   const geocodeAddress = async () => {
     const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
     if (!GOOGLE_KEY) { setGeoError('VITE_GOOGLE_MAPS_API_KEY no configurado'); return; }
-    const parts = [form.direccion, form.zona ? `Zona ${form.zona}` : '', form.municipio, form.departamento, form.pais]
-      .filter(Boolean).join(', ');
+    // Evita repetir el mismo valor (p.ej. municipio === departamento === "Guatemala")
+    const rawParts = [form.direccion, form.zona ? `Zona ${form.zona}` : '', form.municipio, form.departamento, form.pais]
+      .filter(Boolean);
+    const parts = rawParts.filter((p, i) => rawParts.indexOf(p) === i).join(', ');
     if (!parts.trim()) { setGeoError('Completa al menos municipio y departamento'); return; }
     setGeocoding(true);
     setGeoError('');
+    const countryCode = PAIS_ISO2[form.pais] || '';
     try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(parts)}&language=es&key=${GOOGLE_KEY}`,
-      );
+      // 1) Places API (Text Search) primero: es el mismo motor de búsqueda que usa
+      // el buscador de Google Maps, capaz de resolver texto libre/informal como
+      // "Km 27 Carretera a El Salvador, Fraijanes". La API de Geocoding (usada
+      // antes) solo interpreta direcciones postales estructuradas, por lo que
+      // referencias por kilómetro suelen resolver al punto equivocado.
+      try {
+        const placesRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_KEY,
+            'X-Goog-FieldMask': 'places.location,places.formattedAddress',
+          },
+          body: JSON.stringify({
+            textQuery: parts,
+            languageCode: 'es',
+            ...(countryCode ? { regionCode: countryCode.toUpperCase() } : {}),
+          }),
+        });
+        const placesJson = await placesRes.json();
+        const place = placesJson.places?.[0];
+        if (place?.location) {
+          updateField('latitud', String(place.location.latitude));
+          updateField('longitud', String(place.location.longitude));
+          return;
+        }
+      } catch {
+        // Continúa al fallback de Geocoding API
+      }
+
+      // 2) Fallback: Geocoding API, útil para direcciones postales estructuradas
+      const params = new URLSearchParams({
+        address: parts,
+        language: 'es',
+        key: GOOGLE_KEY,
+      });
+      if (countryCode) {
+        params.set('components', `country:${countryCode}`);
+        params.set('region', countryCode);
+      }
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
       const json = await res.json();
       if (json.status !== 'OK' || !json.results?.length) {
         setGeoError('No se encontró la dirección. Intenta ser más específico.');
@@ -262,11 +315,14 @@ export default function PropertyFormPage() {
         tipo: form.tipo,
         gestion: form.gestion,
         moneda: form.moneda,
-        pais: form.pais || undefined,
-        departamento: form.departamento || undefined,
-        municipio: form.municipio || undefined,
-        zona: form.zona || undefined,
-        direccion: form.direccion || undefined,
+        // null (no undefined) para que el backend limpie el campo si se deja en
+        // blanco: JSON.stringify omite las claves `undefined`, por lo que Prisma
+        // las trata como "no tocar" y conserva el valor anterior en la BD.
+        pais: form.pais || null,
+        departamento: form.departamento || null,
+        municipio: form.municipio || null,
+        zona: form.zona || null,
+        direccion: form.direccion || null,
       };
 
       if (form.precioVenta) body.precioVenta = Number(form.precioVenta);

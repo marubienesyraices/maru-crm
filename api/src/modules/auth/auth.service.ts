@@ -407,6 +407,12 @@ export class AuthService {
   ) {
     const payload = { sub: userId, tenantId, email, rol };
 
+    // Actualiza último login y limpia contadores de intentos fallidos
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { ultimo_login: new Date(), intentos_login: 0, bloqueado_hasta: null },
+    });
+
     const accessToken = this.jwt.sign(payload, {
       secret: this.config.get<string>('JWT_ACCESS_SECRET'),
       expiresIn: 900,

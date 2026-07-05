@@ -306,6 +306,7 @@ export default function PropertyDetailPage() {
   const deletePropiedad = useDeletePropiedad();
   const [propiedad, setPropiedad] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'media' | 'documentos' | 'expediente' | 'firma' | 'sindicacion'>('media');
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
   const [cartaState, setCartaState] = useState<'idle' | 'generating' | 'error'>('idle');
 
@@ -439,16 +440,12 @@ export default function PropertyDetailPage() {
     setCartaState('generating');
     try {
       const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const res = await fetch(`${API}/api/propiedades/${id}/carta-comision`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const { url } = await apiRequest<{ url: string }>(`/api/propiedades/${id}/carta-comision`, {
+        token: accessToken!,
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Error al generar carta');
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      // Para archivos locales usa el path /uploads; para R2 es la URL pública completa
+      const pdfUrl = url.startsWith('http') ? url : `${API}${url}`;
+      window.open(pdfUrl, '_blank');
       setCartaState('idle');
       fetchProperty();
     } catch (err: any) {
@@ -580,15 +577,44 @@ export default function PropertyDetailPage() {
         )}
       </div>
 
-      {/* Images Upload */}
-      <div className="prop-detail-section" style={{ marginTop: 8 }}>
-        <h3>Galería de Imágenes ({propiedad.imagenes?.length || 0})</h3>
-        <ImageUpload
-          propiedadId={propiedad.id}
-          imagenes={propiedad.imagenes || []}
-          onUpdate={fetchProperty}
-        />
+      {/* ── Tabs ──────────────────────────────────────────── */}
+      <div className="prop-detail-tabs" style={{ marginTop: 8, display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+        {[
+          { key: 'media', label: `Imágenes y Videos (${propiedad.imagenes?.length || 0})` },
+          { key: 'documentos', label: 'Generación de Documentos' },
+          { key: 'expediente', label: `Expediente Legal (${propiedad.documentos?.length || 0})` },
+          ...(planFeatures?.tiene_integraciones ? [{ key: 'firma', label: 'Firma de Documentos' }] : []),
+          ...(planFeatures?.tiene_integraciones && user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol)
+            ? [{ key: 'sindicacion', label: 'Sindicación a Portales' }]
+            : []),
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as typeof activeTab)}
+            className="btn btn-ghost"
+            style={{
+              borderRadius: '8px 8px 0 0',
+              borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+              color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)',
+              fontWeight: activeTab === tab.key ? 600 : 400,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Imágenes y Videos */}
+      {activeTab === 'media' && (
+        <div className="prop-detail-section" style={{ marginTop: 8 }}>
+          <h3>Imágenes y Videos ({propiedad.imagenes?.length || 0})</h3>
+          <ImageUpload
+            propiedadId={propiedad.id}
+            imagenes={propiedad.imagenes || []}
+            onUpdate={fetchProperty}
+          />
+        </div>
+      )}
 
       {/* ── Modal WhatsApp ─────────────────────────────────── */}
       {waOpen && (
@@ -704,17 +730,8 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      {/* Sindicación — solo ADMIN/SUPER_ADMIN con plan integraciones */}
-      {planFeatures?.tiene_integraciones && user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && (
-        <SindicacionPanel propiedadId={propiedad.id} />
-      )}
-
-      {/* Firma Digital — solo con plan integraciones */}
-      {planFeatures?.tiene_integraciones && (
-        <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
-      )}
-
       {/* Generación de Documentos */}
+      {activeTab === 'documentos' && (
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
         <h3 style={{ marginBottom: 16 }}>Generación de Documentos</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
@@ -752,44 +769,54 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Carta de Comisión */}
-          <div className={`doc-gen-card${(!propiedad.comision_porcentaje || hasCarta) ? ' doc-gen-card-disabled' : ''}`}>
-            <div className="doc-gen-card-header">
-              <span className="doc-gen-icon">📄</span>
-              <div>
-                <div className="doc-gen-title">Carta de Comisión</div>
-                <div className="doc-gen-desc">
-                  {!propiedad.comision_porcentaje
-                    ? 'Requiere ingresar el porcentaje de comisión en los datos de la propiedad'
-                    : hasCarta
-                      ? 'Ya existe una carta en el expediente. Elimínala para generar una nueva.'
-                      : `Comisión: ${propiedad.comision_porcentaje}%`}
+          {(() => {
+            // El % de comisión solo es obligatorio para VENTA/AMBAS; en RENTA
+            // la comisión se calcula como N rentas mensuales.
+            const requierePorcentaje = propiedad.gestion === 'VENTA' || propiedad.gestion === 'AMBAS';
+            const faltaPorcentaje = requierePorcentaje && !propiedad.comision_porcentaje;
+            return (
+              <div className={`doc-gen-card${(faltaPorcentaje || hasCarta) ? ' doc-gen-card-disabled' : ''}`}>
+                <div className="doc-gen-card-header">
+                  <span className="doc-gen-icon">📄</span>
+                  <div>
+                    <div className="doc-gen-title">Carta de Comisión</div>
+                    <div className="doc-gen-desc">
+                      {faltaPorcentaje
+                        ? 'Requiere ingresar el porcentaje de comisión en los datos de la propiedad'
+                        : hasCarta
+                          ? 'Ya existe una carta en el expediente. Elimínala para generar una nueva.'
+                          : propiedad.comision_porcentaje
+                            ? `Comisión: ${propiedad.comision_porcentaje}%`
+                            : 'Comisión calculada como rentas mensuales'}
+                    </div>
+                  </div>
                 </div>
+                {cartaState === 'generating' && (
+                  <div className="doc-gen-status doc-gen-status-pending">
+                    <span className="doc-gen-spinner" /> Generando…
+                  </div>
+                )}
+                {cartaState === 'error' && (
+                  <div className="doc-gen-status doc-gen-status-error">Error en la generación</div>
+                )}
+                <button
+                  onClick={handleCartaComision}
+                  disabled={faltaPorcentaje || hasCarta || cartaState === 'generating'}
+                  className="btn btn-ghost"
+                  style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
+                  title={
+                    faltaPorcentaje
+                      ? 'Ingresa el % de comisión en los datos de la propiedad'
+                      : hasCarta
+                        ? 'Elimina la carta del expediente para generar una nueva'
+                        : undefined
+                  }
+                >
+                  {cartaState === 'generating' ? 'Generando…' : hasCarta ? 'Ya generada' : 'Generar y descargar'}
+                </button>
               </div>
-            </div>
-            {cartaState === 'generating' && (
-              <div className="doc-gen-status doc-gen-status-pending">
-                <span className="doc-gen-spinner" /> Generando…
-              </div>
-            )}
-            {cartaState === 'error' && (
-              <div className="doc-gen-status doc-gen-status-error">Error en la generación</div>
-            )}
-            <button
-              onClick={handleCartaComision}
-              disabled={!propiedad.comision_porcentaje || hasCarta || cartaState === 'generating'}
-              className="btn btn-ghost"
-              style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
-              title={
-                !propiedad.comision_porcentaje
-                  ? 'Ingresa el % de comisión en los datos de la propiedad'
-                  : hasCarta
-                    ? 'Elimina la carta del expediente para generar una nueva'
-                    : undefined
-              }
-            >
-              {cartaState === 'generating' ? 'Generando…' : hasCarta ? 'Ya generada' : 'Generar y descargar'}
-            </button>
-          </div>
+            );
+          })()}
 
           {/* WhatsApp — solo con plan integraciones */}
           {planFeatures?.tiene_integraciones && (
@@ -813,8 +840,10 @@ export default function PropertyDetailPage() {
 
         </div>
       </div>
+      )}
 
       {/* Expediente Legal */}
+      {activeTab === 'expediente' && (
       <div className="prop-detail-section" style={{ marginTop: 8 }}>
         <h3 style={{ marginBottom: 16 }}>Expediente Legal ({propiedad.documentos?.length || 0})</h3>
         <DocumentUpload
@@ -823,6 +852,17 @@ export default function PropertyDetailPage() {
           onUpdate={fetchProperty}
         />
       </div>
+      )}
+
+      {/* Firma Digital — solo con plan integraciones */}
+      {activeTab === 'firma' && planFeatures?.tiene_integraciones && (
+        <FirmaPanel propiedadId={propiedad.id} userRol={user?.rol ?? ''} />
+      )}
+
+      {/* Sindicación — solo ADMIN/SUPER_ADMIN con plan integraciones */}
+      {activeTab === 'sindicacion' && planFeatures?.tiene_integraciones && user && ['ADMIN', 'SUPER_ADMIN'].includes(user.rol) && (
+        <SindicacionPanel propiedadId={propiedad.id} />
+      )}
     </div>
   );
 }

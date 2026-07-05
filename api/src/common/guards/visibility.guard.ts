@@ -4,13 +4,13 @@ import { UsersService } from '../../modules/users/users.service';
 
 /**
  * VisibilityGuard
- * 
+ *
  * Injects `req.visibleUserIds` with the list of user IDs the current user
  * can see based on their hierarchy position:
  * - ADMIN/SUPER_ADMIN: all users in tenant (no filtering)
  * - SENIOR: self + full downline (recursive subordinates)
- * - JUNIOR: self only
- * 
+ * - JUNIOR: self + upline (their supervisor chain, typically the SENIOR they report to)
+ *
  * Services can use `req.visibleUserIds` to filter agente_id in queries.
  */
 @Injectable()
@@ -39,8 +39,9 @@ export class VisibilityGuard implements CanActivate {
       return true;
     }
 
-    // JUNIOR: self only
-    request.visibleUserIds = [user.sub];
+    // JUNIOR: self + upline (supervisor chain, typically the SENIOR they report to)
+    const upline = await this.usersService.getUpline(user.tenantId, user.sub);
+    request.visibleUserIds = [user.sub, ...upline.map((u: any) => u.id)];
     return true;
   }
 }
