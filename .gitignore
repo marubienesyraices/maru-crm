@@ -40,6 +40,7 @@ despliegueQA.md
 
 # Certificados TLS (reemplazar por reales en producción)
 infra/certs/*.pem
+*.crt
 
 # Certificados self-signed QA (generados localmente con gen-qa-certs.sh)
 infra/certs-qa/
