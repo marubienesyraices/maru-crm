@@ -47,7 +47,10 @@ const DEFAULTS: PortalConfig = {
   portal_activo:   true,
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// Server-side fetches deben usar la URL interna del contenedor `api` (la red Docker
+// `internal` no tiene salida a internet, así que el dominio público es inalcanzable
+// desde aquí). NEXT_PUBLIC_API_URL solo debe usarse en componentes cliente.
+const API = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 /**
  * Fetches portal config from the API using the original request Host.

@@ -144,6 +144,9 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${APP_URL}
+      # La red `internal_qa` no tiene salida a internet: los fetches SSR deben usar
+      # el nombre de servicio Docker en vez del dominio público (inalcanzable).
+      INTERNAL_API_URL: http://api:3000
     networks:
       - internal_qa
     depends_on:

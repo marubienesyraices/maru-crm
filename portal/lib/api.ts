@@ -1,4 +1,6 @@
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// Fetches server-side (SSR): usar la URL interna del contenedor `api`, ya que la
+// red Docker `internal` no tiene salida a internet y el dominio público no resuelve.
+const API = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export interface PropiedadPublica {
   id: string;
