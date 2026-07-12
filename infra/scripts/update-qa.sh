@@ -6,6 +6,16 @@
 
 set -euo pipefail
 
+if [ "$(id -u)" -eq 0 ]; then
+  echo "ERROR: no ejecutes este script con sudo/root."
+  echo "Con sudo, \$HOME apunta a /root y además puede dejar archivos del repo (ej. .git/) con dueño root,"
+  echo "causando errores de permisos en el próximo pull de tu usuario normal."
+  echo "Corre el script como el usuario normal (ej. qa_admin), que ya debe pertenecer al grupo 'docker'."
+  echo "Si algún archivo del repo ya quedó con dueño root, corrígelo con:"
+  echo "  sudo chown -R \$USER:\$USER $HOME/gestprop"
+  exit 1
+fi
+
 PROJECT_DIR="${1:-$HOME/gestprop}"
 COMPOSE_FILE="docker-compose.qa.yml"
 ENV_FILE=".env.qa"
