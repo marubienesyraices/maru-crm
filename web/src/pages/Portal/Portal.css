@@ -188,6 +188,14 @@
   padding-left: 13px;
 }
 
+.portal-card-media {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 80px;
+}
+
 .portal-card-thumb {
   width: 80px;
   height: 60px;
@@ -195,6 +203,18 @@
   overflow: hidden;
   flex-shrink: 0;
   background: #1e293b;
+}
+
+.portal-card-empresa {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.portal-card-empresa div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .portal-card-thumb img {

@@ -38,11 +38,19 @@ function PropertyCard({ prop, active, onClick }: {
   const thumb = prop.imagenes?.[0]?.url;
   return (
     <div className={`portal-card${active ? ' active' : ''}`} onClick={onClick}>
-      <div className="portal-card-thumb">
-        {thumb
-          ? <img src={thumb.startsWith('http') ? thumb : `${API}${thumb}`} alt={prop.titulo} loading="lazy" />
-          : <div className="portal-card-no-img">🏠</div>
-        }
+      <div className="portal-card-media">
+        <div className="portal-card-thumb">
+          {thumb
+            ? <img src={thumb.startsWith('http') ? thumb : `${API}${thumb}`} alt={prop.titulo} loading="lazy" />
+            : <div className="portal-card-no-img">🏠</div>
+          }
+        </div>
+        {(prop.tenant?.nombre || prop.agente?.nombre) && (
+          <div className="portal-card-empresa">
+            {prop.tenant?.nombre && <div>{prop.tenant.nombre}</div>}
+            {prop.agente?.nombre && <div>{prop.agente.nombre}</div>}
+          </div>
+        )}
       </div>
       <div className="portal-card-body">
         <div className="portal-card-title">{prop.titulo}</div>
@@ -244,7 +252,7 @@ function MapboxMap({ properties, activeId, onSelect }: {
 
 export default function PortalPage() {
   const navigate = useNavigate();
-  const { user, planFeatures } = useAuthStore();
+  const { planFeatures } = useAuthStore();
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -256,8 +264,10 @@ export default function PortalPage() {
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     try {
+      // Sin tenantId a propósito: este mapa interno del CRM muestra propiedades
+      // de TODAS las empresas de la plataforma que tengan mostrar_en_mapa_crm=true,
+      // no solo las del tenant del usuario logueado.
       const params = new URLSearchParams({ limit: '50', vista: 'mapa_crm' });
-      if (user?.tenantId)    params.set('tenantId', user.tenantId);
       if (filters.busqueda)  params.set('busqueda', filters.busqueda);
       if (filters.tipo)      params.set('tipo', filters.tipo);
       if (filters.gestion)   params.set('gestion', filters.gestion);

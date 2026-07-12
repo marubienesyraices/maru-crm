@@ -59,7 +59,7 @@ describe('PortalService', () => {
       );
     });
 
-    it('NO filtra por tenant si no se pasa tenantId (comportamiento esperado sin PORTAL_TENANT_ID)', async () => {
+    it('sin tenantId no filtra por tenant — intencional: el mapa interno del CRM (vista=mapa_crm) agrega propiedades de todas las empresas de la plataforma', async () => {
       prisma.propiedad.findMany.mockResolvedValue([]);
       prisma.propiedad.count.mockResolvedValue(0);
 
@@ -78,6 +78,23 @@ describe('PortalService', () => {
       const where = prisma.propiedad.findMany.mock.calls[0][0].where;
       expect(where.mostrar_en_mapa_crm).toBe(true);
       expect(where.mostrar_en_portal).toBeUndefined();
+    });
+
+    it('vista=mapa_crm sin tenantId agrega propiedades de distintas empresas en un mismo resultado', async () => {
+      prisma.propiedad.findMany.mockResolvedValue([
+        { id: 'p1', tenant: { nombre: 'Maru Bienes Raices' } },
+        { id: 'p2', tenant: { nombre: 'GestProp Demo' } },
+      ]);
+      prisma.propiedad.count.mockResolvedValue(2);
+
+      const result = await service.findPublicProperties({ vista: 'mapa_crm' } as any);
+
+      const where = prisma.propiedad.findMany.mock.calls[0][0].where;
+      expect(where.tenant_id).toBeUndefined();
+      expect(where.mostrar_en_mapa_crm).toBe(true);
+      expect(result.data.map((p: any) => p.tenant.nombre)).toEqual(
+        expect.arrayContaining(['Maru Bienes Raices', 'GestProp Demo']),
+      );
     });
 
     it('dos tenants distintos nunca comparten resultados (aislamiento multi-tenant)', async () => {

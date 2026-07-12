@@ -93,6 +93,7 @@ export class PortalService {
           habitaciones: true, banos: true, area_construccion_m2: true,
           imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
           tenant: { select: { nombre: true } },
+          agente: { select: { nombre: true } },
         },
         orderBy: { created_at: 'desc' },
         skip,
