@@ -41,8 +41,11 @@ export class PortalService {
     const skip  = (page - 1) * limit;
 
     const where: any = { estado: 'DISPONIBLE' };
-    // Env var takes priority; otherwise use tenantId passed by the portal SSR
-    const resolvedTenantId = TENANT_ID ?? filtros.tenantId;
+    // Env var takes priority; otherwise use tenantId passed by the portal SSR.
+    // `||` (not `??`): docker-compose interpola PORTAL_TENANT_ID como "" cuando
+    // no está definida en .env, y "" no es null/undefined así que `??` nunca
+    // caía al fallback — dejaba resolvedTenantId en "" y el filtro nunca se aplicaba.
+    const resolvedTenantId = TENANT_ID || filtros.tenantId;
     if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
     if (filtros.tipo)    where.tipo    = filtros.tipo;
@@ -387,7 +390,7 @@ export class PortalService {
   // ─── Panel del cliente (magic link + dashboard) ───────────────
 
   async solicitarAcceso(email: string, tenantId?: string) {
-    const resolvedTenantId = TENANT_ID ?? tenantId;
+    const resolvedTenantId = TENANT_ID || tenantId;
     const where: any = { email };
     if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
@@ -697,7 +700,7 @@ export class PortalService {
       throw new BadRequestException('El email de Google no está verificado');
     }
 
-    const resolvedTenantId = TENANT_ID ?? tenantId;
+    const resolvedTenantId = TENANT_ID || tenantId;
     if (!resolvedTenantId) throw new BadRequestException('No se pudo determinar el tenant');
 
     // Create or find cliente
