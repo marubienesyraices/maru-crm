@@ -259,7 +259,9 @@ export default function PortalPage() {
   const [filters, setFilters] = useState({
     busqueda: '', tipo: '', gestion: '', precioMax: '',
   });
-  const [meta, setMeta] = useState({ total: 0 });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+  const [meta, setMeta] = useState({ total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 });
 
   const fetchProperties = useCallback(async () => {
     setLoading(true);
@@ -267,7 +269,7 @@ export default function PortalPage() {
       // Sin tenantId a propósito: este mapa interno del CRM muestra propiedades
       // de TODAS las empresas de la plataforma que tengan mostrar_en_mapa_crm=true,
       // no solo las del tenant del usuario logueado.
-      const params = new URLSearchParams({ limit: '50', vista: 'mapa_crm' });
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(page), vista: 'mapa_crm' });
       if (filters.busqueda)  params.set('busqueda', filters.busqueda);
       if (filters.tipo)      params.set('tipo', filters.tipo);
       if (filters.gestion)   params.set('gestion', filters.gestion);
@@ -277,15 +279,17 @@ export default function PortalPage() {
       if (!res.ok) throw new Error('Error al cargar propiedades');
       const json = await res.json();
       setProperties(json.data ?? []);
-      setMeta(json.meta ?? { total: 0 });
+      setMeta(json.meta ?? { total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 });
     } catch { }
     finally { setLoading(false); }
-  }, [filters]);
+  }, [filters, page]);
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
-  const setFilter = (key: keyof typeof filters, value: string) =>
+  const setFilter = (key: keyof typeof filters, value: string) => {
+    setPage(1); // cualquier cambio de filtro reinicia a la primera página
     setFilters((f) => ({ ...f, [key]: value }));
+  };
 
   return (
     <div className="portal-root">
@@ -377,6 +381,30 @@ export default function PortalPage() {
                 }}
               />
             ))
+          )}
+
+          {!loading && meta.totalPages > 1 && (
+            <div className="portal-pagination">
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: '0.8125rem', padding: '6px 12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                ← Anterior
+              </button>
+              <span className="portal-pagination-info">
+                Página {meta.page} de {meta.totalPages}
+              </span>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: '0.8125rem', padding: '6px 12px' }}
+                disabled={page >= meta.totalPages}
+                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+              >
+                Siguiente →
+              </button>
+            </div>
           )}
         </div>
 
