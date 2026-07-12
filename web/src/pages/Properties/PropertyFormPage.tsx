@@ -125,6 +125,8 @@ export default function PropertyFormPage() {
     anoConstruccion: '',
     propietarioId: '',
     agenteId: '',
+    mostrarEnMapaCrm: true,
+    mostrarEnPortal: true,
   });
 
   // Agentes válidos para asignación (solo visible para ADMIN/SUPER_ADMIN)
@@ -194,6 +196,8 @@ export default function PropertyFormPage() {
             anoConstruccion: data.ano_construccion ? String(data.ano_construccion) : '',
             propietarioId: data.propietario?.id || '',
             agenteId: data.agente?.id || '',
+            mostrarEnMapaCrm: data.mostrar_en_mapa_crm ?? true,
+            mostrarEnPortal: data.mostrar_en_portal ?? true,
           });
           if (data.propietario?.nombre) setPropietarioNombre(data.propietario.nombre);
         })
@@ -323,6 +327,10 @@ export default function PropertyFormPage() {
         municipio: form.municipio || null,
         zona: form.zona || null,
         direccion: form.direccion || null,
+        // Siempre explícito (no `if (form.x) ...`): son booleanos y esa forma
+        // omitiría el valor `false` al desmarcar el checkbox.
+        mostrarEnMapaCrm: form.mostrarEnMapaCrm,
+        mostrarEnPortal: form.mostrarEnPortal,
       };
 
       if (form.precioVenta) body.precioVenta = Number(form.precioVenta);
@@ -440,6 +448,29 @@ export default function PropertyFormPage() {
                     {g === 'AMBAS' ? 'Venta y Renta' : g.charAt(0) + g.slice(1).toLowerCase()}
                   </label>
                 ))}
+              </div>
+            </div>
+
+            {/* Visibilidad */}
+            <div className="input-group">
+              <label>Visibilidad</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.mostrarEnMapaCrm}
+                    onChange={(e) => setForm((prev) => ({ ...prev, mostrarEnMapaCrm: e.target.checked }))}
+                  />
+                  Mostrar en el mapa del CRM (crm.gestprop.net/portal)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.mostrarEnPortal}
+                    onChange={(e) => setForm((prev) => ({ ...prev, mostrarEnPortal: e.target.checked }))}
+                  />
+                  Mostrar en el portal público de la empresa
+                </label>
               </div>
             </div>
 

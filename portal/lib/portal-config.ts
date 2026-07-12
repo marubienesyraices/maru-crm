@@ -57,7 +57,7 @@ const API = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || '
  * Wrapped with React cache() to deduplicate within a single render tree.
  */
 export const getPortalConfig = cache(async (): Promise<PortalConfig> => {
-  const h = headers();
+  const h = await headers();
   const raw = h.get('x-portal-host') ?? h.get('host') ?? '';
   const host = raw.split(':')[0].toLowerCase();
 

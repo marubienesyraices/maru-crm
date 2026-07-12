@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { Readable } from 'stream';
 import { randomUUID } from 'crypto';
 
 const IMPORT_IP = '0.0.0.0'; // system action, no real IP
@@ -148,17 +149,50 @@ const PROPIEDAD_COLS: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────
 
-function parseFile(buffer: Buffer, filename = ''): Record<string, any>[] {
-  let wb: XLSX.WorkBook;
+/** Stringifies a cell value the way SheetJS's `raw:false` option used to. */
+function cellToString(v: ExcelJS.CellValue): string {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object') {
+    if ('richText' in v) return v.richText.map((t) => t.text).join('');
+    if ('text' in v) return String(v.text ?? ''); // hyperlink
+    if ('result' in v) return v.result === undefined ? '' : String(v.result); // formula
+  }
+  return String(v);
+}
+
+/** Converts a worksheet (header row + data rows) into an array of plain objects. */
+function worksheetToRows(ws: ExcelJS.Worksheet): Record<string, any>[] {
+  const headers: string[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    headers[colNumber] = cellToString(cell.value);
+  });
+
+  const rows: Record<string, any>[] = [];
+  ws.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // header
+    const obj: Record<string, any> = {};
+    headers.forEach((h, colNumber) => {
+      if (!h) return;
+      obj[h] = cellToString(row.getCell(colNumber).value);
+    });
+    rows.push(obj);
+  });
+  return rows;
+}
+
+async function parseFile(buffer: Buffer, filename = ''): Promise<Record<string, any>[]> {
+  const wb = new ExcelJS.Workbook();
+  let ws: ExcelJS.Worksheet | undefined;
   if (/\.csv$/i.test(filename)) {
     // Decode CSV respecting its actual encoding (UTF-8, UTF-8 BOM, or Windows-1252)
-    wb = XLSX.read(decodeCSV(buffer), { type: 'string' });
+    ws = await wb.csv.read(Readable.from([decodeCSV(buffer)]));
   } else {
-    wb = XLSX.read(buffer, { type: 'buffer' });
+    await wb.xlsx.load(buffer as any);
+    ws = wb.worksheets[0];
   }
-  if (!wb.SheetNames.length) return [];
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Record<string, any>>(ws, { raw: false, defval: '' });
+  if (!ws) return [];
+  return worksheetToRows(ws);
 }
 
 function mapRow(raw: Record<string, any>, colMap: Record<string, string>): Record<string, string> {
@@ -197,7 +231,7 @@ export class ImportService {
   // ─── CLIENTES ───────────────────────────────────────────────
 
   async importClientes(tenantId: string, buffer: Buffer, filename = ''): Promise<ImportResult> {
-    const rawRows = parseFile(buffer, filename);
+    const rawRows = await parseFile(buffer, filename);
     if (!rawRows.length) throw new BadRequestException('El archivo está vacío');
     if (rawRows.length > MAX_CLIENTES) {
       throw new BadRequestException(`Máximo ${MAX_CLIENTES} filas por importación`);
@@ -304,7 +338,7 @@ export class ImportService {
   // ─── PROPIEDADES ────────────────────────────────────────────
 
   async importPropiedades(tenantId: string, buffer: Buffer, userId?: string, filename = ''): Promise<ImportResult> {
-    const rawRows = parseFile(buffer, filename);
+    const rawRows = await parseFile(buffer, filename);
     if (!rawRows.length) throw new BadRequestException('El archivo está vacío');
     if (rawRows.length > MAX_PROPIEDADES) {
       throw new BadRequestException(`Máximo ${MAX_PROPIEDADES} filas por importación`);

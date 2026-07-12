@@ -203,7 +203,7 @@ export default function PortalDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`${API}/api/public/propiedades/${id}`)
+    fetch(`${API}/api/public/propiedades/${id}?vista=mapa_crm`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); return null; }
         return r.json();

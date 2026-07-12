@@ -7,13 +7,14 @@ import PropertyFilters from '@/components/PropertyFilters';
 import { getPortalConfig, displayName } from '@/lib/portal-config';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     tipo?: string; gestion?: string; departamento?: string; busqueda?: string;
     precioMin?: string; precioMax?: string; habitacionesMin?: string; page?: string;
-  };
+  }>;
 }
 
-export default async function HomePage({ searchParams }: PageProps) {
+export default async function HomePage({ searchParams: searchParamsPromise }: PageProps) {
+  const searchParams = await searchParamsPromise;
   const cfg = await getPortalConfig();
   const COMPANY = displayName(cfg);
   const WA = cfg.whatsapp ?? '';

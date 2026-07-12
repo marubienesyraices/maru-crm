@@ -13,8 +13,9 @@ const EMAIL   = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
 const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestProp';
 const API     = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const prop = await getPropiedad(params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const prop = await getPropiedad(id);
   if (!prop) return { title: 'Propiedad no encontrada' };
 
   const precio = fmtPrecio(prop.precio_venta ?? prop.precio_renta, prop.moneda);
@@ -32,8 +33,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function PropiedadDetailPage({ params }: { params: { id: string } }) {
-  const prop = await getPropiedad(params.id);
+export default async function PropiedadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const prop = await getPropiedad(id);
   if (!prop) notFound();
 
   // Fetch related properties (same tipo, exclude current)

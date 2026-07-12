@@ -41,6 +41,13 @@ export class PortalService {
     const skip  = (page - 1) * limit;
 
     const where: any = { estado: 'DISPONIBLE' };
+    // Distingue el sitio público del tenant del mapa interno del CRM
+    // (crm.gestprop.net/portal), cada uno con su propia bandera de visibilidad.
+    if (filtros.vista === 'mapa_crm') {
+      where.mostrar_en_mapa_crm = true;
+    } else {
+      where.mostrar_en_portal = true;
+    }
     // Env var takes priority; otherwise use tenantId passed by the portal SSR.
     // `||` (not `??`): docker-compose interpola PORTAL_TENANT_ID como "" cuando
     // no está definida en .env, y "" no es null/undefined así que `??` nunca
@@ -97,8 +104,13 @@ export class PortalService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findPublicProperty(id: string) {
+  async findPublicProperty(id: string, vista?: string) {
     const where: any = { id, estado: 'DISPONIBLE' };
+    if (vista === 'mapa_crm') {
+      where.mostrar_en_mapa_crm = true;
+    } else {
+      where.mostrar_en_portal = true;
+    }
     if (TENANT_ID) where.tenant_id = TENANT_ID;
 
     const prop = await this.prisma.propiedad.findFirst({

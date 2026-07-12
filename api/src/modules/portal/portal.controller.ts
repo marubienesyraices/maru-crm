@@ -26,8 +26,8 @@ export class PortalController {
 
   @Get('propiedades/:id')
   @ApiOperation({ summary: 'Obtener detalle público de una propiedad' })
-  findOne(@Param('id') id: string) {
-    return this.service.findPublicProperty(id);
+  findOne(@Param('id') id: string, @Query('vista') vista?: string) {
+    return this.service.findPublicProperty(id, vista);
   }
 
   @Post('registro')

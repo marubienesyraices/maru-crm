@@ -3,11 +3,13 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PropiedadesService } from '../propiedades.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
+import { StorageService } from '../../storage/storage.service';
 import { ConfigService } from '@nestjs/config';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const mockNotificacionesService = { create: jest.fn().mockResolvedValue({}) };
 const mockConfigService = { get: jest.fn().mockReturnValue(undefined) };
+const mockStorageService = { remove: jest.fn().mockResolvedValue(undefined) };
 
 const TENANT_ID = 'tenant-001';
 const USER_ID = 'user-001';
@@ -15,9 +17,12 @@ const USER_ID = 'user-001';
 const mockTenant = {
   id: TENANT_ID,
   nombre: 'Maru Test',
+  plan: 'PRO',
   limite_propiedades: 100,
   limite_usuarios: 10,
 };
+
+const mockAgenteSenior = { id: USER_ID, nombre: 'Admin', rol: 'SENIOR' };
 
 const mockPropiedad = {
   id: 'prop-001',
@@ -60,6 +65,7 @@ describe('PropiedadesService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: NotificacionesService, useValue: mockNotificacionesService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: StorageService, useValue: mockStorageService },
       ],
     }).compile();
 
@@ -71,6 +77,8 @@ describe('PropiedadesService', () => {
   describe('create', () => {
     it('debe crear propiedad con código auto-generado', async () => {
       prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.user.findFirst.mockResolvedValue(mockAgenteSenior);
+      prisma.user.count.mockResolvedValue(1);
       prisma.propiedad.count.mockResolvedValue(0);
       prisma.propiedad.create.mockResolvedValue({ ...mockPropiedad, codigo: 'CASA-0001' });
 
@@ -113,6 +121,8 @@ describe('PropiedadesService', () => {
 
     it('debe generar código con prefijo del tipo (APAR para APARTAMENTO)', async () => {
       prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.user.findFirst.mockResolvedValue(mockAgenteSenior);
+      prisma.user.count.mockResolvedValue(1);
       prisma.propiedad.count.mockResolvedValue(7);
       prisma.propiedad.create.mockResolvedValue({ ...mockPropiedad, codigo: 'APAR-0008' });
 
@@ -302,6 +312,7 @@ describe('PropiedadesService', () => {
     it('debe actualizar propiedad existente', async () => {
       prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
       prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, titulo: 'Nuevo Titulo' });
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
 
       const result = await service.update(TENANT_ID, 'prop-001', { titulo: 'Nuevo Titulo' });
 
@@ -313,6 +324,7 @@ describe('PropiedadesService', () => {
 
     it('debe lanzar NotFoundException si propiedad no existe', async () => {
       prisma.propiedad.findFirst.mockResolvedValue(null);
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
 
       await expect(
         service.update(TENANT_ID, 'no-existe', { titulo: 'X' }),

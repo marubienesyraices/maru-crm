@@ -18,6 +18,10 @@ export type MockPrismaService = {
   notificacion: { [key: string]: jest.Mock };
   interaccion: { [key: string]: jest.Mock };
   visita: { [key: string]: jest.Mock };
+  favorito: { [key: string]: jest.Mock };
+  busquedaGuardada: { [key: string]: jest.Mock };
+  brochureDescarga: { [key: string]: jest.Mock };
+  sindicacionPublicacion: { [key: string]: jest.Mock };
   $executeRawUnsafe: jest.Mock;
   $queryRaw: jest.Mock;
   $transaction: jest.Mock;
@@ -98,8 +102,10 @@ export function createMockPrismaService(): MockPrismaService {
     },
     cliente: {
       create: jest.fn(),
+      createMany: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn(),
@@ -109,11 +115,15 @@ export function createMockPrismaService(): MockPrismaService {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      upsert: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn(),
+      aggregate: jest.fn(),
     },
     notificacion: {
       create: jest.fn(),
+      createMany: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -126,12 +136,41 @@ export function createMockPrismaService(): MockPrismaService {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
+      groupBy: jest.fn(),
     },
     visita: {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    brochureDescarga: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    sindicacionPublicacion: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
+    },
+    favorito: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    busquedaGuardada: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
       delete: jest.fn(),
     },
     $executeRawUnsafe: jest.fn(),

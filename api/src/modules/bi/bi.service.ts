@@ -2,8 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { Prisma } from '@prisma/client';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const XLSX = require('xlsx');
+import ExcelJS from 'exceljs';
 
 const FUNNEL_ESTADOS = ['NUEVO', 'CONTACTADO', 'INTERESADO', 'EN_NEGOCIACION', 'GANADO', 'PERDIDO'] as const;
 const CACHE_TTL_SEC = 15 * 60; // 15 minutes
@@ -406,23 +405,33 @@ export class BiService implements OnModuleInit {
   async exportAgentesXlsx(tenantId: string, desde?: Date, hasta?: Date): Promise<Buffer> {
     const { agentes } = await this.getAgentes(tenantId, desde, hasta) as any;
 
-    const rows = agentes.map((a: any) => ({
-      Agente: a.nombre,
-      Rol: a.rol,
-      Ganados: a.ganados,
-      Perdidos: a.perdidos,
-      'Activos en pipeline': a.activos,
-      'Conversión %': a.tasaConversion,
-      'Comisión total (GTQ)': a.comisionTotal.toFixed(2),
-      Visitas: a.visitasRealizadas,
-      Interacciones: a.numInteracciones,
-    }));
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Desempeño Agentes');
+    ws.columns = [
+      { header: 'Agente', key: 'agente', width: 20 },
+      { header: 'Rol', key: 'rol', width: 14 },
+      { header: 'Ganados', key: 'ganados', width: 10 },
+      { header: 'Perdidos', key: 'perdidos', width: 10 },
+      { header: 'Activos en pipeline', key: 'activos', width: 18 },
+      { header: 'Conversión %', key: 'conversion', width: 13 },
+      { header: 'Comisión total (GTQ)', key: 'comision', width: 22 },
+      { header: 'Visitas', key: 'visitas', width: 10 },
+      { header: 'Interacciones', key: 'interacciones', width: 15 },
+    ];
+    ws.addRows(agentes.map((a: any) => ({
+      agente: a.nombre,
+      rol: a.rol,
+      ganados: a.ganados,
+      perdidos: a.perdidos,
+      activos: a.activos,
+      conversion: a.tasaConversion,
+      comision: a.comisionTotal.toFixed(2),
+      visitas: a.visitasRealizadas,
+      interacciones: a.numInteracciones,
+    })));
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [20, 14, 10, 10, 18, 13, 22, 10, 15].map((w) => ({ wch: w }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Desempeño Agentes');
-    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+    const buffer = await wb.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   // ─── P-14: Comisiones proyectadas vs realizadas ─────────────

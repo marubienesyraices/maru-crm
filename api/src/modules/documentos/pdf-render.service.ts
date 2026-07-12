@@ -1,6 +1,4 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const puppeteer = require('puppeteer');
 
 /**
  * Servicio singleton para renderizar HTML → PDF vía Puppeteer.
@@ -36,18 +34,24 @@ export class PdfRenderService implements OnModuleDestroy {
     // Si ya hay un launch en curso, esperar al mismo en lugar de lanzar otro
     if (this.launchPromise) return this.launchPromise;
 
-    this.launchPromise = puppeteer
-      .launch({
-        // 'shell' = modo headless clásico; no abre ventana visible en Windows
-        headless: 'shell',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-        ],
-      })
-      .then((browser: any) => {
+    // Import dinámico (no top-level require): puppeteer re-exporta puppeteer-core,
+    // que se empaqueta como ESM — un require() a nivel de módulo rompe la carga en
+    // Jest (no transforma ESM dentro de node_modules). El import() dinámico usa el
+    // loader nativo de Node, que sí interopera con ESM sin tocar la config de Jest.
+    this.launchPromise = (async () => {
+      try {
+        const mod: any = await import('puppeteer');
+        const puppeteer = mod.default ?? mod;
+        const browser = await puppeteer.launch({
+          // 'shell' = modo headless clásico; no abre ventana visible en Windows
+          headless: 'shell',
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+          ],
+        });
         this.logger.log('Chromium launched');
         this.browser = browser;
         this.launchPromise = null;
@@ -56,12 +60,12 @@ export class PdfRenderService implements OnModuleDestroy {
           this.browser = null;
         });
         return browser;
-      })
-      .catch((err: unknown) => {
+      } catch (err) {
         this.logger.error('Error lanzando Chromium', err);
         this.launchPromise = null;
         throw err;
-      });
+      }
+    })();
 
     return this.launchPromise;
   }

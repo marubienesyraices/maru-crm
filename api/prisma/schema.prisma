@@ -406,6 +406,10 @@ model Propiedad {
   propietario_id    String?
   agente_id         String?
 
+  // Visibilidad
+  mostrar_en_mapa_crm Boolean       @default(true)
+  mostrar_en_portal   Boolean       @default(true)
+
   created_at        DateTime        @default(now())
   updated_at        DateTime        @updatedAt
 

@@ -251,18 +251,34 @@ describe('PipelineService', () => {
       expect(updateCall.data.comision_calculada).toBe(5700); // 190000 * 3%
     });
 
-    it('GANADO sin comision_porcentaje no guarda comision_calculada', async () => {
+    it('GANADO sin comision_porcentaje usa el % default del tenant (CBR) para sugerir comisión', async () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
       prisma.propiedad.findUnique.mockResolvedValue({
         gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: null,
       });
+      prisma.configSeguridad.findUnique.mockResolvedValue(null); // sin default configurado → usa 5.6% hardcoded
       prisma.propiedad.update.mockResolvedValue({});
       prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
 
       await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' }, 'ADMIN', AGENTE_ID, null);
 
       const updateCall = prisma.clientePropiedad.update.mock.calls[0][0];
-      expect(updateCall.data.comision_calculada).toBeUndefined();
+      expect(updateCall.data.comision_calculada).toBe(5600); // 100000 * 5.6%
+    });
+
+    it('GANADO sin comision_porcentaje usa el % default configurado en el tenant si existe', async () => {
+      prisma.clientePropiedad.findFirst.mockResolvedValue({ ...mockInteres, estado: 'CIERRE' });
+      prisma.propiedad.findUnique.mockResolvedValue({
+        gestion: 'VENTA', precio_venta: 100000, precio_renta: null, comision_porcentaje: null,
+      });
+      prisma.configSeguridad.findUnique.mockResolvedValue({ comision_pct_venta_default: 4 });
+      prisma.propiedad.update.mockResolvedValue({});
+      prisma.clientePropiedad.update.mockResolvedValue({ ...mockInteres, estado: 'GANADO' });
+
+      await service.cambiarEstado(TENANT_ID, 'int-001', { nuevoEstado: 'GANADO' }, 'ADMIN', AGENTE_ID, null);
+
+      const updateCall = prisma.clientePropiedad.update.mock.calls[0][0];
+      expect(updateCall.data.comision_calculada).toBe(4000); // 100000 * 4%
     });
 
     it('EN_NEGOCIACION → PERDIDO libera propiedad a DISPONIBLE', async () => {

@@ -256,7 +256,7 @@ export default function PortalPage() {
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '50' });
+      const params = new URLSearchParams({ limit: '50', vista: 'mapa_crm' });
       if (user?.tenantId)    params.set('tenantId', user.tenantId);
       if (filters.busqueda)  params.set('busqueda', filters.busqueda);
       if (filters.tipo)      params.set('tipo', filters.tipo);

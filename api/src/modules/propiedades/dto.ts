@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsInt, IsUUID, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsInt, IsUUID, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePropiedadDto {
@@ -7,6 +7,9 @@ export class CreatePropiedadDto {
   @IsEnum(['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'])
   tipo: string;
   @IsEnum(['VENTA', 'RENTA', 'AMBAS']) gestion: string;
+
+  @IsOptional() @IsBoolean() mostrarEnMapaCrm?: boolean;
+  @IsOptional() @IsBoolean() mostrarEnPortal?: boolean;
 
   @IsOptional() @Type(() => Number) @IsNumber() precioVenta?: number;
   @IsOptional() @Type(() => Number) @IsNumber() precioRenta?: number;
@@ -40,6 +43,9 @@ export class UpdatePropiedadDto {
   @IsOptional() @IsEnum(['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'])
   tipo?: string;
   @IsOptional() @IsEnum(['VENTA', 'RENTA', 'AMBAS']) gestion?: string;
+
+  @IsOptional() @IsBoolean() mostrarEnMapaCrm?: boolean;
+  @IsOptional() @IsBoolean() mostrarEnPortal?: boolean;
 
   @IsOptional() @Type(() => Number) @IsNumber() precioVenta?: number;
   @IsOptional() @Type(() => Number) @IsNumber() precioRenta?: number;

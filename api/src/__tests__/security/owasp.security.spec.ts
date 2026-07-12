@@ -30,7 +30,7 @@ describe('OWASP Top 10 — Security tests', () => {
     }).compile();
 
     app = module.createNestApplication();
-    app.disable('x-powered-by');
+    app.getHttpAdapter().getInstance().disable('x-powered-by');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
     await app.init();
   });

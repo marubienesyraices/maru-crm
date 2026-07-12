@@ -11,7 +11,8 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { Readable } from 'stream';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -30,11 +31,38 @@ const PROPIEDADES_CSV = path.join(ROOT, 'propiedadesMaru.csv');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function readCsv(filePath: string): Record<string, string>[] {
+function cellToString(v: ExcelJS.CellValue): string {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object') {
+    if ('richText' in v) return v.richText.map((t) => t.text).join('');
+    if ('text' in v) return String(v.text ?? '');
+    if ('result' in v) return v.result === undefined ? '' : String(v.result);
+  }
+  return String(v);
+}
+
+async function readCsv(filePath: string): Promise<Record<string, string>[]> {
   const buf = fs.readFileSync(filePath);
-  const wb = XLSX.read(buf.toString('utf8'), { type: 'string' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Record<string, string>>(ws, { raw: false, defval: '' });
+  const wb = new ExcelJS.Workbook();
+  const ws = await wb.csv.read(Readable.from([buf.toString('utf8')]));
+
+  const headers: string[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    headers[colNumber] = cellToString(cell.value);
+  });
+
+  const rows: Record<string, string>[] = [];
+  ws.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const obj: Record<string, string> = {};
+    headers.forEach((h, colNumber) => {
+      if (!h) return;
+      obj[h] = cellToString(row.getCell(colNumber).value);
+    });
+    rows.push(obj);
+  });
+  return rows;
 }
 
 function s(v: any): string { return String(v ?? '').trim(); }
@@ -60,7 +88,7 @@ async function main() {
   if (!fs.existsSync(CLIENTES_CSV)) {
     console.warn(`⚠️  ${CLIENTES_CSV} no encontrado, saltando clientes.`);
   } else {
-    const rows = readCsv(CLIENTES_CSV);
+    const rows = await readCsv(CLIENTES_CSV);
     console.log(`\n👥 Importando ${rows.length} clientes…`);
 
     const existingEmails = new Set(
@@ -119,7 +147,7 @@ async function main() {
   if (!fs.existsSync(PROPIEDADES_CSV)) {
     console.warn(`⚠️  ${PROPIEDADES_CSV} no encontrado, saltando propiedades.`);
   } else {
-    const rows = readCsv(PROPIEDADES_CSV);
+    const rows = await readCsv(PROPIEDADES_CSV);
     console.log(`\n🏠 Importando ${rows.length} propiedades…`);
 
     const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: TENANT_ID } });

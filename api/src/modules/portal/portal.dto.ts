@@ -1,7 +1,9 @@
-import { IsEmail, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class FiltrosPublicasDto {
+  // 'portal' (default): sitio público del tenant. 'mapa_crm': mapa interno en crm.gestprop.net/portal
+  @IsOptional() @IsIn(['portal', 'mapa_crm']) vista?: string;
   @IsOptional() @IsString() @MaxLength(50)  tipo?: string;
   @IsOptional() @IsString() @MaxLength(20)  gestion?: string;
   @IsOptional() @IsString() @MaxLength(100) departamento?: string;
