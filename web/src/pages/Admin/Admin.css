@@ -32,11 +32,12 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .admin-table {
   width: 100%;
+  min-width: 920px;
   border-collapse: collapse;
 }
 

@@ -12,6 +12,10 @@ interface CatalogoPlan {
   tiene_portal: boolean;
   tiene_sitio_propio: boolean;
   tiene_integraciones: boolean;
+  tiene_meta: boolean;
+  tiene_mapas: boolean;
+  tiene_ranking: boolean;
+  tiene_organigrama: boolean;
   updated_at: string;
 }
 
@@ -30,6 +34,10 @@ const featureLabels: Array<{ key: keyof CatalogoPlan; label: string; desc: strin
   { key: 'tiene_portal',        label: 'Portal público',        desc: 'Página pública de propiedades' },
   { key: 'tiene_sitio_propio',  label: 'Sitio propio',          desc: 'Subdominio y dominio personalizado' },
   { key: 'tiene_integraciones', label: 'Integraciones',         desc: 'Conexiones con servicios externos' },
+  { key: 'tiene_meta',          label: 'Meta / Facebook Ads',   desc: 'Integración con Meta para campañas y leads' },
+  { key: 'tiene_mapas',         label: 'Mapas',                 desc: 'Geolocalización y mapas en propiedades' },
+  { key: 'tiene_ranking',       label: 'Ranking de agentes',    desc: 'Tablero de gamificación y desempeño' },
+  { key: 'tiene_organigrama',   label: 'Organigrama',           desc: 'Estructura jerárquica de equipo' },
 ];
 
 export default function AdminPlanesPage() {
