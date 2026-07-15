@@ -109,6 +109,7 @@ services:
       args:
         VITE_API_URL: ${APP_URL}
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
     container_name: gestprop-web
     restart: unless-stopped
     networks:

@@ -13,9 +13,11 @@ RUN npm ci --workspace=web --workspace=shared --ignore-scripts
 COPY shared/ ./shared/
 COPY web/ ./web/
 
-# ARGs inyectados en build time por docker-compose.prod.yml
+# ARGs inyectados en build time por docker-compose.prod.yml / docker-compose.qa.yml
 ARG VITE_API_URL
 ARG VITE_MAPBOX_TOKEN
+ARG VITE_GOOGLE_MAPS_API_KEY
+ARG VITE_SENTRY_DSN
 
 WORKDIR /app/web
 RUN npm run build
