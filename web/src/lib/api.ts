@@ -33,8 +33,12 @@ export async function apiRequest<T = any>(
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  // Intercept 401 — attempt silent token refresh (skip for the refresh endpoint itself)
-  if (res.status === 401 && _refresh && endpoint !== '/api/auth/refresh') {
+  // Intercept 401 — attempt silent token refresh (skip for auth endpoints, whose own
+  // 401s are real login/2FA errors, not an expired session)
+  const isAuthEndpoint = endpoint === '/api/auth/refresh'
+    || endpoint === '/api/auth/login'
+    || endpoint === '/api/auth/verify-2fa';
+  if (res.status === 401 && _refresh && !isAuthEndpoint) {
     if (!_refreshing) {
       _refreshing = _refresh().finally(() => { _refreshing = null; });
     }
