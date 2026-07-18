@@ -53,6 +53,12 @@ CMD ["npx", "prisma", "migrate", "deploy"]
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# node:20-alpine no trae fuentes: sharp (libvips) rasteriza el <text> de la
+# marca de agua (ImageService) vía Pango/librsvg, y sin fuentes instaladas
+# cada carácter sale como un glifo "tofu" (cuadro vacío). fontconfig + DejaVu
+# le dan un sans-serif real para resolver font-family:"Arial,Helvetica,sans-serif".
+RUN apk add --no-cache fontconfig ttf-dejavu
+
 RUN addgroup -S maru && adduser -S maru -G maru
 
 RUN printf "fetch-retries=5\nfetch-retry-mintimeout=20000\nfetch-retry-maxtimeout=120000\nfetch-timeout=300000\n" > /root/.npmrc
