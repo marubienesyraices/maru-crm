@@ -246,6 +246,21 @@ describe('PortalService', () => {
       expect(result.latitud).toBe(14.6);
       expect(result.longitud).toBe(-90.5);
     });
+
+    // Regresión: la página de detalle del portal Next.js (dominio propio del
+    // tenant) mostraba propiedades de OTRAS empresas porque findPublicProperty
+    // no aceptaba tenantId — solo filtraba por PORTAL_TENANT_ID (vacío en un
+    // deployment multi-dominio compartido).
+    it('filtra por tenantId cuando se pasa explícitamente', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(mockProp);
+      prisma.catalogoPlan.findUnique.mockResolvedValue({ tiene_mapas: true });
+
+      await service.findPublicProperty('prop-001', undefined, TENANT_ID);
+
+      expect(prisma.propiedad.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ tenant_id: TENANT_ID }) }),
+      );
+    });
   });
 
   // ─── registrarCliente ────────────────────────────────────────────

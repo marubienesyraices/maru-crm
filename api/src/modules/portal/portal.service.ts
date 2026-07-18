@@ -105,14 +105,17 @@ export class PortalService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findPublicProperty(id: string, vista?: string) {
+  async findPublicProperty(id: string, vista?: string, tenantId?: string) {
     const where: any = { id, estado: 'DISPONIBLE' };
     if (vista === 'mapa_crm') {
       where.mostrar_en_mapa_crm = true;
     } else {
       where.mostrar_en_portal = true;
     }
-    if (TENANT_ID) where.tenant_id = TENANT_ID;
+    // `||` (no `??`): mismo motivo que en findPublicProperties — TENANT_ID
+    // interpolado como "" por docker-compose no debe ganarle a un tenantId real.
+    const resolvedTenantId = TENANT_ID || tenantId;
+    if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
     const prop = await this.prisma.propiedad.findFirst({
       where,

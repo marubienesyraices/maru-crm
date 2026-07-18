@@ -53,8 +53,9 @@ export async function getPropiedades(filtros: Filtros = {}): Promise<Propiedades
   return res.json();
 }
 
-export async function getPropiedad(id: string): Promise<PropiedadPublica | null> {
-  const res = await fetch(`${API}/api/public/propiedades/${id}`, {
+export async function getPropiedad(id: string, tenantId?: string): Promise<PropiedadPublica | null> {
+  const qs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+  const res = await fetch(`${API}/api/public/propiedades/${id}${qs}`, {
     next: { revalidate: 120 },
   });
   if (res.status === 404) return null;

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getPropiedad, getPropiedades, fmtPrecio, TIPO_LABELS, GESTION_LABELS } from '@/lib/api';
+import { getPortalConfig } from '@/lib/portal-config';
 import Header from '@/components/Header';
 import ImageGallery from '@/components/ImageGallery';
 import PropertyCard from '@/components/PropertyCard';
@@ -15,7 +16,8 @@ const API     = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const prop = await getPropiedad(id);
+  const cfg  = await getPortalConfig();
+  const prop = await getPropiedad(id, cfg.tenant_id);
   if (!prop) return { title: 'Propiedad no encontrada' };
 
   const precio = fmtPrecio(prop.precio_venta ?? prop.precio_renta, prop.moneda);
@@ -35,11 +37,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function PropiedadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const prop = await getPropiedad(id);
+  const cfg  = await getPortalConfig();
+  const prop = await getPropiedad(id, cfg.tenant_id);
   if (!prop) notFound();
 
-  // Fetch related properties (same tipo, exclude current)
-  const related = await getPropiedades({ tipo: prop.tipo, page: '1' })
+  // Fetch related properties (same tipo, exclude current, mismo tenant)
+  const related = await getPropiedades({ tipo: prop.tipo, page: '1', tenantId: cfg.tenant_id })
     .then(r => r.data.filter(p => p.id !== prop.id).slice(0, 3))
     .catch(() => []);
 
