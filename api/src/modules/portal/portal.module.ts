@@ -6,12 +6,14 @@ import { PortalService } from './portal.service';
 import { ClienteJwtGuard } from './cliente-jwt.guard';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
+import { ConfigPortalModule } from '../config-portal/config-portal.module';
 
 @Module({
   imports: [
     PrismaModule,
     EmailModule,
     ConfigModule,
+    ConfigPortalModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

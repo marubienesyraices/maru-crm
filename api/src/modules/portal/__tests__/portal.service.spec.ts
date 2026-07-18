@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PortalService } from '../portal.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { EmailService } from '../../email/email.service';
+import { ConfigPortalService } from '../../config-portal/config-portal.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
@@ -13,6 +14,9 @@ const OTHER_TENANT_ID = 'tenant-002';
 const mockEmailService = { sendHtml: jest.fn().mockResolvedValue(undefined) };
 const mockConfigService = { get: jest.fn().mockReturnValue(undefined) };
 const mockJwtService = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
+const mockConfigPortalService = {
+  resolvePortalBaseUrl: jest.fn((_tenantId: string, fallback: string) => Promise.resolve(fallback)),
+};
 
 describe('PortalService', () => {
   let service: PortalService;
@@ -20,6 +24,7 @@ describe('PortalService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockConfigPortalService.resolvePortalBaseUrl.mockImplementation((_tenantId: string, fallback: string) => Promise.resolve(fallback));
     prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +34,7 @@ describe('PortalService', () => {
         { provide: EmailService, useValue: mockEmailService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigPortalService, useValue: mockConfigPortalService },
       ],
     }).compile();
 
@@ -387,6 +393,21 @@ describe('PortalService', () => {
 
       expect(mockEmailService.sendHtml).toHaveBeenCalledWith(
         expect.objectContaining({ subject: expect.stringContaining('Confirma') }),
+      );
+    });
+
+    it('usa el dominio propio del tenant en el link del correo, no el PORTAL_URL global', async () => {
+      mockConfigPortalService.resolvePortalBaseUrl.mockResolvedValue('https://www.marubienesraices.com');
+      prisma.cliente.findFirst.mockResolvedValue({
+        id: 'cli-001', nombre: 'Juan', email: 'juan@test.com', tenant_id: TENANT_ID, portal_verificado: true,
+      });
+      prisma.cliente.update.mockResolvedValue({});
+
+      await service.solicitarAcceso('juan@test.com', TENANT_ID);
+
+      expect(mockConfigPortalService.resolvePortalBaseUrl).toHaveBeenCalledWith(TENANT_ID, expect.any(String));
+      expect(mockEmailService.sendHtml).toHaveBeenCalledWith(
+        expect.objectContaining({ html: expect.stringContaining('https://www.marubienesraices.com/mi-cuenta/verify') }),
       );
     });
   });

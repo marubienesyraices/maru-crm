@@ -107,6 +107,20 @@ export class ConfigPortalService {
     return row;
   }
 
+  /**
+   * Base URL (sin trailing slash) del portal público del tenant, para armar
+   * links en correos transaccionales. Usa dominio_personalizado si está
+   * configurado (único dominio efectivamente ruteado por nginx hoy); si no,
+   * cae al `fallback` (típicamente el PORTAL_URL global).
+   */
+  async resolvePortalBaseUrl(tenantId: string, fallback: string): Promise<string> {
+    const row = await this.prisma.configPortal.findUnique({
+      where: { tenant_id: tenantId },
+      select: { dominio_personalizado: true },
+    });
+    return row?.dominio_personalizado ? `https://${row.dominio_personalizado}` : fallback;
+  }
+
   /** Called when tenant has no domain config — returns first active tenant. */
   async findDefault(): Promise<Record<string, unknown> | null> {
     const cacheKey = 'portal:domain:__default__';

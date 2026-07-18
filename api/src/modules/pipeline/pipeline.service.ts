@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { EstadoInteres, NivelInteres } from '@prisma/client';
 import { EmailService } from '../email/email.service';
+import { ConfigPortalService } from '../config-portal/config-portal.service';
 import { CreateInteresDto, CambiarEstadoInteresDto, UpdateInteresDto, FiltrosPipelineDto } from './dto';
 
 // ─── Helpers comisiones CBR ──────────────────────────────────
@@ -45,6 +46,7 @@ export class PipelineService {
     private readonly redis: RedisService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly configPortal: ConfigPortalService,
   ) {
     const portalBase = config.get<string>('PORTAL_URL');
     this.portalUrl = portalBase ? portalBase.replace(/\/$/, '') : '';
@@ -301,9 +303,10 @@ export class PipelineService {
     const propiedad = interes.propiedad;
     if (!propiedad) return;
 
+    const portalBase = await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalUrl);
     const propLabel = `<strong>${propiedad.titulo}</strong> (${propiedad.codigo})`;
-    const portalPropUrl = this.portalUrl
-      ? `${this.portalUrl}/propiedades/${propiedad.id}`
+    const portalPropUrl = portalBase
+      ? `${portalBase}/propiedades/${propiedad.id}`
       : undefined;
 
     if (nuevoEstado === 'GANADO') {
@@ -329,7 +332,7 @@ export class PipelineService {
         subject: `Actualización sobre tu solicitud — ${propiedad.titulo}`,
         heading: `Actualización sobre tu solicitud`,
         body: `Lamentamos informarte que tu solicitud para ${propLabel} no pudo concretarse en esta ocasión. Estamos a tu disposición para ayudarte a encontrar la propiedad ideal.`,
-        cta: this.portalUrl ? { label: 'Ver otras propiedades', url: this.portalUrl } : undefined,
+        cta: portalBase ? { label: 'Ver otras propiedades', url: portalBase } : undefined,
         tenantId,
       });
     }

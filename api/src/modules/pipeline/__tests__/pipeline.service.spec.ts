@@ -5,6 +5,7 @@ import { PipelineService } from '../pipeline.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { RedisService } from '../../../redis/redis.service';
 import { EmailService } from '../../email/email.service';
+import { ConfigPortalService } from '../../config-portal/config-portal.service';
 import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
@@ -44,6 +45,7 @@ describe('PipelineService', () => {
         { provide: RedisService, useValue: { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(undefined), deleteByPattern: jest.fn().mockResolvedValue(undefined) } },
         { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined) } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('') } },
+        { provide: ConfigPortalService, useValue: { resolvePortalBaseUrl: jest.fn((_tenantId: string, fallback: string) => Promise.resolve(fallback)) } },
       ],
     }).compile();
     service = module.get<PipelineService>(PipelineService);

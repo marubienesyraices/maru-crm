@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { ConfigPortalService } from '../config-portal/config-portal.service';
 import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
 import { randomUUID } from 'crypto';
 
@@ -18,7 +19,6 @@ const PUBLIC_PROPERTY_INCLUDE = {
 export class PortalService {
   private readonly logger = new Logger(PortalService.name);
   private readonly frontendUrl: string;
-  private readonly portalUrl: string;
   private readonly portalBase: string;
 
   constructor(
@@ -26,13 +26,13 @@ export class PortalService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
+    private readonly configPortal: ConfigPortalService,
   ) {
     this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
     const configuredPortal = config.get<string>('PORTAL_URL');
     this.portalBase = configuredPortal
       ? configuredPortal.replace(/\/$/, '')
       : 'http://localhost:3001';
-    this.portalUrl = `${this.portalBase}/verificar`;
   }
 
   async findPublicProperties(filtros: FiltrosPublicasDto) {
@@ -425,7 +425,7 @@ export class PortalService {
     });
 
     if (cliente.portal_verificado) {
-      await this.sendMagicLoginEmail(cliente.email, cliente.nombre, token);
+      await this.sendMagicLoginEmail(cliente.email, cliente.nombre, token, cliente.tenant_id);
     } else {
       await this.sendVerificationEmail(cliente.email, cliente.nombre, token, cliente.tenant_id);
     }
@@ -588,8 +588,9 @@ export class PortalService {
 
   // ─── Private helpers ─────────────────────────────────────────
 
-  private async sendMagicLoginEmail(email: string, nombre: string, token: string) {
-    const url = `${this.portalBase}/mi-cuenta/verify?token=${token}`;
+  private async sendMagicLoginEmail(email: string, nombre: string, token: string, tenantId: string) {
+    const base = await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalBase);
+    const url = `${base}/mi-cuenta/verify?token=${token}`;
     try {
       await this.email.sendHtml({
         to: email,
@@ -644,7 +645,8 @@ export class PortalService {
   }
 
   private async sendVerificationEmail(email: string, nombre: string, token: string, tenantId?: string) {
-    const url = `${this.portalUrl}?token=${token}`;
+    const base = tenantId ? await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalBase) : this.portalBase;
+    const url = `${base}/verificar?token=${token}`;
     try {
       await this.email.sendHtml({
         to: email,
