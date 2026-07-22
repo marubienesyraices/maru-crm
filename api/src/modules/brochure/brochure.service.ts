@@ -207,7 +207,7 @@ export class BrochureService {
     const primary = configIntegraciones?.carta_color_primario || (propiedad.tenant as any).color_primario || '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
-    const currency = propiedad.tenant.moneda || 'GTQ';
+    const currency = propiedad.moneda || propiedad.tenant.moneda || 'GTQ';
     const gestionLabel = GESTION_LABELS[propiedad.gestion] || propiedad.gestion;
     const tipoLabel = TIPO_LABELS[propiedad.tipo] || propiedad.tipo;
     const fecha = new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
