@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { getPortalConfig, displayName } from '@/lib/portal-config';
 
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestProp';
+export default async function NotFound() {
+  const cfg = await getPortalConfig();
+  const COMPANY = displayName(cfg);
 
-export default function NotFound() {
   return (
     <>
       <Header />

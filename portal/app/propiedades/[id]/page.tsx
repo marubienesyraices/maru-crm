@@ -2,17 +2,14 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getPropiedad, getPropiedades, fmtPrecio, TIPO_LABELS, GESTION_LABELS } from '@/lib/api';
-import { getPortalConfig } from '@/lib/portal-config';
+import { getPortalConfig, displayName } from '@/lib/portal-config';
 import Header from '@/components/Header';
 import ImageGallery from '@/components/ImageGallery';
 import PropertyCard from '@/components/PropertyCard';
 import RegistroInteresForm from '@/components/RegistroInteresForm';
 import NearbyPlaces from '@/components/NearbyPlaces';
 
-const WA      = process.env.NEXT_PUBLIC_WHATSAPP || '';
-const EMAIL   = process.env.NEXT_PUBLIC_COMPANY_EMAIL || '';
-const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME || 'GestProp';
-const API     = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -40,6 +37,10 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
   const cfg  = await getPortalConfig();
   const prop = await getPropiedad(id, cfg.tenant_id);
   if (!prop) notFound();
+
+  const COMPANY = displayName(cfg);
+  const WA      = cfg.whatsapp ?? '';
+  const EMAIL   = cfg.email_contacto ?? '';
 
   // Fetch related properties (same tipo, exclude current, mismo tenant)
   const related = await getPropiedades({ tipo: prop.tipo, page: '1', tenantId: cfg.tenant_id })
