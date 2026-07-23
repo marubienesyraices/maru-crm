@@ -45,10 +45,10 @@ function resolveRlsSettings(): { tenantId: string; bypass: 'true' | 'false' } {
 function createRlsClient(base: PrismaClient) {
   return base.$extends({
     query: {
-      async $allOperations({ args, query }) {
+      async $allOperations({ args, query }): Promise<unknown> {
         // Already inside an RLS-configured transaction (see $transaction below)
         if (rlsApplied.getStore()) {
-          return query(args);
+          return query(args) as Promise<unknown>;
         }
         const { tenantId, bypass } = resolveRlsSettings();
         // Batch form guarantees setCfg and query(args) share the same connection
@@ -56,7 +56,7 @@ function createRlsClient(base: PrismaClient) {
         const [, result] = await rlsApplied.run(true, () =>
           base.$transaction([
             base.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true), set_config('app.bypass_rls', ${bypass}, true)`,
-            query(args) as any,
+            query(args) as Prisma.PrismaPromise<unknown>,
           ]),
         );
         return result;
@@ -65,9 +65,14 @@ function createRlsClient(base: PrismaClient) {
   });
 }
 
+// Declaration merging: exposes PrismaClient's model delegates/$-methods on the
+// PrismaService type so callers get full autocomplete/typing even though they
+// are actually served at runtime by the Proxy in the constructor below.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unsafe-declaration-merging
 export interface PrismaService extends Omit<PrismaClient, '$transaction'> {}
 
 @Injectable()
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly pool: Pool;
   private readonly base: PrismaClient;
@@ -103,9 +108,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
         if (Reflect.has(target, prop)) {
           return Reflect.get(target, prop, receiver);
         }
-        const value = Reflect.get(target.extended, prop);
+        const value: unknown = Reflect.get(target.extended, prop);
         return typeof value === 'function'
-          ? value.bind(target.extended)
+          ? (value as (...args: unknown[]) => unknown).bind(target.extended)
           : value;
       },
     });
@@ -137,7 +142,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       isolationLevel?: Prisma.TransactionIsolationLevel;
     },
   ): Promise<R>;
-  $transaction(input: any, options?: any): Promise<any> {
+  $transaction(
+    input:
+      | Prisma.PrismaPromise<unknown>[]
+      | ((tx: Prisma.TransactionClient) => Promise<unknown>),
+    options?: {
+      maxWait?: number;
+      timeout?: number;
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+    },
+  ): Promise<unknown> {
     const { tenantId, bypass } = resolveRlsSettings();
 
     if (typeof input === 'function') {
@@ -151,6 +165,6 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       .$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true), set_config('app.bypass_rls', ${bypass}, true)`;
     return rlsApplied
       .run(true, () => this.base.$transaction([setCfg, ...input], options))
-      .then((results: any[]) => results.slice(1));
+      .then((results) => results.slice(1));
   }
 }

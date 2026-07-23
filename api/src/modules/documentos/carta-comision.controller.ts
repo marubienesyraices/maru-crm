@@ -14,6 +14,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import Handlebars from 'handlebars';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -22,8 +23,6 @@ import { StorageService } from '../storage/storage.service';
 import { ConfigDocumentosService } from '../config-documentos/config-documentos.service';
 import { PdfRenderService } from './pdf-render.service';
 import { randomUUID } from 'crypto';
-
-const Handlebars = require('handlebars');
 
 const GESTION_TEXTO: Record<string, string> = {
   VENTA: 'venta',
@@ -136,15 +135,13 @@ export class CartaComisionController {
     // Visual overrides
     const primary =
       configIntegraciones?.carta_color_primario ||
-      (propiedad.tenant as any).color_primario ||
+      propiedad.tenant.color_primario ||
       '#2563eb';
     const tagline = configIntegraciones?.carta_tagline ?? '';
 
     // Logo → base64 data URI
     const logoUrl =
-      configIntegraciones?.carta_logo_url ||
-      (propiedad.tenant as any).logo_url ||
-      null;
+      configIntegraciones?.carta_logo_url || propiedad.tenant.logo_url || null;
     let logoSrc = '';
     if (logoUrl) {
       try {
