@@ -6,6 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma, EstadoVisita } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { EmailService } from '../email/email.service';
@@ -156,12 +157,14 @@ export class VisitasService {
     visibleUserIds: string[] | null,
     filtros: FiltrosVisitaDto,
   ) {
-    const where: any = { interes: { cliente: { tenant_id: tenantId } } };
+    const where: Prisma.VisitaWhereInput = {
+      interes: { cliente: { tenant_id: tenantId } },
+    };
 
     if (visibleUserIds) where.agente_id = { in: visibleUserIds };
     if (filtros.agenteId) where.agente_id = filtros.agenteId;
     if (filtros.interesId) where.interes_id = filtros.interesId;
-    if (filtros.estado) where.estado = filtros.estado;
+    if (filtros.estado) where.estado = filtros.estado as EstadoVisita;
     if (filtros.from || filtros.to) {
       where.fecha_inicio = {};
       if (filtros.from) where.fecha_inicio.gte = new Date(filtros.from);
@@ -223,7 +226,7 @@ export class VisitasService {
         ...(dto.fechaFin ? { fecha_fin: new Date(dto.fechaFin) } : {}),
         ...(dto.ubicacion !== undefined ? { ubicacion: dto.ubicacion } : {}),
         ...(dto.notas !== undefined ? { notas: dto.notas } : {}),
-        ...(dto.estado ? { estado: dto.estado as any } : {}),
+        ...(dto.estado ? { estado: dto.estado as EstadoVisita } : {}),
       },
       include: VISITA_INCLUDE,
     });

@@ -4,7 +4,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OrigenCliente, TipoPropiedad, TipoGestion } from '@prisma/client';
+import {
+  Prisma,
+  OrigenCliente,
+  TipoPropiedad,
+  TipoGestion,
+} from '@prisma/client';
 import { CreateClienteDto, UpdateClienteDto, FiltrosClienteDto } from './dto';
 
 @Injectable()
@@ -54,8 +59,8 @@ export class ClientesService {
     const limit = filtros.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenant_id: tenantId };
-    if (filtros.origen) where.origen = filtros.origen;
+    const where: Prisma.ClienteWhereInput = { tenant_id: tenantId };
+    if (filtros.origen) where.origen = filtros.origen as OrigenCliente;
     if (filtros.agenteId) where.agente_id = filtros.agenteId;
     if (filtros.esPropietario !== undefined)
       where.es_propietario = filtros.esPropietario;
@@ -183,7 +188,7 @@ export class ClientesService {
       propietarios,
       porOrigen: porOrigenRaw.map((r) => ({
         origen: r.origen,
-        _count: (r._count as any)._all ?? r._count,
+        _count: r._count,
       })),
     };
   }
