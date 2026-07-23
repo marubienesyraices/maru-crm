@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PortalService } from './portal.service';
 import { ClienteJwtGuard } from './cliente-jwt.guard';
+import type { ClienteRequest } from './cliente-jwt.guard';
 import {
   ChatbotLeadDto,
   FiltrosPublicasDto,
@@ -107,8 +108,8 @@ export class PortalController {
     summary:
       'Dashboard del cliente: perfil + propiedades de interés + visitas próximas',
   })
-  getMiCuenta(@Request() req: any) {
-    return this.service.getMiCuenta(req.clienteId);
+  getMiCuenta(@Request() req: ClienteRequest) {
+    return this.service.getMiCuenta(req.clienteId!);
   }
 
   @Post('cliente/favoritos/:propiedadId')
@@ -116,10 +117,13 @@ export class PortalController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Agregar propiedad a favoritos del cliente' })
-  addFavorito(@Request() req: any, @Param('propiedadId') propiedadId: string) {
+  addFavorito(
+    @Request() req: ClienteRequest,
+    @Param('propiedadId') propiedadId: string,
+  ) {
     return this.service.addFavorito(
-      req.clienteId,
-      req.clienteTenantId,
+      req.clienteId!,
+      req.clienteTenantId!,
       propiedadId,
     );
   }
@@ -130,18 +134,18 @@ export class PortalController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Quitar propiedad de favoritos del cliente' })
   removeFavorito(
-    @Request() req: any,
+    @Request() req: ClienteRequest,
     @Param('propiedadId') propiedadId: string,
   ) {
-    return this.service.removeFavorito(req.clienteId, propiedadId);
+    return this.service.removeFavorito(req.clienteId!, propiedadId);
   }
 
   @Get('cliente/favoritos')
   @UseGuards(ClienteJwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar propiedades favoritas del cliente' })
-  getFavoritos(@Request() req: any) {
-    return this.service.getFavoritos(req.clienteId);
+  getFavoritos(@Request() req: ClienteRequest) {
+    return this.service.getFavoritos(req.clienteId!);
   }
 
   // ─── F-12: Google OAuth ────────────────────────────────────
@@ -165,8 +169,8 @@ export class PortalController {
   @UseGuards(ClienteJwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar búsquedas guardadas del cliente' })
-  getBusquedas(@Request() req: any) {
-    return this.service.getBusquedasGuardadas(req.clienteId);
+  getBusquedas(@Request() req: ClienteRequest) {
+    return this.service.getBusquedasGuardadas(req.clienteId!);
   }
 
   @Post('cliente/busquedas')
@@ -175,7 +179,7 @@ export class PortalController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Guardar una búsqueda' })
   saveBusqueda(
-    @Request() req: any,
+    @Request() req: ClienteRequest,
     @Body()
     body: {
       nombre: string;
@@ -184,8 +188,8 @@ export class PortalController {
     },
   ) {
     return this.service.saveBusquedaGuardada(
-      req.clienteId,
-      req.clienteTenantId,
+      req.clienteId!,
+      req.clienteTenantId!,
       body.nombre,
       body.filtros,
       body.alertas,
@@ -197,7 +201,7 @@ export class PortalController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar búsqueda guardada' })
-  deleteBusqueda(@Request() req: any, @Param('id') id: string) {
-    return this.service.deleteBusquedaGuardada(req.clienteId, id);
+  deleteBusqueda(@Request() req: ClienteRequest, @Param('id') id: string) {
+    return this.service.deleteBusquedaGuardada(req.clienteId!, id);
   }
 }

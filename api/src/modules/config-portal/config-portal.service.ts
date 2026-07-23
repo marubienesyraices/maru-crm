@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { UpdateConfigPortalDto } from './dto';
 
 const CACHE_TTL = 300; // 5 min
+
+type PortalDomainRow = Record<string, unknown>;
 
 @Injectable()
 export class ConfigPortalService {
@@ -37,8 +39,8 @@ export class ConfigPortalService {
         select: { tiene_sitio_propio: true },
       });
       if (catalog && !catalog.tiene_sitio_propio) {
-        delete (dto as any).subdominio;
-        delete (dto as any).dominio_personalizado;
+        delete dto.subdominio;
+        delete dto.dominio_personalizado;
       }
     }
 
@@ -64,10 +66,10 @@ export class ConfigPortalService {
    *   4. First active tenant
    * Uses Redis cache; reads DB with bypass_rls so RLS doesn't block the lookup.
    */
-  async findByDomain(host: string): Promise<Record<string, unknown> | null> {
+  async findByDomain(host: string): Promise<PortalDomainRow | null> {
     const cacheKey = `portal:domain:${host}`;
     const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (cached) return JSON.parse(cached) as PortalDomainRow;
 
     const subdomain = host.split('.')[0];
 
@@ -76,7 +78,7 @@ export class ConfigPortalService {
     const queryWithBypass = (q: Prisma.Sql) =>
       this.prisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'true'`);
-        return tx.$queryRaw<any[]>(q);
+        return tx.$queryRaw<PortalDomainRow[]>(q);
       });
 
     const domainSql = Prisma.sql`
@@ -137,14 +139,14 @@ export class ConfigPortalService {
   }
 
   /** Called when tenant has no domain config — returns first active tenant. */
-  async findDefault(): Promise<Record<string, unknown> | null> {
+  async findDefault(): Promise<PortalDomainRow | null> {
     const cacheKey = 'portal:domain:__default__';
     const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (cached) return JSON.parse(cached) as PortalDomainRow;
 
     const rows = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'true'`);
-      return tx.$queryRaw<any[]>`
+      return tx.$queryRaw<PortalDomainRow[]>`
         SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
                t.color_primario, t.color_secundario, t.color_acento,
                COALESCE(cat.tiene_portal, false) AS tiene_portal
