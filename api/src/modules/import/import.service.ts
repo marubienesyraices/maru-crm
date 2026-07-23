@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { TipoPropiedad, TipoGestion } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import ExcelJS from 'exceljs';
 import { Readable } from 'stream';
@@ -92,13 +93,16 @@ function norm(s: string): string {
 // ─── Value sanitization ──────────────────────────────────────
 
 /** NFC normalize, strip ASCII control chars, collapse internal whitespace. */
-function sanitize(v: any): string {
-  return String(v ?? '')
-    .normalize('NFC')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    .replace(/[^\S ]+/g, ' ') // replace tabs / non-breaking spaces / etc. with regular space
-    .replace(/ {2,}/g, ' ') // collapse multiple spaces
-    .trim();
+function sanitize(v: string | null | undefined): string {
+  return (
+    (v ?? '')
+      .normalize('NFC')
+      // eslint-disable-next-line no-control-regex -- intentional: strips control chars from imported data
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .replace(/[^\S ]+/g, ' ') // replace tabs / non-breaking spaces / etc. with regular space
+      .replace(/ {2,}/g, ' ') // collapse multiple spaces
+      .trim()
+  );
 }
 
 // Map normalized column names to canonical field names
@@ -266,9 +270,17 @@ function cellToString(v: ExcelJS.CellValue): string {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === 'object') {
+    if ('error' in v) return String(v.error); // CellErrorValue
     if ('richText' in v) return v.richText.map((t) => t.text).join('');
     if ('text' in v) return String(v.text ?? ''); // hyperlink
-    if ('result' in v) return v.result === undefined ? '' : String(v.result); // formula
+    if ('result' in v) {
+      // formula
+      if (v.result === undefined) return '';
+      if (v.result && typeof v.result === 'object' && 'error' in v.result)
+        return String(v.result.error); // CellErrorValue
+      return String(v.result);
+    }
+    return '';
   }
   return String(v);
 }
@@ -303,6 +315,10 @@ async function parseFile(
     // Decode CSV respecting its actual encoding (UTF-8, UTF-8 BOM, or Windows-1252)
     ws = await wb.csv.read(Readable.from([decodeCSV(buffer)]));
   } else {
+    // exceljs's bundled types declare `Buffer extends ArrayBuffer {}`, which
+    // conflicts with @types/node's generic Buffer<ArrayBufferLike> — a known
+    // upstream typing defect, not fixable without a cast.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await wb.xlsx.load(buffer as any);
     ws = wb.worksheets[0];
   }
@@ -449,7 +465,7 @@ export class ImportService {
       // ── dpi (optional, warn if not 13 digits) ──
       const dpi = str(row.dpi) || null;
       if (dpi) {
-        const dpiDigits = dpi.replace(/[\s\-\.]/g, '');
+        const dpiDigits = dpi.replace(/[\s.-]/g, '');
         if (!DPI_RE.test(dpiDigits)) {
           errors.push({
             row: rowNum,
@@ -470,7 +486,7 @@ export class ImportService {
         nombre,
         email: email || null,
         telefono,
-        dpi: dpi ? dpi.replace(/[\s\-\.]/g, '') : null,
+        dpi: dpi ? dpi.replace(/[\s.-]/g, '') : null,
         origen,
         notas: str(row.notas) || null,
       });
@@ -679,8 +695,8 @@ export class ImportService {
             tenant_id: tenantId,
             codigo,
             titulo,
-            tipo: tipoRaw as any,
-            gestion: gestionRaw as any,
+            tipo: tipoRaw as TipoPropiedad,
+            gestion: gestionRaw as TipoGestion,
             estado: 'BORRADOR',
             precio_venta: precioVenta,
             precio_renta: precioRenta,
@@ -718,7 +734,7 @@ export class ImportService {
             tenant_id: tenantId,
             user_id: userId,
             nombre_usuario: 'Importación masiva',
-            accion: 'CREATE' as any,
+            accion: 'CREATE',
             modulo: 'Import',
             entidad: 'Propiedad',
             entidad_id: null,
