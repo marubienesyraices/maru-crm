@@ -1,6 +1,7 @@
 import { Controller, Get, Logger, Param, Query, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
@@ -50,7 +51,7 @@ export class EmailTrackingController {
   }
 
   @Get(':id/open.gif')
-  async trackOpen(@Param('id') id: string, @Res() res: any) {
+  trackOpen(@Param('id') id: string, @Res() res: Response) {
     // Fire-and-forget: record first open without blocking response
     this.prisma.emailEvento
       .updateMany({
@@ -67,10 +68,10 @@ export class EmailTrackingController {
   }
 
   @Get(':id/click')
-  async trackClick(
+  trackClick(
     @Param('id') id: string,
     @Query('url') url: string,
-    @Res() res: any,
+    @Res() res: Response,
   ) {
     const isSafe = this.isSafeRedirectUrl(url);
     const target = isSafe ? url : this.frontendUrl;

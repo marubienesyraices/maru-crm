@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, AccionAudit } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -22,11 +23,11 @@ export class AuditService {
     const limit = filters.limit || 50;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenant_id: tenantId };
+    const where: Prisma.AuditLogWhereInput = { tenant_id: tenantId };
 
     if (filters.userId) where.user_id = filters.userId;
     if (filters.modulo) where.modulo = filters.modulo;
-    if (filters.accion) where.accion = filters.accion;
+    if (filters.accion) where.accion = filters.accion as AccionAudit;
     if (filters.entidad) where.entidad = filters.entidad;
     if (filters.fechaDesde || filters.fechaHasta) {
       where.created_at = {};
@@ -67,7 +68,7 @@ export class AuditService {
     entidadId?: string;
     ipAddress: string;
     userAgent?: string;
-    payloadCambio?: any;
+    payloadCambio?: unknown;
   }) {
     return this.prisma.auditLog.create({
       data: {
@@ -80,7 +81,7 @@ export class AuditService {
         entidad_id: data.entidadId,
         ip_address: data.ipAddress,
         user_agent: data.userAgent,
-        payload_cambio: data.payloadCambio,
+        payload_cambio: data.payloadCambio as Prisma.InputJsonValue,
       },
     });
   }
