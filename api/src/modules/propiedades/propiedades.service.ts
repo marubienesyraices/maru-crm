@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   Prisma,
+  Propiedad,
   TipoPropiedad,
   TipoGestion,
   EstadoPropiedad,
@@ -237,15 +238,15 @@ export class PropiedadesService {
     const limit = filtros.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenant_id: tenantId };
+    const where: Prisma.PropiedadWhereInput = { tenant_id: tenantId };
 
     if (visibleUserIds) {
       where.agente_id = { in: visibleUserIds };
     }
 
-    if (filtros.tipo) where.tipo = filtros.tipo;
-    if (filtros.gestion) where.gestion = filtros.gestion;
-    if (filtros.estado) where.estado = filtros.estado;
+    if (filtros.tipo) where.tipo = filtros.tipo as TipoPropiedad;
+    if (filtros.gestion) where.gestion = filtros.gestion as TipoGestion;
+    if (filtros.estado) where.estado = filtros.estado as EstadoPropiedad;
     if (filtros.pais) where.pais = filtros.pais;
     if (filtros.departamento) where.departamento = filtros.departamento;
     if (filtros.municipio) where.municipio = filtros.municipio;
@@ -361,44 +362,44 @@ export class PropiedadesService {
       }
     }
 
-    const ops: any[] = [
-      this.prisma.propiedad.update({
-        where: { id },
-        data: {
-          titulo: dto.titulo,
-          descripcion: dto.descripcion,
-          tipo: dto.tipo as TipoPropiedad | undefined,
-          gestion: dto.gestion as TipoGestion | undefined,
-          mostrar_en_mapa_crm: dto.mostrarEnMapaCrm,
-          mostrar_en_portal: dto.mostrarEnPortal,
-          precio_venta: dto.precioVenta,
-          precio_renta: dto.precioRenta,
-          moneda: dto.moneda,
-          comision_porcentaje: dto.comisionPorcentaje,
-          pais: dto.pais,
-          departamento: dto.departamento,
-          municipio: dto.municipio,
-          zona: dto.zona,
-          direccion: dto.direccion,
-          latitud,
-          longitud,
-          area_terreno_m2: dto.areaTerrenoM2,
-          area_construccion_m2: dto.areaConstruccionM2,
-          habitaciones: dto.habitaciones,
-          banos: dto.banos,
-          parqueos: dto.parqueos,
-          niveles: dto.niveles,
-          ano_construccion: dto.anoConstruccion,
-          amenidades: dto.amenidades,
-          propietario_id: dto.propietarioId,
-          agente_id: dto.agenteId,
-        },
-        include: {
-          propietario: true,
-          agente: { select: { id: true, nombre: true, email: true } },
-        },
-      }),
-    ];
+    const propiedadUpdate = this.prisma.propiedad.update({
+      where: { id },
+      data: {
+        titulo: dto.titulo,
+        descripcion: dto.descripcion,
+        tipo: dto.tipo as TipoPropiedad | undefined,
+        gestion: dto.gestion as TipoGestion | undefined,
+        mostrar_en_mapa_crm: dto.mostrarEnMapaCrm,
+        mostrar_en_portal: dto.mostrarEnPortal,
+        precio_venta: dto.precioVenta,
+        precio_renta: dto.precioRenta,
+        moneda: dto.moneda,
+        comision_porcentaje: dto.comisionPorcentaje,
+        pais: dto.pais,
+        departamento: dto.departamento,
+        municipio: dto.municipio,
+        zona: dto.zona,
+        direccion: dto.direccion,
+        latitud,
+        longitud,
+        area_terreno_m2: dto.areaTerrenoM2,
+        area_construccion_m2: dto.areaConstruccionM2,
+        habitaciones: dto.habitaciones,
+        banos: dto.banos,
+        parqueos: dto.parqueos,
+        niveles: dto.niveles,
+        ano_construccion: dto.anoConstruccion,
+        amenidades: dto.amenidades,
+        propietario_id: dto.propietarioId,
+        agente_id: dto.agenteId,
+      },
+      include: {
+        propietario: true,
+        agente: { select: { id: true, nombre: true, email: true } },
+      },
+    });
+
+    const ops: Prisma.PrismaPromise<unknown>[] = [propiedadUpdate];
 
     // When a new propietario is assigned, mark them as es_propietario
     if (dto.propietarioId && dto.propietarioId !== existing.propietario_id) {
@@ -410,7 +411,10 @@ export class PropiedadesService {
       );
     }
 
-    const [propiedad] = await this.prisma.$transaction(ops);
+    const [propiedad] = (await this.prisma.$transaction(ops)) as [
+      Awaited<typeof propiedadUpdate>,
+      ...unknown[],
+    ];
     return propiedad;
   }
 
@@ -446,7 +450,7 @@ export class PropiedadesService {
   // ─── STATS ──────────────────────────────────────────────────
 
   async getStats(tenantId: string, visibleUserIds?: string[] | null) {
-    const where: any = { tenant_id: tenantId };
+    const where: Prisma.PropiedadWhereInput = { tenant_id: tenantId };
     if (visibleUserIds) {
       where.agente_id = { in: visibleUserIds };
     }
@@ -461,11 +465,11 @@ export class PropiedadesService {
       total,
       porEstado: porEstadoRaw.map((r) => ({
         estado: r.estado,
-        _count: (r._count as any)._all ?? r._count,
+        _count: r._count,
       })),
       porTipo: porTipoRaw.map((r) => ({
         tipo: r.tipo,
-        _count: (r._count as any)._all ?? r._count,
+        _count: r._count,
       })),
     };
   }
@@ -775,8 +779,10 @@ export class PropiedadesService {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return null;
-      const json: any = await res.json();
-      const center: [number, number] | undefined = json?.features?.[0]?.center;
+      const json = (await res.json()) as {
+        features?: { center?: [number, number] }[];
+      };
+      const center = json.features?.[0]?.center;
       if (!center) return null;
       return { lat: center[1], lng: center[0] };
     } catch (err) {
@@ -787,8 +793,11 @@ export class PropiedadesService {
 
   // ─── PRIVATE: matching clients → notifications ──────────────
 
-  private async notificarClientesMatching(tenantId: string, propiedad: any) {
-    const andConditions: any[] = [];
+  private async notificarClientesMatching(
+    tenantId: string,
+    propiedad: Propiedad,
+  ) {
+    const andConditions: Prisma.ClienteWhereInput[] = [];
 
     // tipo_interes must match or be unset
     andConditions.push({
@@ -850,11 +859,11 @@ export class PropiedadesService {
     // Notify agents in-app
     await Promise.all(
       clientes
-        .filter((c: any) => c.agente_id)
-        .map((c: any) =>
+        .filter((c) => c.agente_id)
+        .map((c) =>
           this.notificacionesService.create({
             tenantId,
-            userId: c.agente_id,
+            userId: c.agente_id!,
             tipo: 'MATCH_PROPIEDAD',
             titulo: `Nueva propiedad para ${c.nombre}`,
             mensaje: `${propiedad.codigo} — ${propiedad.titulo} coincide con las preferencias de ${c.nombre}`,
@@ -868,10 +877,10 @@ export class PropiedadesService {
     if (this.emailService?.isConfigured) {
       await Promise.allSettled(
         clientes
-          .filter((c: any) => c.email)
-          .map((c: any) =>
+          .filter((c) => c.email)
+          .map((c) =>
             this.emailService!.sendHtml({
-              to: c.email,
+              to: c.email!,
               subject: `Nueva propiedad disponible — ${propiedad.titulo}`,
               html: this.buildClientMatchHtml(c.nombre, propiedad),
             }),
@@ -880,7 +889,7 @@ export class PropiedadesService {
     }
   }
 
-  private buildClientMatchHtml(nombre: string, propiedad: any): string {
+  private buildClientMatchHtml(nombre: string, propiedad: Propiedad): string {
     const portalUrl = `${this.frontendUrl}/portal/${propiedad.id}`;
 
     const precio =

@@ -6,8 +6,44 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
+import type { Request } from 'express';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SKIP_AUDIT_KEY } from '../decorators/skip-audit.decorator';
+import type { AuthenticatedUser } from '../decorators/current-user.decorator';
+
+type AuditRequest = Request & { user?: AuthenticatedUser };
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function hasId(value: unknown): value is { id: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string'
+  );
+}
+
+function hasMessage(value: unknown): value is { message: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'message' in value &&
+    typeof value.message === 'string'
+  );
+}
+
+function hasStatus(value: unknown): value is { status: number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'status' in value &&
+    typeof value.status === 'number'
+  );
+}
 
 /**
  * AuditInterceptor
@@ -34,9 +70,9 @@ export class AuditInterceptor implements NestInterceptor {
     private reflector: Reflector,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const method = request.method?.toUpperCase();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<AuditRequest>();
+    const method = request.method?.toUpperCase() ?? '';
 
     // Skip read-only methods
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
@@ -60,7 +96,7 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Derive audit metadata from the request
     const accion = this.mapMethodToAction(method);
-    const { modulo, entidad } = this.extractModuleEntity(context, request);
+    const { modulo, entidad } = this.extractModuleEntity(context);
     const ip =
       (request.headers?.['x-forwarded-for'] as string) ||
       request.ip ||
@@ -72,7 +108,7 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: (responseData) => {
+        next: (responseData: unknown) => {
           // Fire-and-forget: don't block the response
           this.writeLog({
             tenantId: user.tenantId,
@@ -88,15 +124,17 @@ export class AuditInterceptor implements NestInterceptor {
               request: requestPayload,
               response: this.summarizeResponse(responseData),
             },
-          }).catch((err) => {
+          }).catch((err: unknown) => {
             console.error(
               '[AuditInterceptor] Failed to write log:',
-              err.message,
+              toErrorMessage(err),
             );
           });
         },
-        error: (err) => {
+        error: (err: unknown) => {
           // Log failed mutations too
+          const message = toErrorMessage(err);
+          const status = hasStatus(err) ? err.status : undefined;
           this.writeLog({
             tenantId: user.tenantId,
             userId: user.sub,
@@ -104,12 +142,12 @@ export class AuditInterceptor implements NestInterceptor {
             accion,
             modulo,
             entidad,
-            entidadId: request.params?.id || undefined,
+            entidadId: this.paramId(request),
             ip,
             userAgent,
             payload: {
               request: requestPayload,
-              error: { message: err.message, status: err.status },
+              error: { message, status },
             },
           }).catch(() => {});
         },
@@ -131,10 +169,10 @@ export class AuditInterceptor implements NestInterceptor {
     }
   }
 
-  private extractModuleEntity(
-    context: ExecutionContext,
-    request: any,
-  ): { modulo: string; entidad: string } {
+  private extractModuleEntity(context: ExecutionContext): {
+    modulo: string;
+    entidad: string;
+  } {
     // Use controller class name to derive module/entity
     const controllerName = context.getClass().name || '';
 
@@ -145,22 +183,30 @@ export class AuditInterceptor implements NestInterceptor {
     return { modulo, entidad };
   }
 
-  private extractEntityId(request: any, response: any): string | undefined {
+  private extractEntityId(
+    request: AuditRequest,
+    response: unknown,
+  ): string | undefined {
     // From URL params (PUT /api/users/:id)
-    if (request.params?.id) {
-      return request.params.id;
-    }
+    const paramId = this.paramId(request);
+    if (paramId) return paramId;
     // From response (POST creates → response.id)
-    if (response?.id) {
+    if (hasId(response)) {
       return response.id;
     }
     return undefined;
   }
 
-  private sanitizePayload(body: any): any {
+  /** request.params values are typed string | string[] in Express — normalize to a single string. */
+  private paramId(request: AuditRequest): string | undefined {
+    const raw = request.params?.id;
+    return Array.isArray(raw) ? raw[0] : raw;
+  }
+
+  private sanitizePayload(body: unknown): unknown {
     if (!body || typeof body !== 'object') return body;
 
-    const sanitized = { ...body };
+    const sanitized: Record<string, unknown> = { ...body };
     // Remove sensitive fields
     const sensitiveKeys = [
       'password',
@@ -181,18 +227,18 @@ export class AuditInterceptor implements NestInterceptor {
     return sanitized;
   }
 
-  private summarizeResponse(data: any): any {
+  private summarizeResponse(data: unknown): unknown {
     if (!data) return null;
     // For arrays, just return count
     if (Array.isArray(data)) {
       return { count: data.length };
     }
     // For objects with id, return just id
-    if (data.id) {
+    if (hasId(data)) {
       return { id: data.id };
     }
     // For messages
-    if (data.message) {
+    if (hasMessage(data)) {
       return { message: data.message };
     }
     return { type: typeof data };
@@ -202,26 +248,26 @@ export class AuditInterceptor implements NestInterceptor {
     tenantId: string;
     userId: string;
     nombre: string;
-    accion: string;
+    accion: 'CREATE' | 'UPDATE' | 'DELETE';
     modulo: string;
     entidad: string;
     entidadId?: string;
     ip: string;
     userAgent: string;
-    payload: any;
+    payload: unknown;
   }) {
     await this.prisma.auditLog.create({
       data: {
         tenant_id: data.tenantId,
         user_id: data.userId,
         nombre_usuario: data.nombre,
-        accion: data.accion as any,
+        accion: data.accion,
         modulo: data.modulo,
         entidad: data.entidad,
         entidad_id: data.entidadId,
         ip_address: data.ip,
         user_agent: data.userAgent,
-        payload_cambio: data.payload,
+        payload_cambio: data.payload as Prisma.InputJsonValue,
       },
     });
   }
