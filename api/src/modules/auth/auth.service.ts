@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AccionAudit } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
@@ -98,9 +99,9 @@ export class AuthService {
   // ─── LOGIN STEP 2: TOTP Verification ─────────────────────
 
   async verify2FA(dto: Verify2FADto, ip: string, userAgent: string) {
-    let payload: any;
+    let payload: { step: string; sub: string };
     try {
-      payload = this.jwt.verify(dto.tempToken, {
+      payload = this.jwt.verify<{ step: string; sub: string }>(dto.tempToken, {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
       });
     } catch {
@@ -671,14 +672,14 @@ export class AuthService {
     entidadId: string,
     ip: string,
     userAgent: string,
-    payload?: any,
+    payload?: unknown,
   ) {
     await this.prisma.auditLog.create({
       data: {
         tenant_id: tenantId,
         user_id: userId,
         nombre_usuario: nombre,
-        accion: accion as any,
+        accion: accion as AccionAudit,
         modulo,
         entidad,
         entidad_id: entidadId,

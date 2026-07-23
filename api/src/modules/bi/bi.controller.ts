@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -174,7 +175,7 @@ export class BiController {
   @Get('export/agentes')
   @ApiOperation({ summary: 'Exportar reporte de agentes a XLSX' })
   async exportAgentes(
-    @Res() res: any,
+    @Res() res: Response,
     @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
