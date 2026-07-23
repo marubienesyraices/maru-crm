@@ -21,6 +21,9 @@ export interface PortalConfig {
   titulo_hero?: string | null;
   descripcion_hero?: string | null;
   footer_texto?: string | null;
+  color_primario?: string | null;
+  color_secundario?: string | null;
+  color_acento?: string | null;
   // SEO
   seo_titulo?: string | null;
   seo_descripcion?: string | null;

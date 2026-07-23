@@ -242,7 +242,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
       {/* Footer */}
       <footer className="portal-footer">
         <strong>{COMPANY}</strong><br />
-        © {new Date().getFullYear()} {COMPANY}. Todos los derechos reservados.
+        {cfg.footer_texto ?? `© ${new Date().getFullYear()} ${COMPANY}. Todos los derechos reservados.`}
       </footer>
 
       {WA && (

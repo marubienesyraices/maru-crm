@@ -13,6 +13,17 @@ const inter = localFont({
   weight: '100 900',
 });
 
+const HEX_RE = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
+
+function darken(hex: string, amount = 0.18): string {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const n = parseInt(full, 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const d = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
+  return `#${d(r).toString(16).padStart(2, '0')}${d(g).toString(16).padStart(2, '0')}${d(b).toString(16).padStart(2, '0')}`;
+}
+
 // ─── Dynamic metadata ─────────────────────────────────────────────────────────
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -59,8 +70,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     );
   }
 
+  const accent = config.color_primario && HEX_RE.test(config.color_primario) ? config.color_primario : null;
+  const brandStyle = accent
+    ? ({ '--accent': accent, '--accent-dark': darken(accent) } as React.CSSProperties)
+    : undefined;
+
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning style={brandStyle}>
       <head>
         {/* Anti-FOUC: apply saved theme before first paint */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('portal-theme')||'oscuro';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();` }} />

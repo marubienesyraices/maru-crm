@@ -73,6 +73,7 @@ export class ConfigPortalService {
 
     const domainSql = Prisma.sql`
       SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+             t.color_primario, t.color_secundario, t.color_acento,
              COALESCE(cat.tiene_portal, false) AS tiene_portal
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
@@ -84,6 +85,7 @@ export class ConfigPortalService {
 
     const subdomainSql = Prisma.sql`
       SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+             t.color_primario, t.color_secundario, t.color_acento,
              COALESCE(cat.tiene_portal, false) AS tiene_portal
       FROM config_portal cp
       JOIN tenants t ON t.id = cp.tenant_id
@@ -131,6 +133,7 @@ export class ConfigPortalService {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'true'`);
       return tx.$queryRaw<any[]>`
         SELECT cp.*, t.logo_url, t.nombre AS tenant_nombre,
+               t.color_primario, t.color_secundario, t.color_acento,
                COALESCE(cat.tiene_portal, false) AS tiene_portal
         FROM config_portal cp
         JOIN tenants t ON t.id = cp.tenant_id

@@ -18,6 +18,13 @@ export default async function HomePage({ searchParams: searchParamsPromise }: Pa
   const cfg = await getPortalConfig();
   const COMPANY = displayName(cfg);
   const WA = cfg.whatsapp ?? '';
+  const heroStyle = cfg.imagen_hero
+    ? {
+        backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${cfg.imagen_hero})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : undefined;
 
   const filtros: Filtros = {
     tipo:            searchParams.tipo,
@@ -51,9 +58,9 @@ export default async function HomePage({ searchParams: searchParamsPromise }: Pa
       <Header />
 
       {/* ── Hero ── */}
-      <section className="portal-hero">
-        <h1>Encuentra tu próximo<br /><em>hogar ideal</em></h1>
-        <p>Casas, apartamentos, locales y terrenos en Guatemala. Asesoría personalizada con {COMPANY}.</p>
+      <section className="portal-hero" style={heroStyle}>
+        {cfg.titulo_hero ? <h1>{cfg.titulo_hero}</h1> : <h1>Encuentra tu próximo<br /><em>hogar ideal</em></h1>}
+        <p>{cfg.descripcion_hero ?? `Casas, apartamentos, locales y terrenos en Guatemala. Asesoría personalizada con ${COMPANY}.`}</p>
         <form className="portal-search-bar" action="/" method="get">
           <input name="busqueda" defaultValue={searchParams.busqueda} placeholder="Buscar por zona, municipio, código..." />
           <select name="tipo" defaultValue={searchParams.tipo ?? ''}>
@@ -146,7 +153,7 @@ export default async function HomePage({ searchParams: searchParamsPromise }: Pa
         <strong>{COMPANY}</strong><br />
         Tu aliado de confianza en bienes raíces en Guatemala.
         {WA && <><br /><a href={`https://wa.me/${WA}`} target="_blank" rel="noreferrer">WhatsApp: +{WA}</a></>}
-        <br /><br />© {new Date().getFullYear()} {COMPANY}. Todos los derechos reservados.
+        <br /><br />{cfg.footer_texto ?? `© ${new Date().getFullYear()} ${COMPANY}. Todos los derechos reservados.`}
       </footer>
 
       {WA && (
