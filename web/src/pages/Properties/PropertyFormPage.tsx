@@ -539,7 +539,9 @@ export default function PropertyFormPage() {
                   value={form.agenteId}
                   onChange={(e) => updateField('agenteId', e.target.value)}
                 >
-                  <option value="">— Asignarme a mí mismo —</option>
+                  <option value="">
+                    {agentesDisponibles.some((a: any) => a.id === user?.sub) ? '— Asignarme a mí mismo —' : '— Sin asignar —'}
+                  </option>
                   {agentesDisponibles.map((a: any) => (
                     <option key={a.id} value={a.id}>
                       {a.nombre} ({a.rol})

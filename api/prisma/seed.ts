@@ -42,7 +42,7 @@ async function main() {
   console.log('  ✅ Catálogo de planes inicializado (FREE, BASIC, PRO, ENTERPRISE)');
 
   // ─── 1. Create Super Admin (platform-level) ──────────────
-  const superAdminPassword = await bcrypt.hash('SuperAdmin@2026', 12);
+  const superAdminPassword = await bcrypt.hash('SuperAdmin@2026Desa', 12);
   const superAdminTotpSecret = randomBytes(20).toString('hex');
 
   const platformTenant = await prisma.tenant.upsert({
@@ -73,7 +73,7 @@ async function main() {
     },
   });
 
-  console.log('  ✅ Super Admin: superadmin@gestprop.net / SuperAdmin@2026');
+  console.log('  ✅ Super Admin: superadmin@gestprop.net / SuperAdmin@2026Desa');
 
   // ─── 2. Create demo tenant ───────────────────────────────
   const demoTenant = await prisma.tenant.upsert({
@@ -113,8 +113,8 @@ async function main() {
   });
 
   // ─── 3. Create demo users with hierarchy ─────────────────
-  const adminPassword = await bcrypt.hash('Admin@2026', 12);
-  const agentPassword = await bcrypt.hash('Agent@2026', 12);
+  const adminPassword = await bcrypt.hash('Admin@2026Desa', 12);
+  const agentPassword = await bcrypt.hash('Agent@2026Desa', 12);
 
   await prisma.user.upsert({
     where: { id: '088dc652-b826-4927-ac8c-d5707ee52ad4' },
@@ -183,10 +183,10 @@ async function main() {
   });
 
   console.log('  ✅ Tenant: GestProp Demo');
-  console.log('  ✅ Admin: admin@gestprop.net / Admin@2026');
-  console.log('  ✅ Senior: carlos.senior@gestprop.net / Agent@2026');
-  console.log('  ✅ Junior: ana.junior@gestprop.net / Agent@2026');
-  console.log('  ✅ Junior: pedro.junior@gestprop.net / Agent@2026');
+  console.log('  ✅ Admin: admin@gestprop.net / Admin@2026Desa');
+  console.log('  ✅ Senior: carlos.senior@gestprop.net / Agent@2026Desa');
+  console.log('  ✅ Junior: ana.junior@gestprop.net / Agent@2026Desa');
+  console.log('  ✅ Junior: pedro.junior@gestprop.net / Agent@2026Desa');
   console.log('  📊 Jerarquía: Carlos (Senior) → Ana, Pedro (Juniors)');
   console.log('🎉 Seed completed!');
 }

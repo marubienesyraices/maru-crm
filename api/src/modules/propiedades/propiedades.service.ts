@@ -92,9 +92,24 @@ export class PropiedadesService {
     ]);
     if (!tenant) throw new NotFoundException('Tenant no encontrado');
 
-    // Validar que el agente a asignar tenga el rol permitido según el plan
-    const agenteIdFinal = dto.agenteId || userId;
-    await this.validateAgenteParaPropiedad(tenantId, agenteIdFinal, tenant.plan);
+    // Si no se especifica agente, solo se autoasigna al creador cuando su rol
+    // califica para el plan (ej. ADMIN en plan FREE); si no, la propiedad
+    // queda sin agente en vez de fallar la creación con un rol que el
+    // usuario nunca eligió explícitamente.
+    let agenteIdFinal: string | null = dto.agenteId ?? null;
+    if (!agenteIdFinal) {
+      const creador = await this.prisma.user.findFirst({
+        where: { id: userId, tenant_id: tenantId },
+        select: { rol: true },
+      });
+      const rolesPermitidos = tenant.plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
+      if (creador && rolesPermitidos.includes(creador.rol)) {
+        agenteIdFinal = userId;
+      }
+    }
+    if (agenteIdFinal) {
+      await this.validateAgenteParaPropiedad(tenantId, agenteIdFinal, tenant.plan);
+    }
 
     const count = await this.prisma.propiedad.count({ where: { tenant_id: tenantId } });
     if (count >= tenant.limite_propiedades) {
@@ -145,7 +160,7 @@ export class PropiedadesService {
           ano_construccion: dto.anoConstruccion,
           amenidades: dto.amenidades || [],
           propietario_id: dto.propietarioId,
-          agente_id: dto.agenteId || userId,
+          agente_id: agenteIdFinal,
         },
         include: { propietario: true, agente: { select: { id: true, nombre: true, email: true } } },
       }),

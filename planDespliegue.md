@@ -547,13 +547,13 @@ Al terminar todos los pasos, la configuración de DNS en Cloudflare debe verse a
 
    | Rol | Email | Contraseña |
    |-----|-------|------------|
-   | Super Admin | `superadmin@gestprop.net` | `SuperAdmin@2026` |
-   | Admin | `admin@gestprop.net` | `Admin@2026` |
-   | Senior | `carlos.senior@gestprop.net` | `Agent@2026` |
-   | Junior | `ana.junior@gestprop.net` | `Agent@2026` |
+   | Super Admin | `superadmin@gestprop.net` | `SuperAdmin@2026Desa` |
+   | Admin | `admin@gestprop.net` | `Admin@2026Desa` |
+   | Senior | `carlos.senior@gestprop.net` | `Agent@2026Desa` |
+   | Junior | `ana.junior@gestprop.net` | `Agent@2026Desa` |
 
 2. Acceder al CRM en `https://crm.tudominio.com`.
-3. Iniciar sesión con `superadmin@gestprop.net` / `SuperAdmin@2026`.
+3. Iniciar sesión con `superadmin@gestprop.net` / `SuperAdmin@2026Desa`.
 4. Ir a **Configuración** → **Mi Perfil** → cambiar email y contraseña del super admin.
 5. Ir a **Admin** → **Empresas** → crear el primer tenant real (empresa inmobiliaria).
 6. Dentro del tenant, ir a **Admin** → **Usuarios** → crear el primer usuario ADMIN.
