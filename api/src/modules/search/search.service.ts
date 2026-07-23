@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const MODE = 'insensitive' as const;
@@ -12,7 +13,7 @@ export class SearchService {
     const term = (q || '').trim();
     if (term.length < 2) return { propiedades: [], clientes: [], pipeline: [] };
 
-    const clienteFilter: any = { tenant_id: tenantId };
+    const clienteFilter: Prisma.ClienteWhereInput = { tenant_id: tenantId };
     if (visibleUserIds) clienteFilter.agente_id = { in: visibleUserIds };
 
     const [propiedades, clientes, pipeline] = await Promise.all([

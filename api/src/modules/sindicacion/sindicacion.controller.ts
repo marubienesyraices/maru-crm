@@ -29,7 +29,10 @@ export class SindicacionController {
 
   @Get(':propiedadId')
   @ApiOperation({ summary: 'Estado de publicaciones en portales externos' })
-  getEstado(@CurrentUser() user: AuthenticatedUser, @Param('propiedadId') id: string) {
+  getEstado(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('propiedadId') id: string,
+  ) {
     return this.svc.getEstado(user.tenantId, id);
   }
 
@@ -59,7 +62,7 @@ export class SindicacionController {
   // MercadoLibre webhook (no auth — verified by ML signature)
   @Post('webhook/ml')
   @ApiOperation({ summary: 'Webhook MercadoLibre — notificaciones de estado' })
-  mlWebhook(@Body() body: any) {
+  mlWebhook(@Body() body: { topic: string; resource: string }) {
     return this.svc.handleMlWebhook(body.topic, body.resource);
   }
 }
