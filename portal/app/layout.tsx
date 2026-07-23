@@ -15,13 +15,24 @@ const inter = localFont({
 
 const HEX_RE = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
 
-function darken(hex: string, amount = 0.18): string {
+function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
   const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
   const n = parseInt(full, 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function darken(hex: string, amount = 0.18): string {
+  const [r, g, b] = hexToRgb(hex);
   const d = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
   return `#${d(r).toString(16).padStart(2, '0')}${d(g).toString(16).padStart(2, '0')}${d(b).toString(16).padStart(2, '0')}`;
+}
+
+// Text color that stays readable over an arbitrary tenant accent color.
+function onAccent(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#1e293b' : '#ffffff';
 }
 
 // ─── Dynamic metadata ─────────────────────────────────────────────────────────
@@ -72,7 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const accent = config.color_primario && HEX_RE.test(config.color_primario) ? config.color_primario : null;
   const brandStyle = accent
-    ? ({ '--accent': accent, '--accent-dark': darken(accent) } as React.CSSProperties)
+    ? ({ '--accent': accent, '--accent-dark': darken(accent), '--on-accent': onAccent(accent) } as React.CSSProperties)
     : undefined;
 
   return (
