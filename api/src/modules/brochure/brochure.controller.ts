@@ -9,6 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
@@ -113,7 +114,7 @@ export class BrochureController {
     @Param('propiedadId') propiedadId: string,
     @Param('jobId') jobId: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
     const job = await this.prisma.brochureJob.findFirst({
       where: { id: jobId, propiedad_id: propiedadId, tenant_id: user.tenantId },

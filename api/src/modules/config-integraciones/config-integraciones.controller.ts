@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { ConfigIntegracionesService } from './config-integraciones.service';
 import { UpdateConfigIntegracionesDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -6,6 +6,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PlanGuard } from '../../common/guards/plan.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PlanGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
@@ -15,13 +17,16 @@ export class ConfigIntegracionesController {
   constructor(private readonly svc: ConfigIntegracionesService) {}
 
   @Get()
-  find(@Req() req: any) {
-    return this.svc.findOrCreate(req.user.tenantId);
+  find(@CurrentUser() user: AuthenticatedUser) {
+    return this.svc.findOrCreate(user.tenantId);
   }
 
   @Patch()
-  update(@Req() req: any, @Body() dto: UpdateConfigIntegracionesDto) {
-    return this.svc.update(req.user.tenantId, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateConfigIntegracionesDto,
+  ) {
+    return this.svc.update(user.tenantId, dto);
   }
 }
 
@@ -33,12 +38,15 @@ export class CartaConfigController {
   constructor(private readonly svc: ConfigIntegracionesService) {}
 
   @Get()
-  find(@Req() req: any) {
-    return this.svc.getCartaConfig(req.user.tenantId);
+  find(@CurrentUser() user: AuthenticatedUser) {
+    return this.svc.getCartaConfig(user.tenantId);
   }
 
   @Patch()
-  update(@Req() req: any, @Body() dto: UpdateConfigIntegracionesDto) {
-    return this.svc.updateCartaConfig(req.user.tenantId, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateConfigIntegracionesDto,
+  ) {
+    return this.svc.updateCartaConfig(user.tenantId, dto);
   }
 }
