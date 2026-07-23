@@ -8,14 +8,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
-import { EstadoInteres, NivelInteres } from '@prisma/client';
+import { EstadoInteres, NivelInteres, Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { ConfigPortalService } from '../config-portal/config-portal.service';
 import {
   CreateInteresDto,
   CambiarEstadoInteresDto,
   UpdateInteresDto,
-  FiltrosPipelineDto,
 } from './dto';
 
 // ─── Helpers comisiones CBR ──────────────────────────────────
@@ -175,7 +174,9 @@ export class PipelineService {
     }
 
     // ─── Pipeline data ─────────────────────────────────────────
-    const pipelineData: any = { estado: nuevoEstado as EstadoInteres };
+    const pipelineData: Prisma.ClientePropiedadUpdateInput = {
+      estado: nuevoEstado as EstadoInteres,
+    };
     if (nuevoEstado === 'CIERRE' && dto.cierreDocumentos?.length) {
       pipelineData.cierre_documentos = dto.cierreDocumentos;
     }
@@ -478,7 +479,7 @@ export class PipelineService {
   }
 
   async getPipeline(tenantId: string, visibleUserIds: string[] | null = null) {
-    const clienteFilter: any = { tenant_id: tenantId };
+    const clienteFilter: Prisma.ClienteWhereInput = { tenant_id: tenantId };
     if (visibleUserIds) {
       clienteFilter.OR = [
         { agente_id: { in: visibleUserIds } },
@@ -549,7 +550,7 @@ export class PipelineService {
   }
 
   async getStats(tenantId: string, visibleUserIds: string[] | null = null) {
-    const clienteFilter: any = { tenant_id: tenantId };
+    const clienteFilter: Prisma.ClienteWhereInput = { tenant_id: tenantId };
     if (visibleUserIds) clienteFilter.agente_id = { in: visibleUserIds };
 
     const items = await this.prisma.clientePropiedad.findMany({
@@ -598,7 +599,7 @@ export class PipelineService {
       data: {
         interes_id: interesId,
         usuario_id: usuarioId,
-        tipo: 'SISTEMA' as any,
+        tipo: 'SISTEMA',
         resultado: 'NEUTRO',
         notas,
       },

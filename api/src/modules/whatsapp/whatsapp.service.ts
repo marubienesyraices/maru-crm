@@ -6,9 +6,36 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BrochureService } from '../brochure/brochure.service';
 import { EnviarWhatsappDto } from './dto';
+
+type PropiedadParaWhatsapp = Prisma.PropiedadGetPayload<{
+  select: {
+    titulo: true;
+    codigo: true;
+    gestion: true;
+    moneda: true;
+    precio_venta: true;
+    precio_renta: true;
+    agente: { select: { nombre: true; email: true } };
+  };
+}>;
+
+interface GraphApiError {
+  error?: { message?: string };
+}
+interface MediaUploadResult {
+  id: string;
+}
+interface SendMessageResult {
+  messages?: { id: string }[];
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 @Injectable()
 export class WhatsappService {
@@ -93,7 +120,7 @@ export class WhatsappService {
     propiedadId: string,
     userId: string,
     telefono: string,
-    propiedad: any,
+    propiedad: PropiedadParaWhatsapp,
     customMsg?: string,
   ) {
     const { buffer, codigo } = await this.brochure.generateBuffer(
@@ -106,7 +133,7 @@ export class WhatsappService {
     let mediaId: string;
     try {
       mediaId = await this.uploadMedia(buffer, filename);
-    } catch (err: any) {
+    } catch (err) {
       await this.registrar(
         tenantId,
         propiedadId,
@@ -115,17 +142,17 @@ export class WhatsappService {
         customMsg,
         'FALLIDO',
         null,
-        err.message,
+        toErrorMessage(err),
       );
       throw new BadRequestException(
-        `Error al subir PDF a WhatsApp Media API: ${err.message}`,
+        `Error al subir PDF a WhatsApp Media API: ${toErrorMessage(err)}`,
       );
     }
 
     let messageId: string;
     try {
       messageId = await this.sendDocument(telefono, mediaId, filename, caption);
-    } catch (err: any) {
+    } catch (err) {
       await this.registrar(
         tenantId,
         propiedadId,
@@ -134,10 +161,10 @@ export class WhatsappService {
         customMsg,
         'FALLIDO',
         null,
-        err.message,
+        toErrorMessage(err),
       );
       throw new BadRequestException(
-        `Error al enviar mensaje WhatsApp: ${err.message}`,
+        `Error al enviar mensaje WhatsApp: ${toErrorMessage(err)}`,
       );
     }
 
@@ -161,7 +188,7 @@ export class WhatsappService {
     propiedadId: string,
     userId: string,
     telefono: string,
-    propiedad: any,
+    propiedad: PropiedadParaWhatsapp,
     customMsg?: string,
   ) {
     const texto = customMsg ?? this.buildTextoLink(propiedad);
@@ -199,10 +226,10 @@ export class WhatsappService {
     });
 
     if (!res.ok) {
-      const err: any = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as GraphApiError;
       throw new Error(err.error?.message ?? `HTTP ${res.status}`);
     }
-    const json: any = await res.json();
+    const json = (await res.json()) as MediaUploadResult;
     return json.id;
   }
 
@@ -229,10 +256,10 @@ export class WhatsappService {
     });
 
     if (!res.ok) {
-      const err: any = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as GraphApiError;
       throw new Error(err.error?.message ?? `HTTP ${res.status}`);
     }
-    const json: any = await res.json();
+    const json = (await res.json()) as SendMessageResult;
     return json.messages?.[0]?.id ?? 'unknown';
   }
 
@@ -245,7 +272,7 @@ export class WhatsappService {
     return digits.startsWith('00') ? digits.slice(2) : digits;
   }
 
-  private buildCaption(p: any): string {
+  private buildCaption(p: PropiedadParaWhatsapp): string {
     const lines = [`*${p.titulo}*`];
     if (p.precio_venta)
       lines.push(
@@ -259,7 +286,7 @@ export class WhatsappService {
     return lines.join('\n');
   }
 
-  private buildTextoLink(p: any): string {
+  private buildTextoLink(p: PropiedadParaWhatsapp): string {
     const lines = [`*${p.titulo}*`, `Código: ${p.codigo}`];
     if (p.precio_venta)
       lines.push(
@@ -299,7 +326,7 @@ export class WhatsappService {
         },
       })
       .catch((err: unknown) =>
-        this.logger.warn(`WhatsappEnvio.create failed: ${err}`),
+        this.logger.warn(`WhatsappEnvio.create failed: ${toErrorMessage(err)}`),
       );
   }
 }

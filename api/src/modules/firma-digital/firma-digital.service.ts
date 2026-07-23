@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { Propiedad } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
 
@@ -11,6 +12,29 @@ interface DocuSignToken {
   token: string;
   expiry: number;
 }
+
+interface DocuSignApiError {
+  message?: string;
+}
+interface EnvelopeCreatedResponse {
+  envelopeId: string;
+}
+interface RecipientViewResponse {
+  url?: string;
+}
+interface OAuthTokenResponse {
+  access_token: string;
+  expires_in: number;
+}
+interface DocuSignWebhookBody {
+  data?: { envelopeId?: string; envelopeSummary?: { status?: string } };
+  envelopeId?: string;
+  status?: string;
+}
+type FirmaEstadoUpdate =
+  | { estado: 'COMPLETADO'; completado_at: Date }
+  | { estado: 'DECLINADO' }
+  | { estado: 'VENCIDO' };
 
 interface EnvelopeBody {
   emailSubject: string;
@@ -83,10 +107,9 @@ export class FirmaDigitalService {
 
     const prop = await this.assertPropiedad(tenantId, propiedadId);
     const firmante = { nombre: dto.firmanteNombre, email: dto.firmanteEmail };
-    const docBase64 =
-      dto.documentoBase64 ?? (await this.getCartaComisionBase64(prop));
+    const docBase64 = dto.documentoBase64 ?? this.getCartaComisionBase64(prop);
     const docNombre =
-      dto.documentoNombre ?? `Carta_Comision_${(prop as any).codigo}.pdf`;
+      dto.documentoNombre ?? `Carta_Comision_${prop.codigo}.pdf`;
     const baseUrl = (
       creds.docusign_base_url ?? 'https://demo.docusign.net/restapi'
     ).replace(/\/$/, '');
@@ -94,8 +117,8 @@ export class FirmaDigitalService {
     const token = await this.getAccessToken(tenantId, creds);
 
     const envelope: EnvelopeBody = {
-      emailSubject: `Firma requerida — ${(prop as any).titulo}`,
-      emailBlurb: `Por favor firme la carta de comisión para la propiedad ${(prop as any).titulo}.`,
+      emailSubject: `Firma requerida — ${prop.titulo}`,
+      emailBlurb: `Por favor firme la carta de comisión para la propiedad ${prop.titulo}.`,
       documents: [
         {
           documentBase64: docBase64,
@@ -140,14 +163,14 @@ export class FirmaDigitalService {
     );
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as DocuSignApiError;
       throw new BadRequestException(
         `DocuSign error: ${err.message ?? res.status}`,
       );
     }
 
-    const envData: any = await res.json();
-    const envelopeId = envData.envelopeId as string;
+    const envData = (await res.json()) as EnvelopeCreatedResponse;
+    const envelopeId = envData.envelopeId;
 
     const viewRes = await fetch(
       `${baseUrl}/v2.1/accounts/${creds.docusign_account_id}/envelopes/${envelopeId}/views/recipient`,
@@ -169,7 +192,7 @@ export class FirmaDigitalService {
 
     let signingUrl: string | undefined;
     if (viewRes.ok) {
-      const vd: any = await viewRes.json();
+      const vd = (await viewRes.json()) as RecipientViewResponse;
       signingUrl = vd.url;
     }
 
@@ -187,7 +210,7 @@ export class FirmaDigitalService {
     });
   }
 
-  async handleWebhook(body: any) {
+  async handleWebhook(body: DocuSignWebhookBody) {
     const envelopeId = body?.data?.envelopeId ?? body?.envelopeId;
     const status = (
       body?.data?.envelopeSummary?.status ??
@@ -196,7 +219,7 @@ export class FirmaDigitalService {
     ).toLowerCase();
     if (!envelopeId) return;
 
-    const map: Record<string, any> = {
+    const map: Record<string, FirmaEstadoUpdate> = {
       completed: { estado: 'COMPLETADO', completado_at: new Date() },
       declined: { estado: 'DECLINADO' },
       voided: { estado: 'VENCIDO' },
@@ -250,7 +273,7 @@ export class FirmaDigitalService {
       );
     }
 
-    const td: any = await tokenRes.json();
+    const td = (await tokenRes.json()) as OAuthTokenResponse;
     this.tokenCache.set(tenantId, {
       token: td.access_token,
       expiry: Date.now() + td.expires_in * 1000,
@@ -266,7 +289,7 @@ export class FirmaDigitalService {
     return prop;
   }
 
-  private async getCartaComisionBase64(prop: any): Promise<string> {
+  private getCartaComisionBase64(prop: Propiedad): string {
     return Buffer.from(`%PDF-1.4 Carta de Comisión — ${prop.titulo}`).toString(
       'base64',
     );
