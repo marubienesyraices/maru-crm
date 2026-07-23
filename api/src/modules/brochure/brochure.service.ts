@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { existsSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import {
@@ -8,8 +9,7 @@ import {
   SECCION_COLUMNA_IZQUIERDA,
   SECCION_COLUMNA_DERECHA,
 } from '../config-documentos/brochure-sections.default';
-
-const PDFDocument = require('pdfkit');
+import PDFDocument from 'pdfkit';
 
 const TIPO_LABELS: Record<string, string> = {
   CASA: 'Casa',
@@ -67,7 +67,6 @@ async function fetchImageBuffer(
   // Try local path first
   const p = storage.localPath(imgUrl);
   if (p && existsSync(p)) {
-    const { readFile } = require('fs/promises');
     return readFile(p);
   }
   // Remote URL (R2/CDN) — fetch via HTTP
@@ -85,7 +84,7 @@ async function fetchImageBuffer(
 
 /** Draw one image clipped to a rectangle; silently skips if load fails. */
 function drawImg(
-  doc: any,
+  doc: PDFKit.PDFDocument,
   imgBuffer: Buffer | null,
   x: number,
   y: number,
@@ -115,7 +114,7 @@ function drawImg(
  * Retorna la altura total del header dibujado.
  */
 function drawHeader(
-  doc: any,
+  doc: PDFKit.PDFDocument,
   opts: {
     W: number;
     MARGIN: number;
@@ -155,7 +154,12 @@ function drawHeader(
 
   if (logoBuf) {
     try {
-      const imgObj = doc.openImage(logoBuf);
+      // openImage no está en los tipos de @types/pdfkit pero existe en runtime
+      const imgObj = (
+        doc as unknown as {
+          openImage(src: Buffer): { width: number; height: number };
+        }
+      ).openImage(logoBuf);
       const ratio = imgObj.width / imgObj.height;
       let dh = Math.min(LOGO_MAX_H, LOGO_MAX_W / ratio);
       let dw = dh * ratio;
@@ -306,7 +310,7 @@ export class BrochureService {
     // Carta config overrides tenant defaults for visual consistency across all PDFs
     const primary =
       configIntegraciones?.carta_color_primario ||
-      (propiedad.tenant as any).color_primario ||
+      propiedad.tenant.color_primario ||
       '#2563eb';
     const primaryDark = darken(primary, 0.18);
     const onPrimary = isLight(primary) ? '#1e293b' : '#ffffff';
@@ -335,8 +339,7 @@ export class BrochureService {
     // Pre-fetch all image buffers (local or R2/CDN)
     // Carta logo takes priority over tenant logo
     const tenantLogoUrl =
-      configIntegraciones?.carta_logo_url ||
-      ((propiedad.tenant as any).logo_url as string | null);
+      configIntegraciones?.carta_logo_url || propiedad.tenant.logo_url;
     const imgCache = new Map<string, Buffer | null>();
     const allImgUrls = propiedad.imagenes.map((i) => i.url);
     if (tenantLogoUrl) allImgUrls.push(tenantLogoUrl);

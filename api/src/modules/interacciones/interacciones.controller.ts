@@ -13,6 +13,7 @@ import { InteraccionesService } from './interacciones.service';
 import { CreateInteraccionDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Interacciones')
 @ApiBearerAuth('JWT')
@@ -25,14 +26,14 @@ export class InteraccionesController {
   @ApiOperation({
     summary: 'Registrar interacción (llamada, visita, mensaje…)',
   })
-  create(@CurrentUser() user: any, @Body() dto: CreateInteraccionDto) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateInteraccionDto) {
     return this.service.create(user.tenantId, user.sub, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar interacciones de un interés (?interesId=)' })
   findByInteres(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('interesId') interesId: string,
   ) {
     return this.service.findByInteres(user.tenantId, interesId);
@@ -40,7 +41,7 @@ export class InteraccionesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar interacción' })
-  delete(@CurrentUser() user: any, @Param('id') id: string) {
+  delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.delete(user.tenantId, id);
   }
 }

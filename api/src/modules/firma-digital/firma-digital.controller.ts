@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { FirmaDigitalService } from './firma-digital.service';
 
@@ -23,8 +24,8 @@ export class FirmaDigitalController {
 
   @Get(':propiedadId')
   @ApiOperation({ summary: 'Solicitudes de firma para una propiedad' })
-  getSolicitudes(@CurrentUser() user: any, @Param('propiedadId') id: string) {
-    return this.svc.getSolicitudes(user.tenant_id, id);
+  getSolicitudes(@CurrentUser() user: AuthenticatedUser, @Param('propiedadId') id: string) {
+    return this.svc.getSolicitudes(user.tenantId, id);
   }
 
   @Post(':propiedadId/solicitar')
@@ -32,11 +33,11 @@ export class FirmaDigitalController {
   @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Enviar solicitud de firma digital vía DocuSign' })
   solicitarFirma(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('propiedadId') id: string,
     @Body() dto: SolicitarFirmaDto,
   ) {
-    return this.svc.solicitarFirma(user.tenant_id, id, user.id, dto);
+    return this.svc.solicitarFirma(user.tenantId, id, user.sub, dto);
   }
 
   // DocuSign Connect webhook (unauthenticated)

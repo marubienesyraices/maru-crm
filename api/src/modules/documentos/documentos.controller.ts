@@ -23,6 +23,7 @@ import { extname } from 'path';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { TipoDocumento } from '@prisma/client';
@@ -90,7 +91,7 @@ export class DocumentosController {
   )
   async uploadDocumento(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File,
     @Body('tipo') tipo: string,
     @Body('notas') notas?: string,
@@ -128,7 +129,7 @@ export class DocumentosController {
   @Get()
   async listDocumentos(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
@@ -145,7 +146,7 @@ export class DocumentosController {
   async deleteDocumento(
     @Param('propiedadId') propiedadId: string,
     @Param('docId') docId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },

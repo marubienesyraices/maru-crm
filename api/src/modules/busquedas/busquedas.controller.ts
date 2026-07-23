@@ -11,6 +11,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { BusquedasService } from './busquedas.service';
 
 @ApiTags('Búsquedas Guardadas')
@@ -23,14 +24,14 @@ export class BusquedasController {
   @SkipAudit()
   @Get()
   @ApiOperation({ summary: 'Listar búsquedas guardadas del cliente' })
-  list(@CurrentUser() user: any, @Param('clienteId') clienteId: string) {
+  list(@CurrentUser() user: AuthenticatedUser, @Param('clienteId') clienteId: string) {
     return this.svc.list(user.tenantId, clienteId);
   }
 
   @Post()
   @ApiOperation({ summary: 'Guardar una búsqueda con filtros' })
   create(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('clienteId') clienteId: string,
     @Body()
     body: {
@@ -51,7 +52,7 @@ export class BusquedasController {
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar búsqueda guardada' })
   delete(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('clienteId') clienteId: string,
     @Param('id') id: string,
   ) {

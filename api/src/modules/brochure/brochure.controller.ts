@@ -14,6 +14,7 @@ import { Queue } from 'bullmq';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
@@ -35,7 +36,7 @@ export class BrochureController {
   @ApiOperation({ summary: 'Encolar generación de brochure PDF (asíncrono)' })
   async enqueue(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
@@ -94,7 +95,7 @@ export class BrochureController {
   async status(
     @Param('propiedadId') propiedadId: string,
     @Param('jobId') jobId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const job = await this.prisma.brochureJob.findFirst({
       where: { id: jobId, propiedad_id: propiedadId, tenant_id: user.tenantId },
@@ -111,7 +112,7 @@ export class BrochureController {
   async download(
     @Param('propiedadId') propiedadId: string,
     @Param('jobId') jobId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: any,
   ) {
     const job = await this.prisma.brochureJob.findFirst({
@@ -162,7 +163,7 @@ export class BrochureController {
   })
   async descargas(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const rows = await this.prisma.brochureDescarga.findMany({
       where: {

@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { PlanGuard } from '../../common/guards/plan.guard';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
@@ -31,7 +32,7 @@ export class BiController {
       'KPIs del período: nuevos leads, cierres, tasa de conversión, comisiones',
   })
   getResumen(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
@@ -50,7 +51,7 @@ export class BiController {
     summary: 'Desempeño por agente: cierres, comisiones, conversión, visitas',
   })
   getAgentes(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
@@ -69,7 +70,7 @@ export class BiController {
     summary: 'Top propiedades por número de interacciones en el período',
   })
   getTopPropiedades(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
     @Query('limit') limitStr?: string,
@@ -91,7 +92,7 @@ export class BiController {
     summary: 'Ranking de agentes con badges (nombres anónimos para no-admin)',
   })
   getRanking(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
@@ -113,7 +114,7 @@ export class BiController {
     summary: 'Contador de llamadas/emails/mensajes por agente en el período',
   })
   getProductividad(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
@@ -131,7 +132,7 @@ export class BiController {
   @ApiOperation({
     summary: 'Coordenadas + actividad de propiedades para mapa de calor',
   })
-  getHeatmap(@CurrentUser() user: any) {
+  getHeatmap(@CurrentUser() user: AuthenticatedUser) {
     return this.bi.getHeatmap(user.tenantId);
   }
 
@@ -144,7 +145,7 @@ export class BiController {
       'Comisiones realizadas (GANADO) vs proyectadas (EN_NEGOCIACION + CIERRE)',
   })
   getComisiones(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
@@ -163,7 +164,7 @@ export class BiController {
     summary:
       'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)',
   })
-  async flushCache(@CurrentUser() user: any) {
+  async flushCache(@CurrentUser() user: AuthenticatedUser) {
     await this.bi.flushTenantCache(user.tenantId);
     return { ok: true };
   }
@@ -174,7 +175,7 @@ export class BiController {
   @ApiOperation({ summary: 'Exportar reporte de agentes a XLSX' })
   async exportAgentes(
     @Res() res: any,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {

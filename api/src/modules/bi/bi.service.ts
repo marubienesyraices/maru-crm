@@ -14,6 +14,73 @@ const FUNNEL_ESTADOS = [
 ] as const;
 const CACHE_TTL_SEC = 15 * 60; // 15 minutes
 
+export interface ResumenBi {
+  ganados: number;
+  perdidos: number;
+  tasaConversion: number;
+  ingresosTotales: number;
+  visitasRealizadas: number;
+  interacciones: number;
+  brochures: number;
+  embudo: { estado: string; count: number }[];
+  cacheAt: string;
+}
+
+export interface AgenteBiStats {
+  id: string;
+  nombre: string;
+  rol: string;
+  ganados: number;
+  perdidos: number;
+  activos: number;
+  tasaConversion: number;
+  comisionTotal: number;
+  visitasRealizadas: number;
+  numInteracciones: number;
+}
+
+export interface AgentesBiResult {
+  agentes: AgenteBiStats[];
+  cacheAt: string;
+}
+
+export interface TopPropiedadItem {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  estado: string;
+  agente: string | null;
+  leads: number;
+  visitas: number;
+  interacciones: number;
+  favoritos: number;
+  correosAbiertos: number;
+  brochures: number;
+  score: number;
+}
+
+export interface TopPropiedadesResult {
+  propiedades: TopPropiedadItem[];
+  cacheAt: string;
+}
+
+export interface AgenteProductividad {
+  id: string;
+  nombre: string;
+  rol: string;
+  porTipo: Record<string, number>;
+  total: number;
+  tendencia: { fecha: string; total: number }[];
+}
+
+export interface ProductividadResult {
+  agentes: AgenteProductividad[];
+  totalesTipo: Record<string, number>;
+  totalInteracciones: number;
+  cacheAt: string;
+}
+
 const BADGES_DEF = [
   {
     id: 'top_ventas',
@@ -102,14 +169,18 @@ export class BiService implements OnModuleInit {
 
   // ─── Resumen del período ─────────────────────────────────────
 
-  async getResumen(tenantId: string, desde?: Date, hasta?: Date) {
+  async getResumen(
+    tenantId: string,
+    desde?: Date,
+    hasta?: Date,
+  ): Promise<ResumenBi> {
     const key = this.cacheKey(
       tenantId,
       'resumen',
       desde?.toISOString(),
       hasta?.toISOString(),
     );
-    const cached = await this.fromCache<unknown>(key);
+    const cached = await this.fromCache<ResumenBi>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -176,8 +247,7 @@ export class BiService implements OnModuleInit {
     const ingresosTotales = Number(comisionRow._sum.comision_calculada ?? 0);
 
     const embudoMap: Record<string, number> = {};
-    for (const row of embudoRaw)
-      embudoMap[row.estado] = (row._count as any)._all ?? 0;
+    for (const row of embudoRaw) embudoMap[row.estado] = row._count._all ?? 0;
     const embudo = FUNNEL_ESTADOS.map((e) => ({
       estado: e,
       count: embudoMap[e] ?? 0,
@@ -201,14 +271,18 @@ export class BiService implements OnModuleInit {
 
   // ─── Desempeño por agente ────────────────────────────────────
 
-  async getAgentes(tenantId: string, desde?: Date, hasta?: Date) {
+  async getAgentes(
+    tenantId: string,
+    desde?: Date,
+    hasta?: Date,
+  ): Promise<AgentesBiResult> {
     const key = this.cacheKey(
       tenantId,
       'agentes',
       desde?.toISOString(),
       hasta?.toISOString(),
     );
-    const cached = await this.fromCache<unknown>(key);
+    const cached = await this.fromCache<AgentesBiResult>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -306,7 +380,7 @@ export class BiService implements OnModuleInit {
     desde?: Date,
     hasta?: Date,
     limit = 10,
-  ) {
+  ): Promise<TopPropiedadesResult> {
     const key = this.cacheKey(
       tenantId,
       'top',
@@ -314,7 +388,7 @@ export class BiService implements OnModuleInit {
       hasta?.toISOString(),
       String(limit),
     );
-    const cached = await this.fromCache<unknown>(key);
+    const cached = await this.fromCache<TopPropiedadesResult>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -451,10 +525,7 @@ export class BiService implements OnModuleInit {
     desde?: Date,
     hasta?: Date,
   ) {
-    const { agentes } = (await this.getAgentes(tenantId, desde, hasta)) as {
-      agentes: any[];
-      cacheAt: string;
-    };
+    const { agentes } = await this.getAgentes(tenantId, desde, hasta);
 
     const scored = agentes.map((a) => ({
       ...a,
@@ -518,14 +589,18 @@ export class BiService implements OnModuleInit {
 
   // ─── Productividad — llamadas/emails por agente ──────────────
 
-  async getProductividad(tenantId: string, desde?: Date, hasta?: Date) {
+  async getProductividad(
+    tenantId: string,
+    desde?: Date,
+    hasta?: Date,
+  ): Promise<ProductividadResult> {
     const key = this.cacheKey(
       tenantId,
       'prod',
       desde?.toISOString(),
       hasta?.toISOString(),
     );
-    const cached = await this.fromCache<unknown>(key);
+    const cached = await this.fromCache<ProductividadResult>(key);
     if (cached) return cached;
 
     const dateFilter = this.dateFilter(desde, hasta);
@@ -563,8 +638,7 @@ export class BiService implements OnModuleInit {
         const porTipo: Record<string, number> = Object.fromEntries(
           TIPOS.map((t) => [t, 0]),
         );
-        for (const row of byTipo)
-          porTipo[row.tipo] = (row._count as any)._all ?? 0;
+        for (const row of byTipo) porTipo[row.tipo] = row._count._all ?? 0;
         const total = TIPOS.reduce((s, t) => s + porTipo[t], 0);
 
         return { id: u.id, nombre: u.nombre, rol: u.rol, porTipo, total };
@@ -629,7 +703,7 @@ export class BiService implements OnModuleInit {
     desde?: Date,
     hasta?: Date,
   ): Promise<Buffer> {
-    const { agentes } = (await this.getAgentes(tenantId, desde, hasta)) as any;
+    const { agentes } = await this.getAgentes(tenantId, desde, hasta);
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Desempeño Agentes');
@@ -645,7 +719,7 @@ export class BiService implements OnModuleInit {
       { header: 'Interacciones', key: 'interacciones', width: 15 },
     ];
     ws.addRows(
-      agentes.map((a: any) => ({
+      agentes.map((a) => ({
         agente: a.nombre,
         rol: a.rol,
         ganados: a.ganados,

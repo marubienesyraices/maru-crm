@@ -32,6 +32,7 @@ import { VisibilityGuard } from '../../common/guards/visibility.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Propiedades')
 @ApiBearerAuth('JWT')
@@ -42,14 +43,14 @@ export class PropiedadesController {
 
   @Post()
   @ApiOperation({ summary: 'Crear nueva propiedad' })
-  create(@CurrentUser() user: any, @Body() dto: CreatePropiedadDto) {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePropiedadDto) {
     return this.service.create(user.tenantId, dto, user.sub);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar propiedades con filtros' })
   findAll(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filtros: FiltrosPropiedadDto,
     @Req() req: any,
   ) {
@@ -58,7 +59,7 @@ export class PropiedadesController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas de propiedades por estado y tipo' })
-  getStats(@CurrentUser() user: any, @Req() req: any) {
+  getStats(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
     return this.service.getStats(user.tenantId, req.visibleUserIds);
   }
 
@@ -73,7 +74,7 @@ export class PropiedadesController {
       'Requiere extensión PostGIS instalada en PostgreSQL.',
   })
   getPrecioSugerido(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() dto: PrecioSugeridoQueryDto,
   ) {
     return this.service.getPrecioSugerido(user.tenantId, dto);
@@ -83,14 +84,14 @@ export class PropiedadesController {
   @ApiOperation({
     summary: 'Obtener propiedad por ID con imágenes y documentos',
   })
-  findOne(@CurrentUser() user: any, @Param('id') id: string) {
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.findOne(user.tenantId, id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar datos de una propiedad' })
   update(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdatePropiedadDto,
   ) {
@@ -102,7 +103,7 @@ export class PropiedadesController {
     summary: 'Cambiar estado (BORRADOR → DISPONIBLE → VENDIDA…)',
   })
   cambiarEstado(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: CambiarEstadoDto,
   ) {
@@ -116,7 +117,7 @@ export class PropiedadesController {
     summary:
       'Eliminar propiedad (solo ADMIN). Requiere estado BORRADOR o SUSPENDIDA sin tramites.',
   })
-  async delete(@CurrentUser() user: any, @Param('id') id: string) {
+  async delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     await this.service.delete(user.tenantId, id);
     return { message: 'Propiedad eliminada correctamente' };
   }

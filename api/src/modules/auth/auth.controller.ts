@@ -27,6 +27,7 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
 function getClientIp(req: any): string {
@@ -84,7 +85,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Generar secreto TOTP y QR para configurar 2FA' })
-  async setup2FA(@CurrentUser() user: any) {
+  async setup2FA(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.setup2FA(user.sub);
   }
 
@@ -94,7 +95,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar y activar 2FA con código TOTP' })
   async confirm2FA(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body('totpCode') totpCode: string,
   ) {
     return this.authService.confirm2FA(user.sub, totpCode);
@@ -106,7 +107,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cambiar contraseña del usuario autenticado' })
   async changePassword(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(
@@ -122,7 +123,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Desactivar 2FA con código TOTP actual' })
   async disable2FA(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body('totpCode') totpCode: string,
   ) {
     return this.authService.disable2FA(user.sub, totpCode);
@@ -142,7 +143,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Cerrar sesión e invalidar refresh token' })
   async logout(
     @Body('refreshToken') refreshToken: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: any,
   ) {
     const ip = getClientIp(req);

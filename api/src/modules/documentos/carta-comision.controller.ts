@@ -16,6 +16,7 @@ import {
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ConfigDocumentosService } from '../config-documentos/config-documentos.service';
@@ -72,7 +73,7 @@ export class CartaComisionController {
   async generateCartaComision(
     @Param('propiedadId') propiedadId: string,
     @Query('anos_contrato') anosContratoStr: string | undefined,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     const [propiedad, configIntegraciones, configSeguridad, plantilla] =

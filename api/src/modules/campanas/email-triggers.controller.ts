@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { EmailTriggersService } from './email-triggers.service';
 
@@ -18,14 +19,14 @@ export class EmailTriggersController {
   @SkipAudit()
   @Get()
   @ApiOperation({ summary: 'Listar disparadores de email configurables' })
-  list(@CurrentUser() user: any) {
+  list(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.listTriggers(user.tenantId);
   }
 
   @Put(':evento')
   @ApiOperation({ summary: 'Activar/desactivar trigger y asignar plantilla' })
   upsert(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('evento') evento: string,
     @Body() body: { activo: boolean; plantillaId?: string | null },
   ) {

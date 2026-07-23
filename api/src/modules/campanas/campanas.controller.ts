@@ -15,6 +15,7 @@ import { PlanGuard } from '../../common/guards/plan.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { CampanasService } from './campanas.service';
 import {
@@ -38,14 +39,14 @@ export class CampanasController {
   @SkipAudit()
   @Get('plantillas')
   @ApiOperation({ summary: 'Listar plantillas de email del tenant' })
-  listPlantillas(@CurrentUser() user: any) {
+  listPlantillas(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.listPlantillas(user.tenantId);
   }
 
   @SkipAudit()
   @Get('plantillas/:id')
   @ApiOperation({ summary: 'Obtener plantilla por ID' })
-  getPlantilla(@CurrentUser() user: any, @Param('id') id: string) {
+  getPlantilla(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.getPlantilla(user.tenantId, id);
   }
 
@@ -53,14 +54,14 @@ export class CampanasController {
   @ApiOperation({
     summary: 'Crear plantilla con soporte de variables {{nombre}}',
   })
-  createPlantilla(@CurrentUser() user: any, @Body() dto: CreatePlantillaDto) {
+  createPlantilla(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePlantillaDto) {
     return this.svc.createPlantilla(user.tenantId, dto);
   }
 
   @Put('plantillas/:id')
   @ApiOperation({ summary: 'Actualizar plantilla' })
   updatePlantilla(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdatePlantillaDto,
   ) {
@@ -69,7 +70,7 @@ export class CampanasController {
 
   @Delete('plantillas/:id')
   @ApiOperation({ summary: 'Eliminar plantilla (solo si no está en uso)' })
-  deletePlantilla(@CurrentUser() user: any, @Param('id') id: string) {
+  deletePlantilla(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.deletePlantilla(user.tenantId, id);
   }
 
@@ -79,7 +80,7 @@ export class CampanasController {
     summary: 'Vista previa de la plantilla con variables sustituidas',
   })
   async previewPlantilla(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() vars: Record<string, string>,
   ) {
@@ -92,27 +93,27 @@ export class CampanasController {
   @SkipAudit()
   @Get()
   @ApiOperation({ summary: 'Listar campañas con estadísticas de apertura' })
-  listCampanas(@CurrentUser() user: any) {
+  listCampanas(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.listCampanas(user.tenantId);
   }
 
   @SkipAudit()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener campaña por ID con tasa de apertura' })
-  getCampana(@CurrentUser() user: any, @Param('id') id: string) {
+  getCampana(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.getCampana(user.tenantId, id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Crear campaña en estado BORRADOR' })
-  createCampana(@CurrentUser() user: any, @Body() dto: CreateCampanaDto) {
+  createCampana(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCampanaDto) {
     return this.svc.createCampana(user.tenantId, dto);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar campaña (solo en estado BORRADOR)' })
   updateCampana(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdateCampanaDto,
   ) {
@@ -123,7 +124,7 @@ export class CampanasController {
   @ApiOperation({
     summary: 'Enviar campaña a todos los destinatarios del filtro de rol',
   })
-  enviarCampana(@CurrentUser() user: any, @Param('id') id: string) {
+  enviarCampana(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.enviarCampana(user.tenantId, id);
   }
 }

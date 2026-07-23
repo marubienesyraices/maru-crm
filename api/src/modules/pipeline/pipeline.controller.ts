@@ -21,6 +21,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Pipeline')
 @ApiBearerAuth('JWT')
@@ -31,7 +32,7 @@ export class PipelineController {
 
   @Post()
   @ApiOperation({ summary: 'Crear interés (vincular cliente con propiedad)' })
-  crearInteres(@CurrentUser() user: any, @Body() dto: CreateInteresDto) {
+  crearInteres(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateInteresDto) {
     return this.service.crearInteres(user.tenantId, dto, user.sub);
   }
 
@@ -39,20 +40,20 @@ export class PipelineController {
   @ApiOperation({
     summary: 'Obtener todos los intereses del pipeline (vista Kanban)',
   })
-  getPipeline(@CurrentUser() user: any, @Req() req: any) {
+  getPipeline(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
     return this.service.getPipeline(user.tenantId, req.visibleUserIds);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas del embudo de ventas' })
-  getStats(@CurrentUser() user: any, @Req() req: any) {
+  getStats(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
     return this.service.getStats(user.tenantId, req.visibleUserIds);
   }
 
   @Get('propiedad/:propiedadId')
   @ApiOperation({ summary: 'Obtener intereses de una propiedad específica' })
   getByPropiedad(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('propiedadId') propiedadId: string,
   ) {
     return this.service.getByPropiedad(user.tenantId, propiedadId);
@@ -63,7 +64,7 @@ export class PipelineController {
     summary: 'Cambiar estado del interés (NUEVO → CONTACTADO → GANADO…)',
   })
   cambiarEstado(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: any,
     @Param('id') id: string,
     @Body() dto: CambiarEstadoInteresDto,
@@ -81,7 +82,7 @@ export class PipelineController {
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar datos de un interés' })
   updateInteres(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdateInteresDto,
   ) {
@@ -90,7 +91,7 @@ export class PipelineController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar interés del pipeline' })
-  deleteInteres(@CurrentUser() user: any, @Param('id') id: string) {
+  deleteInteres(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.service.deleteInteres(user.tenantId, id);
   }
 }

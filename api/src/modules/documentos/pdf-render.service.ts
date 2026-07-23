@@ -1,4 +1,7 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
+// Import de solo-tipos: se borra en compilación, no dispara la carga ESM de
+// puppeteer en tiempo de ejecución (ver comentario en getBrowser()).
+import type { Browser } from 'puppeteer';
 
 /**
  * Servicio singleton para renderizar HTML → PDF vía Puppeteer.
@@ -8,9 +11,9 @@ import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 @Injectable()
 export class PdfRenderService implements OnModuleDestroy {
   private readonly logger = new Logger(PdfRenderService.name);
-  private browser: any | null = null;
+  private browser: Browser | null = null;
   // Mutex: evita que peticiones concurrentes lancen múltiples instancias de Chromium
-  private launchPromise: Promise<any> | null = null;
+  private launchPromise: Promise<Browser> | null = null;
 
   async renderHtml(
     html: string,
@@ -20,7 +23,9 @@ export class PdfRenderService implements OnModuleDestroy {
     const page = await browser.newPage();
     try {
       await page.setContent(html, {
-        waitUntil: 'networkidle0',
+        // setContent() no soporta 'networkidle0/2' (solo aplican a navegación real
+        // vía goto()); 'load' es el equivalente más cercano para esperar imágenes/CSS.
+        waitUntil: 'load',
         timeout: 30_000,
       });
       const pdf = await page.pdf({
@@ -34,7 +39,7 @@ export class PdfRenderService implements OnModuleDestroy {
     }
   }
 
-  private async getBrowser(): Promise<any> {
+  private async getBrowser(): Promise<Browser> {
     if (this.browser?.connected) return this.browser;
 
     // Si ya hay un launch en curso, esperar al mismo en lugar de lanzar otro
@@ -46,7 +51,7 @@ export class PdfRenderService implements OnModuleDestroy {
     // loader nativo de Node, que sí interopera con ESM sin tocar la config de Jest.
     this.launchPromise = (async () => {
       try {
-        const mod: any = await import('puppeteer');
+        const mod = await import('puppeteer');
         const puppeteer = mod.default ?? mod;
         const browser = await puppeteer.launch({
           // 'shell' = modo headless clásico; no abre ventana visible en Windows

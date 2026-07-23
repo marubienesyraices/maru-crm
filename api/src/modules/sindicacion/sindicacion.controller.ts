@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SindicacionService } from './sindicacion.service';
 
 class PublicarDto {
@@ -28,8 +29,8 @@ export class SindicacionController {
 
   @Get(':propiedadId')
   @ApiOperation({ summary: 'Estado de publicaciones en portales externos' })
-  getEstado(@CurrentUser() user: any, @Param('propiedadId') id: string) {
-    return this.svc.getEstado(user.tenant_id, id);
+  getEstado(@CurrentUser() user: AuthenticatedUser, @Param('propiedadId') id: string) {
+    return this.svc.getEstado(user.tenantId, id);
   }
 
   @Post(':propiedadId/publicar')
@@ -38,21 +39,21 @@ export class SindicacionController {
       'Publicar propiedad en portal externo (Encuentra24 o MercadoLibre)',
   })
   publicar(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('propiedadId') id: string,
     @Body() body: PublicarDto,
   ) {
-    return this.svc.publicar(user.tenant_id, id, body.portal);
+    return this.svc.publicar(user.tenantId, id, body.portal);
   }
 
   @Delete(':propiedadId/retirar/:portal')
   @ApiOperation({ summary: 'Retirar publicación de un portal externo' })
   retirar(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('propiedadId') id: string,
     @Param('portal') portal: 'ENCUENTRA24' | 'MERCADOLIBRE',
   ) {
-    return this.svc.retirar(user.tenant_id, id, portal);
+    return this.svc.retirar(user.tenantId, id, portal);
   }
 
   // MercadoLibre webhook (no auth — verified by ML signature)

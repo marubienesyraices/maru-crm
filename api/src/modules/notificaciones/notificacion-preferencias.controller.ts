@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { NotificacionPreferenciasService } from './notificacion-preferencias.service';
 
 @ApiTags('Notificaciones')
@@ -17,7 +18,7 @@ export class NotificacionPreferenciasController {
   @ApiOperation({
     summary: 'Obtener preferencias de notificación del usuario actual',
   })
-  getPreferencias(@CurrentUser() user: any) {
+  getPreferencias(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.getPreferencias(user.tenantId, user.sub);
   }
 
@@ -26,7 +27,7 @@ export class NotificacionPreferenciasController {
     summary: 'Actualizar preferencia de canal para un tipo de notificación',
   })
   updatePreferencia(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('tipo') tipo: string,
     @Body()
     body: {

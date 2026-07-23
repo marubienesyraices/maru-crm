@@ -15,6 +15,7 @@ import { PlanGuard } from '../../common/guards/plan.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { MetaService } from './meta.service';
 import {
@@ -37,34 +38,34 @@ export class MetaController {
   @ApiOperation({
     summary: 'Verifica si las credenciales de Meta están configuradas',
   })
-  getStatus(@CurrentUser() user: any) {
+  getStatus(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.getStatus(user.tenantId);
   }
 
   @SkipAudit()
   @Get()
   @ApiOperation({ summary: 'Listar publicaciones Meta del tenant' })
-  list(@CurrentUser() user: any) {
+  list(@CurrentUser() user: AuthenticatedUser) {
     return this.svc.list(user.tenantId);
   }
 
   @SkipAudit()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener publicación Meta por ID' })
-  get(@CurrentUser() user: any, @Param('id') id: string) {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.get(user.tenantId, id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Crear borrador de publicación Meta' })
-  create(@CurrentUser() user: any, @Body() dto: CreateMetaPublicacionDto) {
-    return this.svc.create(user.tenantId, user.id, dto);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateMetaPublicacionDto) {
+    return this.svc.create(user.tenantId, user.sub, dto);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar borrador (solo en estado BORRADOR)' })
   update(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdateMetaPublicacionDto,
   ) {
@@ -73,7 +74,7 @@ export class MetaController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar publicación (no PUBLICADA)' })
-  delete(@CurrentUser() user: any, @Param('id') id: string) {
+  delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.delete(user.tenantId, id);
   }
 
@@ -83,7 +84,7 @@ export class MetaController {
     summary: 'Generar texto sugerido de publicación a partir de una propiedad',
   })
   previewTexto(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('propiedadId') propiedadId: string,
   ) {
     return this.svc.previewTexto(user.tenantId, propiedadId);
@@ -91,14 +92,14 @@ export class MetaController {
 
   @Post(':id/publicar')
   @ApiOperation({ summary: 'Publicar inmediatamente en Facebook / Instagram' })
-  publicar(@CurrentUser() user: any, @Param('id') id: string) {
+  publicar(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.svc.publicar(user.tenantId, id);
   }
 
   @Post(':id/programar')
   @ApiOperation({ summary: 'Programar publicación futura (mín. 10 min)' })
   programar(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: ProgramarMetaDto,
   ) {

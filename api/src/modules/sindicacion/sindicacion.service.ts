@@ -5,7 +5,32 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+
+type PropiedadParaSindicar = Prisma.PropiedadGetPayload<{
+  include: {
+    imagenes: { select: { url: true }; orderBy: { orden: 'asc' } };
+  };
+}>;
+
+/** Forma esperada (best-effort) de errores/respuestas de las APIs externas de sindicación. */
+interface ExternalApiError {
+  message?: string;
+}
+interface ClassifiedResult {
+  id?: string;
+  classifiedId?: string;
+  url?: string;
+  permalink?: string;
+}
+interface MlItemStatus {
+  status?: string;
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 interface Encuentra24Listing {
   category: string;
@@ -112,8 +137,7 @@ export class SindicacionService {
     });
 
     try {
-      const imagenes =
-        (prop as any).imagenes?.map((i: any) => i.url).filter(Boolean) ?? [];
+      const imagenes = prop.imagenes?.map((i) => i.url).filter(Boolean) ?? [];
       const precio = Number(prop.precio_venta ?? prop.precio_renta ?? 0);
 
       let externalId: string | undefined;
@@ -145,16 +169,17 @@ export class SindicacionService {
           publicado_at: new Date(),
         },
       });
-    } catch (err: any) {
+    } catch (err) {
+      const message = toErrorMessage(err);
       await this.prisma.sindicacionPublicacion.update({
         where: { id: record.id },
         data: {
           estado: 'ERROR',
-          error_msg: err?.message ?? 'Error desconocido',
+          error_msg: message || 'Error desconocido',
         },
       });
       throw new BadRequestException(
-        `Error al publicar en ${portal}: ${err?.message}`,
+        `Error al publicar en ${portal}: ${message}`,
       );
     }
   }
@@ -178,8 +203,10 @@ export class SindicacionService {
           await this.retirarEncontra24(pub.external_id);
         else await this.retirarMercadoLibre(pub.external_id);
       }
-    } catch (err: any) {
-      this.logger.warn(`No se pudo retirar de ${portal}: ${err?.message}`);
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo retirar de ${portal}: ${toErrorMessage(err)}`,
+      );
     }
 
     return this.prisma.sindicacionPublicacion.update({
@@ -191,7 +218,7 @@ export class SindicacionService {
   // ─── Encuentra24 ─────────────────────────────────────────────
 
   private async publicarEncontra24(
-    prop: any,
+    prop: PropiedadParaSindicar,
     precio: number,
     imagenes: string[],
   ) {
@@ -230,11 +257,11 @@ export class SindicacionService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as ExternalApiError;
       throw new Error(err.message ?? `HTTP ${res.status}`);
     }
 
-    const data: any = await res.json();
+    const data = (await res.json()) as ClassifiedResult;
     return {
       id: String(data.id ?? data.classifiedId),
       url: data.url ?? data.permalink,
@@ -252,7 +279,7 @@ export class SindicacionService {
   // ─── MercadoLibre ────────────────────────────────────────────
 
   private async publicarMercadoLibre(
-    prop: any,
+    prop: PropiedadParaSindicar,
     precio: number,
     imagenes: string[],
   ) {
@@ -297,11 +324,11 @@ export class SindicacionService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as ExternalApiError;
       throw new Error(err.message ?? `HTTP ${res.status}`);
     }
 
-    const data: any = await res.json();
+    const data = (await res.json()) as ClassifiedResult;
     return { id: String(data.id), permalink: data.permalink };
   }
 
@@ -333,7 +360,7 @@ export class SindicacionService {
       headers: { Authorization: `Bearer ${this.mlAccessToken}` },
     });
     if (!res.ok) return;
-    const item: any = await res.json();
+    const item = (await res.json()) as MlItemStatus;
 
     if (item.status === 'closed' || item.status === 'inactive') {
       await this.prisma.sindicacionPublicacion.update({
@@ -364,7 +391,11 @@ export class SindicacionService {
   // §16 CA-1 — Brecha 1.4: Zillow via RESO/Data Connect feed
   // Requires Zillow Data Connect partnership for production submission.
   // Stores a local feed entry; once ZILLOW_FEED_URL is configured the feed is POSTed.
-  private async publicarZillow(prop: any, precio: number, imagenes: string[]) {
+  private async publicarZillow(
+    prop: PropiedadParaSindicar,
+    precio: number,
+    imagenes: string[],
+  ) {
     const zillowApiUrl = process.env.ZILLOW_FEED_URL;
 
     const feedEntry = {

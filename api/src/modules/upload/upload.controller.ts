@@ -21,6 +21,7 @@ import { memoryStorage } from 'multer';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ImageService } from './image.service';
@@ -94,7 +95,7 @@ export class UploadController {
   )
   async uploadImages(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     if (!files?.length)
@@ -221,7 +222,7 @@ export class UploadController {
   )
   async uploadVideos(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     if (!files?.length)
@@ -285,7 +286,7 @@ export class UploadController {
   async setPortada(
     @Param('propiedadId') propiedadId: string,
     @Param('imagenId') imagenId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
@@ -308,7 +309,7 @@ export class UploadController {
   async reorder(
     @Param('propiedadId') propiedadId: string,
     @Body('imageIds') imageIds: string[],
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },
@@ -331,7 +332,7 @@ export class UploadController {
   async deleteImage(
     @Param('propiedadId') propiedadId: string,
     @Param('imagenId') imagenId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },

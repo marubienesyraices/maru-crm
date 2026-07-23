@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { WhatsappService } from './whatsapp.service';
 import { EnviarWhatsappDto } from './dto';
@@ -23,7 +24,7 @@ export class WhatsappController {
   })
   enviar(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: EnviarWhatsappDto,
   ) {
     return this.service.enviarBrochure(
@@ -39,7 +40,7 @@ export class WhatsappController {
   @ApiOperation({ summary: 'Historial de envíos WhatsApp de la propiedad' })
   getEnvios(
     @Param('propiedadId') propiedadId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.getEnvios(user.tenantId, propiedadId);
   }
