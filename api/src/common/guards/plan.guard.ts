@@ -5,11 +5,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
 import {
   PLAN_FEATURE_KEY,
   PlanFeatureKey,
 } from '../decorators/plan-feature.decorator';
+import type { AuthenticatedUser } from '../decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+
+type PlanGuardRequest = Request & { user?: AuthenticatedUser };
 
 @Injectable()
 export class PlanGuard implements CanActivate {
@@ -26,7 +30,7 @@ export class PlanGuard implements CanActivate {
 
     if (!featureKey) return true;
 
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<PlanGuardRequest>();
     const user = req.user;
 
     if (!user) return false;
@@ -34,7 +38,7 @@ export class PlanGuard implements CanActivate {
     // SUPER_ADMIN bypasses all plan restrictions
     if (user.rol === 'SUPER_ADMIN') return true;
 
-    const tenantId: string = user.tenantId;
+    const tenantId = user.tenantId;
     if (!tenantId) return false;
 
     const tenant = await this.prisma.tenant.findUnique({

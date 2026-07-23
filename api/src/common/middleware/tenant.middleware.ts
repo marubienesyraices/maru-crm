@@ -5,6 +5,11 @@ import { tenantContextStorage, TenantContext } from '../context/tenant-context';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+interface DecodedJwtPayload {
+  tenantId?: unknown;
+  rol?: unknown;
+}
+
 /**
  * TenantMiddleware
  *
@@ -40,7 +45,7 @@ export class TenantMiddleware implements NestMiddleware {
             payloadB64.replace(/-/g, '+').replace(/_/g, '/'),
             'base64',
           ).toString('utf8'),
-        );
+        ) as DecodedJwtPayload;
         if (
           typeof payload.tenantId === 'string' &&
           UUID_RE.test(payload.tenantId)
