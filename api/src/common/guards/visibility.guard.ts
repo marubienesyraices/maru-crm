@@ -1,11 +1,13 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  SetMetadata,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
 import { UsersService } from '../../modules/users/users.service';
+import type { AuthenticatedUser } from '../decorators/current-user.decorator';
+
+type VisibilityRequest = Request & {
+  user?: AuthenticatedUser;
+  visibleUserIds?: string[] | null;
+};
 
 /**
  * VisibilityGuard
@@ -26,7 +28,7 @@ export class VisibilityGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<VisibilityRequest>();
     const user = request.user;
 
     if (!user) return true;
@@ -43,13 +45,13 @@ export class VisibilityGuard implements CanActivate {
         user.tenantId,
         user.sub,
       );
-      request.visibleUserIds = [user.sub, ...downline.map((d: any) => d.id)];
+      request.visibleUserIds = [user.sub, ...downline.map((d) => d.id)];
       return true;
     }
 
     // JUNIOR: self + upline (supervisor chain, typically the SENIOR they report to)
     const upline = await this.usersService.getUpline(user.tenantId, user.sub);
-    request.visibleUserIds = [user.sub, ...upline.map((u: any) => u.id)];
+    request.visibleUserIds = [user.sub, ...upline.map((u) => u.id)];
     return true;
   }
 }

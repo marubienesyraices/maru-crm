@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '@prisma/client';
+import {
+  Prisma,
+  TipoGestion,
+  TipoPropiedad,
+  EstadoVisita,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { ConfigPortalService } from '../config-portal/config-portal.service';
@@ -55,7 +60,7 @@ export class PortalService {
     const limit = Math.min(filtros.limit || 12, 500);
     const skip = (page - 1) * limit;
 
-    const where: any = { estado: 'DISPONIBLE' };
+    const where: Prisma.PropiedadWhereInput = { estado: 'DISPONIBLE' };
     // Distingue el sitio público del tenant del mapa interno del CRM
     // (crm.gestprop.net/portal), cada uno con su propia bandera de visibilidad.
     if (filtros.vista === 'mapa_crm') {
@@ -70,8 +75,8 @@ export class PortalService {
     const resolvedTenantId = TENANT_ID || filtros.tenantId;
     if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
-    if (filtros.tipo) where.tipo = filtros.tipo;
-    if (filtros.gestion) where.gestion = filtros.gestion;
+    if (filtros.tipo) where.tipo = filtros.tipo as TipoPropiedad;
+    if (filtros.gestion) where.gestion = filtros.gestion as TipoGestion;
 
     if (filtros.departamento)
       where.departamento = {
@@ -87,7 +92,7 @@ export class PortalService {
       where.habitaciones = { gte: filtros.habitacionesMin };
 
     if (filtros.precioMin || filtros.precioMax) {
-      const range: any = {};
+      const range: Prisma.DecimalFilter<'Propiedad'> = {};
       if (filtros.precioMin) range.gte = filtros.precioMin;
       if (filtros.precioMax) range.lte = filtros.precioMax;
       where.OR = [{ precio_venta: range }, { precio_renta: range }];
@@ -146,7 +151,7 @@ export class PortalService {
   }
 
   async findPublicProperty(id: string, vista?: string, tenantId?: string) {
-    const where: any = { id, estado: 'DISPONIBLE' };
+    const where: Prisma.PropiedadWhereInput = { id, estado: 'DISPONIBLE' };
     if (vista === 'mapa_crm') {
       where.mostrar_en_mapa_crm = true;
     } else {
@@ -328,7 +333,7 @@ export class PortalService {
             nombre: dto.nombre,
             telefono: dto.telefono ?? existing.telefono,
             gestion_interes:
-              (dto.gestion_interes as any) ?? existing.gestion_interes,
+              (dto.gestion_interes as TipoGestion) ?? existing.gestion_interes,
             zona_interes: dto.zona_interes ?? existing.zona_interes,
             presupuesto_max: dto.presupuesto_max
               ? dto.presupuesto_max
@@ -345,7 +350,7 @@ export class PortalService {
             email: dto.email,
             telefono: dto.telefono ?? null,
             origen: 'PORTAL_WEB',
-            gestion_interes: (dto.gestion_interes as any) ?? null,
+            gestion_interes: (dto.gestion_interes as TipoGestion) ?? null,
             zona_interes: dto.zona_interes ?? null,
             presupuesto_max: dto.presupuesto_max ?? null,
             notas,
@@ -361,7 +366,7 @@ export class PortalService {
           nombre: dto.nombre,
           telefono: dto.telefono ?? null,
           origen: 'PORTAL_WEB',
-          gestion_interes: (dto.gestion_interes as any) ?? null,
+          gestion_interes: (dto.gestion_interes as TipoGestion) ?? null,
           zona_interes: dto.zona_interes ?? null,
           presupuesto_max: dto.presupuesto_max ?? null,
           notas,
@@ -504,7 +509,7 @@ export class PortalService {
 
   async solicitarAcceso(email: string, tenantId?: string) {
     const resolvedTenantId = TENANT_ID || tenantId;
-    const where: any = { email };
+    const where: Prisma.ClienteWhereInput = { email };
     if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
     const cliente = await this.prisma.cliente.findFirst({
@@ -648,7 +653,7 @@ export class PortalService {
             visitas: {
               where: {
                 fecha_inicio: { gte: new Date() },
-                estado: { in: ['PENDIENTE', 'CONFIRMADA'] as any[] },
+                estado: { in: ['PENDIENTE', 'CONFIRMADA'] as EstadoVisita[] },
               },
               orderBy: { fecha_inicio: 'asc' as const },
               take: 1,

@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Rol, EstadoUsuario } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import {
@@ -15,6 +16,15 @@ import {
 } from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
+
+export interface HierarchyRow {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: Rol;
+  id_supervisor: string | null;
+  nivel: number;
+}
 
 @Injectable()
 export class UsersService {
@@ -49,7 +59,7 @@ export class UsersService {
 
     // Validate supervisor hierarchy
     if (dto.idSupervisor) {
-      await this.validateSupervisor(tenantId, dto.idSupervisor, dto.rol);
+      await this.validateSupervisor(tenantId, dto.idSupervisor);
     }
 
     // Validate that JUNIOR cannot be supervisor
@@ -68,7 +78,7 @@ export class UsersService {
         email: dto.email,
         password_hash: tempPassword,
         nombre: dto.nombre,
-        rol: dto.rol as any,
+        rol: dto.rol as Rol,
         id_supervisor: dto.idSupervisor,
         estado: 'PENDIENTE',
         activation_token: activationToken,
@@ -159,7 +169,7 @@ export class UsersService {
     if (dto.idSupervisor) {
       // Prevent circular references
       await this.checkCircularReference(id, dto.idSupervisor, tenantId);
-      await this.validateSupervisor(tenantId, dto.idSupervisor, dto.rol);
+      await this.validateSupervisor(tenantId, dto.idSupervisor);
     }
 
     return this.prisma.user.update({
@@ -167,8 +177,8 @@ export class UsersService {
       data: {
         nombre: dto.nombre,
         email: dto.email,
-        rol: dto.rol as any,
-        estado: dto.estado as any,
+        rol: dto.rol as Rol,
+        estado: dto.estado as EstadoUsuario,
         id_supervisor: dto.idSupervisor,
       },
     });
@@ -198,8 +208,8 @@ export class UsersService {
 
   // ─── HIERARCHY: Get full downline (recursive) ────────────
 
-  async getDownline(tenantId: string, userId: string): Promise<any[]> {
-    const result = await this.prisma.$queryRaw<any[]>`
+  async getDownline(tenantId: string, userId: string): Promise<HierarchyRow[]> {
+    const result = await this.prisma.$queryRaw<HierarchyRow[]>`
       WITH RECURSIVE downline AS (
         SELECT id, nombre, email, rol, id_supervisor, 0 as nivel
         FROM users
@@ -219,8 +229,8 @@ export class UsersService {
 
   // ─── HIERARCHY: Get full upline (recursive) ──────────────
 
-  async getUpline(tenantId: string, userId: string): Promise<any[]> {
-    const result = await this.prisma.$queryRaw<any[]>`
+  async getUpline(tenantId: string, userId: string): Promise<HierarchyRow[]> {
+    const result = await this.prisma.$queryRaw<HierarchyRow[]>`
       WITH RECURSIVE upline AS (
         SELECT id, nombre, email, rol, id_supervisor, 0 as nivel
         FROM users
@@ -410,7 +420,7 @@ export class UsersService {
       data: {
         nombre: dto.nombre,
         email: dto.email,
-        estado: dto.estado as any,
+        estado: dto.estado as EstadoUsuario,
         tenant_id: dto.tenantId,
       },
     });
@@ -525,11 +535,7 @@ export class UsersService {
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────
 
-  private async validateSupervisor(
-    tenantId: string,
-    supervisorId: string,
-    rol?: string,
-  ) {
+  private async validateSupervisor(tenantId: string, supervisorId: string) {
     const supervisor = await this.prisma.user.findFirst({
       where: { id: supervisorId, tenant_id: tenantId },
     });
@@ -546,7 +552,7 @@ export class UsersService {
     await this.prisma.user
       .update({
         where: { id: userId },
-        data: { push_token: pushToken } as any, // field added via db push when needed
+        data: { push_token: pushToken },
       })
       .catch(() => {
         // If column doesn't exist yet, log and continue — push infra is optional
