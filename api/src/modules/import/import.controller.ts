@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Get,
-  Req,
   Res,
   UseGuards,
   UseInterceptors,
@@ -23,6 +22,8 @@ import { ImportService } from './import.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 const ALLOWED_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -66,10 +67,13 @@ export class ImportController {
       properties: { file: { type: 'string', format: 'binary' } },
     },
   })
-  importClientes(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+  importClientes(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
     return this.service.importClientes(
-      req.user.tenantId,
+      user.tenantId,
       file.buffer,
       file.originalname,
     );
@@ -100,14 +104,14 @@ export class ImportController {
     },
   })
   importPropiedades(
-    @Req() req: any,
+    @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
     return this.service.importPropiedades(
-      req.user.tenantId,
+      user.tenantId,
       file.buffer,
-      req.user.sub,
+      user.sub,
       file.originalname,
     );
   }

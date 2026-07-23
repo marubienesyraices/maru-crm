@@ -24,7 +24,10 @@ export class ClientesController {
 
   @Post()
   @ApiOperation({ summary: 'Crear nuevo cliente' })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateClienteDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateClienteDto,
+  ) {
     return this.service.create(user.tenantId, dto, user.sub);
   }
 
@@ -32,7 +35,10 @@ export class ClientesController {
   @ApiOperation({
     summary: 'Listar contactos (clientes y/o propietarios) con filtros',
   })
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filtros: FiltrosClienteDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filtros: FiltrosClienteDto,
+  ) {
     return this.service.findAll(user.tenantId, filtros);
   }
 
@@ -62,7 +68,10 @@ export class ClientesController {
   @ApiOperation({
     summary: 'Propiedades que coinciden con las preferencias del cliente',
   })
-  findMatchingProperties(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  findMatchingProperties(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.service.findMatchingProperties(user.tenantId, id);
   }
 }
