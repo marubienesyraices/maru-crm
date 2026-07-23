@@ -1,8 +1,21 @@
 import {
-  Controller, Post, Get, Req, Res, UseGuards, UseInterceptors,
-  UploadedFile, BadRequestException,
+  Controller,
+  Post,
+  Get,
+  Req,
+  Res,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
@@ -23,9 +36,14 @@ const fileInterceptor = FileInterceptor('file', {
   storage: memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok = ALLOWED_MIMES.includes(file.mimetype)
-      || file.originalname.match(/\.(xlsx|xls|csv)$/i);
-    if (!ok) cb(new BadRequestException('Solo se aceptan archivos .xlsx, .xls o .csv'), false);
+    const ok =
+      ALLOWED_MIMES.includes(file.mimetype) ||
+      file.originalname.match(/\.(xlsx|xls|csv)$/i);
+    if (!ok)
+      cb(
+        new BadRequestException('Solo se aceptan archivos .xlsx, .xls o .csv'),
+        false,
+      );
     else cb(null, true);
   },
 });
@@ -42,18 +60,32 @@ export class ImportController {
   @UseInterceptors(fileInterceptor)
   @ApiOperation({ summary: 'Importar clientes desde archivo Excel/CSV' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
   importClientes(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
-    return this.service.importClientes(req.user.tenantId, file.buffer, file.originalname);
+    return this.service.importClientes(
+      req.user.tenantId,
+      file.buffer,
+      file.originalname,
+    );
   }
 
   @Get('clientes/template')
-  @ApiOperation({ summary: 'Descargar plantilla CSV para importación de clientes' })
+  @ApiOperation({
+    summary: 'Descargar plantilla CSV para importación de clientes',
+  })
   downloadClientesTemplate(@Res() res: Response) {
     const csv = this.service.clientesTemplateCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="plantilla_clientes.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="plantilla_clientes.csv"',
+    );
     res.send('﻿' + csv);
   }
 
@@ -61,18 +93,36 @@ export class ImportController {
   @UseInterceptors(fileInterceptor)
   @ApiOperation({ summary: 'Importar propiedades desde archivo Excel/CSV' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
-  importPropiedades(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  importPropiedades(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     if (!file) throw new BadRequestException('No se envió ningún archivo');
-    return this.service.importPropiedades(req.user.tenantId, file.buffer, req.user.sub, file.originalname);
+    return this.service.importPropiedades(
+      req.user.tenantId,
+      file.buffer,
+      req.user.sub,
+      file.originalname,
+    );
   }
 
   @Get('propiedades/template')
-  @ApiOperation({ summary: 'Descargar plantilla CSV para importación de propiedades' })
+  @ApiOperation({
+    summary: 'Descargar plantilla CSV para importación de propiedades',
+  })
   downloadPropiedadesTemplate(@Res() res: Response) {
     const csv = this.service.propiedadesTemplateCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="plantilla_propiedades.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="plantilla_propiedades.csv"',
+    );
     res.send('﻿' + csv);
   }
 }

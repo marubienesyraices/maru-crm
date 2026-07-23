@@ -36,7 +36,10 @@ function resolveRlsSettings(): { tenantId: string; bypass: 'true' | 'false' } {
   if (!ctx) {
     return { tenantId: '', bypass: 'true' };
   }
-  return { tenantId: ctx.tenantId ?? '', bypass: ctx.bypassRls ? 'true' : 'false' };
+  return {
+    tenantId: ctx.tenantId ?? '',
+    bypass: ctx.bypassRls ? 'true' : 'false',
+  };
 }
 
 function createRlsClient(base: PrismaClient) {
@@ -77,10 +80,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       config.get<string>('DATABASE_APP_URL') ||
       config.get<string>('DATABASE_URL');
     if (!connectionString) {
-      throw new Error('DATABASE_APP_URL or DATABASE_URL environment variable is required');
+      throw new Error(
+        'DATABASE_APP_URL or DATABASE_URL environment variable is required',
+      );
     }
 
-    this.pool = new Pool({ connectionString, max: 25, idleTimeoutMillis: 30_000 });
+    this.pool = new Pool({
+      connectionString,
+      max: 25,
+      idleTimeoutMillis: 30_000,
+    });
     this.base = new PrismaClient({
       adapter: new PrismaPg(this.pool),
       transactionOptions: { maxWait: 5_000, timeout: 10_000 },
@@ -94,8 +103,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
         if (Reflect.has(target, prop)) {
           return Reflect.get(target, prop, receiver);
         }
-        const value = Reflect.get(target.extended as object, prop);
-        return typeof value === 'function' ? value.bind(target.extended) : value;
+        const value = Reflect.get(target.extended, prop);
+        return typeof value === 'function'
+          ? value.bind(target.extended)
+          : value;
       },
     });
   }
@@ -120,7 +131,11 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ [K in keyof P]: Awaited<P[K]> }>;
   $transaction<R>(
     fn: (tx: Prisma.TransactionClient) => Promise<R>,
-    options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
+    options?: {
+      maxWait?: number;
+      timeout?: number;
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+    },
   ): Promise<R>;
   $transaction(input: any, options?: any): Promise<any> {
     const { tenantId, bypass } = resolveRlsSettings();

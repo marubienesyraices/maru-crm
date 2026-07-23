@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Headers, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Patch,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigPortalService } from './config-portal.service';
 import { UpdateConfigPortalDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -45,7 +54,8 @@ export class PortalConfigPublicController {
   ) {
     const raw = queryHost ?? headerHost ?? '';
     const clean = raw.split(':')[0].toLowerCase();
-    const row = await this.svc.findByDomain(clean) ?? await this.svc.findDefault();
+    const row =
+      (await this.svc.findByDomain(clean)) ?? (await this.svc.findDefault());
     return row ?? {};
   }
 }

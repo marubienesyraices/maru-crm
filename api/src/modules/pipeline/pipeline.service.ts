@@ -1,11 +1,22 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { EstadoInteres, NivelInteres } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { ConfigPortalService } from '../config-portal/config-portal.service';
-import { CreateInteresDto, CambiarEstadoInteresDto, UpdateInteresDto, FiltrosPipelineDto } from './dto';
+import {
+  CreateInteresDto,
+  CambiarEstadoInteresDto,
+  UpdateInteresDto,
+  FiltrosPipelineDto,
+} from './dto';
 
 // ─── Helpers comisiones CBR ──────────────────────────────────
 function round2(n: number): number {
@@ -20,10 +31,10 @@ function round2(n: number): number {
  *  > 5 años         → 1 renta por cada 5 años: ⌈años/5⌉ rentas
  */
 function calcularComisionRentaCBR(rentaMensual: number, meses: number): number {
-  if (meses <= 1)   return rentaMensual * meses * 0.10;
-  if (meses < 12)   return rentaMensual * (meses / 12);
+  if (meses <= 1) return rentaMensual * meses * 0.1;
+  if (meses < 12) return rentaMensual * (meses / 12);
   const años = meses / 12;
-  if (años <= 5)    return rentaMensual;
+  if (años <= 5) return rentaMensual;
   return rentaMensual * Math.ceil(años / 5);
 }
 
@@ -33,7 +44,7 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   INTERESADO: ['EN_NEGOCIACION', 'PERDIDO'],
   EN_NEGOCIACION: ['CIERRE', 'PERDIDO'],
   CIERRE: ['GANADO', 'PERDIDO'],
-  GANADO: [],      // terminal
+  GANADO: [], // terminal
   PERDIDO: ['NUEVO'], // reapertura
 };
 
@@ -77,7 +88,10 @@ export class PipelineService {
     const existing = await this.prisma.clientePropiedad.findFirst({
       where: { cliente_id: dto.clienteId, propiedad_id: dto.propiedadId },
     });
-    if (existing) throw new ConflictException('Este cliente ya tiene un interés registrado en esta propiedad');
+    if (existing)
+      throw new ConflictException(
+        'Este cliente ya tiene un interés registrado en esta propiedad',
+      );
 
     return this.prisma.clientePropiedad.create({
       data: {
@@ -88,8 +102,18 @@ export class PipelineService {
         notas: dto.notas,
       },
       include: {
-        cliente: { select: { id: true, nombre: true, email: true, telefono: true } },
-        propiedad: { select: { id: true, titulo: true, codigo: true, tipo: true, precio_venta: true } },
+        cliente: {
+          select: { id: true, nombre: true, email: true, telefono: true },
+        },
+        propiedad: {
+          select: {
+            id: true,
+            titulo: true,
+            codigo: true,
+            tipo: true,
+            precio_venta: true,
+          },
+        },
       },
     });
   }
@@ -108,12 +132,22 @@ export class PipelineService {
     const clienteAgenteId = interes.cliente?.agente_id ?? null;
     if (usuarioRol === 'JUNIOR') {
       if (clienteAgenteId !== usuarioId)
-        throw new ForbiddenException('Solo puedes modificar trámites de tus propios clientes');
+        throw new ForbiddenException(
+          'Solo puedes modificar trámites de tus propios clientes',
+        );
       if (dto.nuevoEstado === 'GANADO')
-        throw new ForbiddenException('JUNIOR no puede cerrar trámites como Ganados. Solicita aprobación a tu supervisor.');
+        throw new ForbiddenException(
+          'JUNIOR no puede cerrar trámites como Ganados. Solicita aprobación a tu supervisor.',
+        );
     } else if (usuarioRol === 'SENIOR') {
-      if (visibleUserIds && clienteAgenteId && !visibleUserIds.includes(clienteAgenteId))
-        throw new ForbiddenException('No tienes permiso para modificar este trámite');
+      if (
+        visibleUserIds &&
+        clienteAgenteId &&
+        !visibleUserIds.includes(clienteAgenteId)
+      )
+        throw new ForbiddenException(
+          'No tienes permiso para modificar este trámite',
+        );
     }
 
     // ─── State machine ─────────────────────────────────────────
@@ -165,7 +199,9 @@ export class PipelineService {
     const propiedadId = interes.propiedad_id;
 
     // ─── Execute state transition (capture result for post-commit email) ──
-    let updated: Awaited<ReturnType<typeof this.prisma.clientePropiedad.update>>;
+    let updated: Awaited<
+      ReturnType<typeof this.prisma.clientePropiedad.update>
+    >;
 
     if (estadoActual === 'INTERESADO' && nuevoEstado === 'EN_NEGOCIACION') {
       updated = await this.prisma.$transaction(async (tx) => {
@@ -180,18 +216,30 @@ export class PipelineService {
         if (prop.estado === 'RESERVADA') {
           // JUNIOR cannot compete on a reserved property
           if (usuarioRol === 'JUNIOR') {
-            throw new ForbiddenException('JUNIOR no puede presentar oferta competitiva sobre una propiedad en negociación.');
+            throw new ForbiddenException(
+              'JUNIOR no puede presentar oferta competitiva sobre una propiedad en negociación.',
+            );
           }
           // Only one competitive offer allowed at a time
           const competitivaExistente = await tx.clientePropiedad.count({
-            where: { propiedad_id: propiedadId, estado: 'EN_NEGOCIACION', es_oferta_competitiva: true },
+            where: {
+              propiedad_id: propiedadId,
+              estado: 'EN_NEGOCIACION',
+              es_oferta_competitiva: true,
+            },
           });
           if (competitivaExistente > 0) {
-            throw new ConflictException('Ya existe una oferta competitiva activa para esta propiedad. Solo se permite una a la vez.');
+            throw new ConflictException(
+              'Ya existe una oferta competitiva activa para esta propiedad. Solo se permite una a la vez.',
+            );
           }
           // Mark as competitive offer; property stays RESERVADA
           pipelineData.es_oferta_competitiva = true;
-          return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+          return tx.clientePropiedad.update({
+            where: { id },
+            data: pipelineData,
+            include: pipelineInclude,
+          });
         }
 
         if (prop.estado !== 'DISPONIBLE') {
@@ -200,32 +248,51 @@ export class PipelineService {
           );
         }
 
-        await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'RESERVADA' } });
-        return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+        await tx.propiedad.update({
+          where: { id: propiedadId },
+          data: { estado: 'RESERVADA' },
+        });
+        return tx.clientePropiedad.update({
+          where: { id },
+          data: pipelineData,
+          include: pipelineInclude,
+        });
       });
     } else if (nuevoEstado === 'GANADO') {
       // CIERRE → GANADO: finalize deal and update property
       updated = await this.prisma.$transaction(async (tx) => {
         const prop = await tx.propiedad.findUnique({
           where: { id: propiedadId },
-          select: { gestion: true, precio_venta: true, precio_renta: true, comision_porcentaje: true, tenant_id: true },
+          select: {
+            gestion: true,
+            precio_venta: true,
+            precio_renta: true,
+            comision_porcentaje: true,
+            tenant_id: true,
+          },
         });
 
         // Resolve tipo operacion for AMBAS properties
-        const tipoOp: string = prop?.gestion === 'AMBAS'
-          ? (dto.tipoOperacionCierre ?? 'VENTA')
-          : (prop?.gestion ?? 'VENTA');
+        const tipoOp: string =
+          prop?.gestion === 'AMBAS'
+            ? (dto.tipoOperacionCierre ?? 'VENTA')
+            : (prop?.gestion ?? 'VENTA');
 
         const estadoPropFinal = tipoOp === 'RENTA' ? 'RENTADA' : 'VENDIDA';
 
         // Precio de cierre
-        const precioLista = tipoOp === 'RENTA' ? prop?.precio_renta : prop?.precio_venta;
-        const precioCierre = dto.precioAcordado != null
-          ? dto.precioAcordado
-          : precioLista != null ? Number(precioLista) : null;
+        const precioLista =
+          tipoOp === 'RENTA' ? prop?.precio_renta : prop?.precio_venta;
+        const precioCierre =
+          dto.precioAcordado != null
+            ? dto.precioAcordado
+            : precioLista != null
+              ? Number(precioLista)
+              : null;
 
         if (precioCierre != null) pipelineData.precio_cierre = precioCierre;
-        if (prop?.gestion === 'AMBAS') pipelineData.tipo_operacion_cierre = tipoOp;
+        if (prop?.gestion === 'AMBAS')
+          pipelineData.tipo_operacion_cierre = tipoOp;
 
         // Duración contrato para RENTA
         const meses = dto.duracionContratoMeses ?? null;
@@ -241,19 +308,32 @@ export class PipelineService {
           : 5.6;
 
         // ── Calcular comisiones sugeridas (CBR) ──────────────────
-        const precioVenta = prop?.precio_venta ? Number(prop.precio_venta) : null;
-        const precioRenta = prop?.precio_renta ? Number(prop.precio_renta) : null;
-        const pctVenta = prop?.comision_porcentaje ? Number(prop.comision_porcentaje) : pctVentaDefault;
+        const precioVenta = prop?.precio_venta
+          ? Number(prop.precio_venta)
+          : null;
+        const precioRenta = prop?.precio_renta
+          ? Number(prop.precio_renta)
+          : null;
+        const pctVenta = prop?.comision_porcentaje
+          ? Number(prop.comision_porcentaje)
+          : pctVentaDefault;
 
         // Sugerida VENTA: precio_cierre (o precio_venta) × %
         if (precioVenta != null || precioCierre != null) {
-          const baseVenta = tipoOp === 'VENTA' && precioCierre != null ? precioCierre : (precioVenta ?? 0);
-          pipelineData.comision_sugerida_venta = round2(baseVenta * (pctVenta / 100));
+          const baseVenta =
+            tipoOp === 'VENTA' && precioCierre != null
+              ? precioCierre
+              : (precioVenta ?? 0);
+          pipelineData.comision_sugerida_venta = round2(
+            baseVenta * (pctVenta / 100),
+          );
         }
 
         // Sugerida RENTA: tabla CBR
         if (precioRenta != null && meses != null) {
-          pipelineData.comision_sugerida_renta = round2(calcularComisionRentaCBR(precioRenta, meses));
+          pipelineData.comision_sugerida_renta = round2(
+            calcularComisionRentaCBR(precioRenta, meses),
+          );
         }
 
         // ── Comisión final (acordada) ─────────────────────────────
@@ -262,28 +342,58 @@ export class PipelineService {
           pipelineData.comision_calculada = round2(dto.comisionAcordada);
         } else {
           // Usar la sugerida del tipo de operación real
-          if (tipoOp === 'RENTA' && pipelineData.comision_sugerida_renta != null) {
-            pipelineData.comision_calculada = pipelineData.comision_sugerida_renta;
+          if (
+            tipoOp === 'RENTA' &&
+            pipelineData.comision_sugerida_renta != null
+          ) {
+            pipelineData.comision_calculada =
+              pipelineData.comision_sugerida_renta;
           } else if (pipelineData.comision_sugerida_venta != null) {
-            pipelineData.comision_calculada = pipelineData.comision_sugerida_venta;
+            pipelineData.comision_calculada =
+              pipelineData.comision_sugerida_venta;
           }
         }
 
-        await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: estadoPropFinal } });
-        return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+        await tx.propiedad.update({
+          where: { id: propiedadId },
+          data: { estado: estadoPropFinal },
+        });
+        return tx.clientePropiedad.update({
+          where: { id },
+          data: pipelineData,
+          include: pipelineInclude,
+        });
       });
-    } else if (nuevoEstado === 'PERDIDO' && ['EN_NEGOCIACION', 'CIERRE'].includes(estadoActual)) {
+    } else if (
+      nuevoEstado === 'PERDIDO' &&
+      ['EN_NEGOCIACION', 'CIERRE'].includes(estadoActual)
+    ) {
       // Release reservation when deal falls through
       updated = await this.prisma.$transaction(async (tx) => {
-        await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: 'DISPONIBLE' } });
-        return tx.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+        await tx.propiedad.update({
+          where: { id: propiedadId },
+          data: { estado: 'DISPONIBLE' },
+        });
+        return tx.clientePropiedad.update({
+          where: { id },
+          data: pipelineData,
+          include: pipelineInclude,
+        });
       });
     } else {
-      updated = await this.prisma.clientePropiedad.update({ where: { id }, data: pipelineData, include: pipelineInclude });
+      updated = await this.prisma.clientePropiedad.update({
+        where: { id },
+        data: pipelineData,
+        include: pipelineInclude,
+      });
     }
 
     // §12 CA-1: Auto-entry in timeline for every state change
-    this.crearInteraccionSistema(id, usuarioId, `Estado actualizado: ${estadoActual} → ${nuevoEstado}`).catch(() => {});
+    this.crearInteraccionSistema(
+      id,
+      usuarioId,
+      `Estado actualizado: ${estadoActual} → ${nuevoEstado}`,
+    ).catch(() => {});
 
     // Fire-and-forget: email + invalidar caché BI
     if (interes.cliente.email) {
@@ -296,14 +406,20 @@ export class PipelineService {
 
   private async sendPipelineEmail(
     nuevoEstado: string,
-    interes: { cliente: { email: string | null; nombre: string; tenant_id: string }; propiedad: { id: string; titulo: string; codigo: string } | null },
+    interes: {
+      cliente: { email: string | null; nombre: string; tenant_id: string };
+      propiedad: { id: string; titulo: string; codigo: string } | null;
+    },
   ) {
     const { email, nombre, tenant_id: tenantId } = interes.cliente;
     if (!email) return;
     const propiedad = interes.propiedad;
     if (!propiedad) return;
 
-    const portalBase = await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalUrl);
+    const portalBase = await this.configPortal.resolvePortalBaseUrl(
+      tenantId,
+      this.portalUrl,
+    );
     const propLabel = `<strong>${propiedad.titulo}</strong> (${propiedad.codigo})`;
     const portalPropUrl = portalBase
       ? `${portalBase}/propiedades/${propiedad.id}`
@@ -323,7 +439,9 @@ export class PipelineService {
         subject: `¡Tu solicitud está avanzando! — ${propiedad.titulo}`,
         heading: `¡Tu solicitud está avanzando!`,
         body: `Tu interés en ${propLabel} ha entrado en etapa de negociación. Nuestro equipo está trabajando para ofrecerte las mejores condiciones. Pronto nos pondremos en contacto contigo.`,
-        cta: portalPropUrl ? { label: 'Ver propiedad', url: portalPropUrl } : undefined,
+        cta: portalPropUrl
+          ? { label: 'Ver propiedad', url: portalPropUrl }
+          : undefined,
         tenantId,
       });
     } else if (nuevoEstado === 'PERDIDO') {
@@ -332,7 +450,9 @@ export class PipelineService {
         subject: `Actualización sobre tu solicitud — ${propiedad.titulo}`,
         heading: `Actualización sobre tu solicitud`,
         body: `Lamentamos informarte que tu solicitud para ${propLabel} no pudo concretarse en esta ocasión. Estamos a tu disposición para ayudarte a encontrar la propiedad ideal.`,
-        cta: portalBase ? { label: 'Ver otras propiedades', url: portalBase } : undefined,
+        cta: portalBase
+          ? { label: 'Ver otras propiedades', url: portalBase }
+          : undefined,
         tenantId,
       });
     }
@@ -369,11 +489,26 @@ export class PipelineService {
     const items = await this.prisma.clientePropiedad.findMany({
       where: { cliente: clienteFilter },
       include: {
-        cliente: { select: { id: true, nombre: true, email: true, telefono: true, origen: true } },
+        cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            telefono: true,
+            origen: true,
+          },
+        },
         propiedad: {
           select: {
-            id: true, titulo: true, codigo: true, tipo: true, gestion: true,
-            precio_venta: true, precio_renta: true, comision_porcentaje: true, moneda: true,
+            id: true,
+            titulo: true,
+            codigo: true,
+            tipo: true,
+            gestion: true,
+            precio_venta: true,
+            precio_renta: true,
+            comision_porcentaje: true,
+            moneda: true,
           },
         },
         _count: { select: { interacciones: true } },
@@ -383,7 +518,13 @@ export class PipelineService {
 
     // Group by estado for Kanban columns
     const pipeline: Record<string, typeof items> = {
-      NUEVO: [], CONTACTADO: [], INTERESADO: [], EN_NEGOCIACION: [], CIERRE: [], GANADO: [], PERDIDO: [],
+      NUEVO: [],
+      CONTACTADO: [],
+      INTERESADO: [],
+      EN_NEGOCIACION: [],
+      CIERRE: [],
+      GANADO: [],
+      PERDIDO: [],
     };
     for (const item of items) {
       pipeline[item.estado]?.push(item);
@@ -399,7 +540,9 @@ export class PipelineService {
         cliente: { tenant_id: tenantId },
       },
       include: {
-        cliente: { select: { id: true, nombre: true, email: true, telefono: true } },
+        cliente: {
+          select: { id: true, nombre: true, email: true, telefono: true },
+        },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -428,7 +571,14 @@ export class PipelineService {
     const interes = await this.prisma.clientePropiedad.findFirst({
       where: { id },
       include: {
-        cliente: { select: { tenant_id: true, agente_id: true, email: true, nombre: true } },
+        cliente: {
+          select: {
+            tenant_id: true,
+            agente_id: true,
+            email: true,
+            nombre: true,
+          },
+        },
         propiedad: { select: { id: true, titulo: true, codigo: true } },
       },
     });
@@ -439,7 +589,11 @@ export class PipelineService {
   }
 
   // §12 CA-1: Create automatic SISTEMA timeline entry after state changes
-  private async crearInteraccionSistema(interesId: string, usuarioId: string, notas: string) {
+  private async crearInteraccionSistema(
+    interesId: string,
+    usuarioId: string,
+    notas: string,
+  ) {
     await this.prisma.interaccion.create({
       data: {
         interes_id: interesId,

@@ -12,4 +12,5 @@ export type PlanFeatureKey =
   | 'tiene_organigrama';
 
 export const PLAN_FEATURE_KEY = 'plan_feature';
-export const PlanFeature = (key: PlanFeatureKey) => SetMetadata(PLAN_FEATURE_KEY, key);
+export const PlanFeature = (key: PlanFeatureKey) =>
+  SetMetadata(PLAN_FEATURE_KEY, key);

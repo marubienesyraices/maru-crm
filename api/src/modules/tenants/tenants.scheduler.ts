@@ -22,7 +22,9 @@ export class TenantsScheduler {
     });
 
     if (result.count > 0) {
-      this.logger.warn(`⏰ Trial expirado: ${result.count} empresa(s) pasaron a SUSPENDIDA`);
+      this.logger.warn(
+        `⏰ Trial expirado: ${result.count} empresa(s) pasaron a SUSPENDIDA`,
+      );
     }
   }
 }

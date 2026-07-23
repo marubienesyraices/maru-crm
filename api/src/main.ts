@@ -29,7 +29,11 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
   );
 
   const prisma = app.get(PrismaService);
@@ -41,7 +45,7 @@ async function bootstrap() {
     .setTitle('GestProp CRM — API')
     .setDescription(
       'API multi-tenant para gestión de propiedades, clientes, pipeline de ventas y automatización de marketing.\n\n' +
-      '**Autenticación:** JWT Bearer. Obtén el token con `POST /api/auth/login` y pégalo en el botón "Authorize" (sin el prefijo "Bearer").',
+        '**Autenticación:** JWT Bearer. Obtén el token con `POST /api/auth/login` y pégalo en el botón "Authorize" (sin el prefijo "Bearer").',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -52,17 +56,32 @@ async function bootstrap() {
     .addTag('Propiedades', 'CRUD de propiedades y transiciones de estado')
     .addTag('Imágenes', 'Subida y eliminación de imágenes de propiedades')
     .addTag('Documentos', 'Documentos legales asociados a propiedades')
-    .addTag('Brochure PDF', 'Generación asíncrona de brochures y carta de comisión')
+    .addTag(
+      'Brochure PDF',
+      'Generación asíncrona de brochures y carta de comisión',
+    )
     .addTag('Propietarios', 'Gestión de propietarios')
     .addTag('Clientes', 'CRM de clientes y preferencias de búsqueda')
     .addTag('Pipeline', 'Embudo de ventas y seguimiento de intereses')
-    .addTag('Interacciones', 'Registro de llamadas, visitas y mensajes por interes')
+    .addTag(
+      'Interacciones',
+      'Registro de llamadas, visitas y mensajes por interes',
+    )
     .addTag('Visitas', 'Agendamiento y reporte de visitas')
     .addTag('Búsqueda', 'Búsqueda global federada (Ctrl+K)')
     .addTag('Notificaciones', 'Centro de notificaciones in-app')
-    .addTag('Campañas de Email', 'Plantillas dinámicas y envío masivo segmentado')
-    .addTag('Business Intelligence', 'KPIs, reportes de agentes y exportación XLSX')
-    .addTag('Importación', 'Carga masiva de propiedades y clientes desde Excel/CSV')
+    .addTag(
+      'Campañas de Email',
+      'Plantillas dinámicas y envío masivo segmentado',
+    )
+    .addTag(
+      'Business Intelligence',
+      'KPIs, reportes de agentes y exportación XLSX',
+    )
+    .addTag(
+      'Importación',
+      'Carga masiva de propiedades y clientes desde Excel/CSV',
+    )
     .addTag('Auditoría', 'Logs de auditoría inmutables')
     .addTag('Usuarios', 'Gestión de usuarios del tenant')
     .addTag('Empresas', 'Gestión de tenants (Solo Super Admin)')

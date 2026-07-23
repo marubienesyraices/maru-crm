@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -29,7 +39,9 @@ export class ConfigDocumentosController {
   }
 
   @Delete('carta-plantilla')
-  @ApiOperation({ summary: 'Restaurar plantilla de carta a la versión por defecto' })
+  @ApiOperation({
+    summary: 'Restaurar plantilla de carta a la versión por defecto',
+  })
   resetCartaPlantilla(@Req() req: any) {
     return this.svc.resetCartaPlantilla(req.user.tenantId);
   }
@@ -43,13 +55,17 @@ export class ConfigDocumentosController {
   }
 
   @Patch('brochure-config')
-  @ApiOperation({ summary: 'Actualizar configuración de secciones del brochure' })
+  @ApiOperation({
+    summary: 'Actualizar configuración de secciones del brochure',
+  })
   updateBrochureConfig(@Req() req: any, @Body() dto: UpdateBrochureConfigDto) {
     return this.svc.updateBrochureConfig(req.user.tenantId, dto);
   }
 
   @Post('brochure-config/reset')
-  @ApiOperation({ summary: 'Restaurar configuración del brochure a valores por defecto' })
+  @ApiOperation({
+    summary: 'Restaurar configuración del brochure a valores por defecto',
+  })
   resetBrochureConfig(@Req() req: any) {
     return this.svc.resetBrochureConfig(req.user.tenantId);
   }

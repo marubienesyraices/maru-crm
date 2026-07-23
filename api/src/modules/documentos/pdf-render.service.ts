@@ -12,11 +12,17 @@ export class PdfRenderService implements OnModuleDestroy {
   // Mutex: evita que peticiones concurrentes lancen múltiples instancias de Chromium
   private launchPromise: Promise<any> | null = null;
 
-  async renderHtml(html: string, format: 'Letter' | 'A4' = 'Letter'): Promise<Buffer> {
+  async renderHtml(
+    html: string,
+    format: 'Letter' | 'A4' = 'Letter',
+  ): Promise<Buffer> {
     const browser = await this.getBrowser();
     const page = await browser.newPage();
     try {
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+        timeout: 30_000,
+      });
       const pdf = await page.pdf({
         format,
         printBackground: true,
@@ -56,7 +62,9 @@ export class PdfRenderService implements OnModuleDestroy {
         this.browser = browser;
         this.launchPromise = null;
         browser.on('disconnected', () => {
-          this.logger.warn('Chromium disconnected — se relanzará en la próxima petición');
+          this.logger.warn(
+            'Chromium disconnected — se relanzará en la próxima petición',
+          );
           this.browser = null;
         });
         return browser;

@@ -1,9 +1,33 @@
-import { IsString, IsOptional, IsEmail, IsEnum, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsBoolean,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { IsInt, IsNumber, Min } from 'class-validator';
 
-const ORIGENES = ['PORTAL_WEB', 'REFERIDO', 'LLAMADA', 'WHATSAPP', 'REDES_SOCIALES', 'FERIA', 'OTRO'];
-const TIPOS = ['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'];
+const ORIGENES = [
+  'PORTAL_WEB',
+  'REFERIDO',
+  'LLAMADA',
+  'WHATSAPP',
+  'REDES_SOCIALES',
+  'FERIA',
+  'OTRO',
+];
+const TIPOS = [
+  'CASA',
+  'APARTAMENTO',
+  'TERRENO',
+  'LOCAL_COMERCIAL',
+  'OFICINA',
+  'BODEGA',
+  'FINCA',
+  'EDIFICIO',
+  'OTRO',
+];
 const GESTIONES = ['VENTA', 'RENTA', 'AMBAS'];
 
 export class CreateClienteDto {
@@ -50,7 +74,10 @@ export class FiltrosClienteDto {
   @IsOptional() @IsString() origen?: string;
   @IsOptional() @IsString() busqueda?: string;
   @IsOptional() @IsString() agenteId?: string;
-  @IsOptional() @Transform(({ value }) => value === 'true' || value === true) @IsBoolean() esPropietario?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  esPropietario?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) limit?: number;
 }

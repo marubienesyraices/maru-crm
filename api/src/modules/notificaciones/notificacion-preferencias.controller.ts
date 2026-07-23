@@ -14,17 +14,27 @@ export class NotificacionPreferenciasController {
 
   @SkipAudit()
   @Get()
-  @ApiOperation({ summary: 'Obtener preferencias de notificación del usuario actual' })
+  @ApiOperation({
+    summary: 'Obtener preferencias de notificación del usuario actual',
+  })
   getPreferencias(@CurrentUser() user: any) {
     return this.svc.getPreferencias(user.tenantId, user.sub);
   }
 
   @Put(':tipo')
-  @ApiOperation({ summary: 'Actualizar preferencia de canal para un tipo de notificación' })
+  @ApiOperation({
+    summary: 'Actualizar preferencia de canal para un tipo de notificación',
+  })
   updatePreferencia(
     @CurrentUser() user: any,
     @Param('tipo') tipo: string,
-    @Body() body: { canal_inapp?: boolean; canal_email?: boolean; canal_push?: boolean; activa?: boolean },
+    @Body()
+    body: {
+      canal_inapp?: boolean;
+      canal_email?: boolean;
+      canal_push?: boolean;
+      activa?: boolean;
+    },
   ) {
     return this.svc.upsertPreferencia(user.tenantId, user.sub, tipo, body);
   }

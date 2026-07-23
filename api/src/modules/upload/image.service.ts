@@ -17,12 +17,21 @@ export class ImageService {
   private readonly logger = new Logger(ImageService.name);
 
   /** Legacy compat: returns only the processed buffer */
-  async processImage(buffer: Buffer, tenantName: string, logoBuffer?: Buffer | null): Promise<Buffer> {
-    return (await this.processImageFull(buffer, tenantName, logoBuffer)).processed;
+  async processImage(
+    buffer: Buffer,
+    tenantName: string,
+    logoBuffer?: Buffer | null,
+  ): Promise<Buffer> {
+    return (await this.processImageFull(buffer, tenantName, logoBuffer))
+      .processed;
   }
 
   /** P-05 + P-06: Returns processed image, 300×200 thumbnail, and original */
-  async processImageFull(buffer: Buffer, tenantName: string, logoBuffer?: Buffer | null): Promise<ProcessedImage> {
+  async processImageFull(
+    buffer: Buffer,
+    tenantName: string,
+    logoBuffer?: Buffer | null,
+  ): Promise<ProcessedImage> {
     const original = buffer; // P-06: keep original untouched
 
     try {
@@ -34,8 +43,16 @@ export class ImageService {
       const padding = 14;
       const svgH = fontSize + padding * 2;
 
-      const safeLabel = tenantName.replace(/[<>&"']/g, (c) =>
-        ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c] ?? c,
+      const safeLabel = tenantName.replace(
+        /[<>&"']/g,
+        (c) =>
+          ({
+            '<': '&lt;',
+            '>': '&gt;',
+            '&': '&amp;',
+            '"': '&quot;',
+            "'": '&apos;',
+          })[c] ?? c,
       );
 
       // Prepare logo section for watermark SVG
@@ -55,7 +72,9 @@ export class ImageService {
           const b64 = logoPng.toString('base64');
           logoImgTag = `<image href="data:image/png;base64,${b64}" x="${padding}" y="${logoY}" width="${logoW}" height="${LOGO_H}" preserveAspectRatio="xMidYMid meet"/>`;
           logoExtraW = logoW + 8; // 8px gap between logo and text
-        } catch { /* silently skip logo in watermark if processing fails */ }
+        } catch {
+          /* silently skip logo in watermark if processing fails */
+        }
       }
 
       const svgW = Math.min(targetWidth, 380 + logoExtraW);

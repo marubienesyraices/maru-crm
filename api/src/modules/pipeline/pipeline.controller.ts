@@ -1,7 +1,23 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PipelineService } from './pipeline.service';
-import { CreateInteresDto, CambiarEstadoInteresDto, UpdateInteresDto } from './dto';
+import {
+  CreateInteresDto,
+  CambiarEstadoInteresDto,
+  UpdateInteresDto,
+} from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -20,7 +36,9 @@ export class PipelineController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todos los intereses del pipeline (vista Kanban)' })
+  @ApiOperation({
+    summary: 'Obtener todos los intereses del pipeline (vista Kanban)',
+  })
   getPipeline(@CurrentUser() user: any, @Req() req: any) {
     return this.service.getPipeline(user.tenantId, req.visibleUserIds);
   }
@@ -33,24 +51,40 @@ export class PipelineController {
 
   @Get('propiedad/:propiedadId')
   @ApiOperation({ summary: 'Obtener intereses de una propiedad específica' })
-  getByPropiedad(@CurrentUser() user: any, @Param('propiedadId') propiedadId: string) {
+  getByPropiedad(
+    @CurrentUser() user: any,
+    @Param('propiedadId') propiedadId: string,
+  ) {
     return this.service.getByPropiedad(user.tenantId, propiedadId);
   }
 
   @Patch(':id/estado')
-  @ApiOperation({ summary: 'Cambiar estado del interés (NUEVO → CONTACTADO → GANADO…)' })
+  @ApiOperation({
+    summary: 'Cambiar estado del interés (NUEVO → CONTACTADO → GANADO…)',
+  })
   cambiarEstado(
     @CurrentUser() user: any,
     @Req() req: any,
     @Param('id') id: string,
     @Body() dto: CambiarEstadoInteresDto,
   ) {
-    return this.service.cambiarEstado(user.tenantId, id, dto, user.rol, user.sub, req.visibleUserIds);
+    return this.service.cambiarEstado(
+      user.tenantId,
+      id,
+      dto,
+      user.rol,
+      user.sub,
+      req.visibleUserIds,
+    );
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar datos de un interés' })
-  updateInteres(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateInteresDto) {
+  updateInteres(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateInteresDto,
+  ) {
     return this.service.updateInteres(user.tenantId, id, dto);
   }
 

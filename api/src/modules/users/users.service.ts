@@ -1,8 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
-import { CreateUserDto, UpdateUserDto, CreateAdminDto, UpdateAdminDto } from './dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  CreateAdminDto,
+  UpdateAdminDto,
+} from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
@@ -16,19 +26,25 @@ export class UsersService {
     private readonly email: EmailService,
     config: ConfigService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
   }
 
   async create(tenantId: string, dto: CreateUserDto) {
     // Check tenant user limit
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
 
     const userCount = await this.prisma.user.count({
       where: { tenant_id: tenantId, estado: { not: 'INACTIVO' } },
     });
     if (userCount >= tenant.limite_usuarios) {
-      throw new BadRequestException(`Límite de usuarios alcanzado (${tenant.limite_usuarios})`);
+      throw new BadRequestException(
+        `Límite de usuarios alcanzado (${tenant.limite_usuarios})`,
+      );
     }
 
     // Validate supervisor hierarchy
@@ -38,7 +54,9 @@ export class UsersService {
 
     // Validate that JUNIOR cannot be supervisor
     if (dto.rol === 'JUNIOR' && dto.idSupervisor === undefined) {
-      throw new BadRequestException('Un agente Junior debe tener un supervisor asignado');
+      throw new BadRequestException(
+        'Un agente Junior debe tener un supervisor asignado',
+      );
     }
 
     const activationToken = randomUUID();
@@ -64,21 +82,28 @@ export class UsersService {
     }
 
     // Welcome email with activation link (fire-and-forget)
-    this.email.sendSystemEmail({
-      to: user.email,
-      subject: '¡Bienvenido/a al CRM! — GestProp',
-      heading: `¡Bienvenido/a, ${user.nombre}!`,
-      body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en GestProp CRM. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
-      cta: { label: 'Activar mi cuenta', url: activationUrl },
-    }).catch(() => {});
+    this.email
+      .sendSystemEmail({
+        to: user.email,
+        subject: '¡Bienvenido/a al CRM! — GestProp',
+        heading: `¡Bienvenido/a, ${user.nombre}!`,
+        body: `Tu cuenta como <strong>${user.rol}</strong> ha sido creada en GestProp CRM. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
+        cta: { label: 'Activar mi cuenta', url: activationUrl },
+      })
+      .catch(() => {});
 
     return { ...user, activationToken };
   }
 
   /** Usuarios asignables como agente de propiedad según el plan del tenant */
   async findAgentesPropiedad(tenantId: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
-    const roles = (tenant?.plan === 'FREE' ? ['SENIOR', 'ADMIN'] : ['SENIOR']) as any[];
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { plan: true },
+    });
+    const roles = (
+      tenant?.plan === 'FREE' ? ['SENIOR', 'ADMIN'] : ['SENIOR']
+    ) as any[];
     return this.prisma.user.findMany({
       where: { tenant_id: tenantId, rol: { in: roles }, estado: 'ACTIVO' },
       select: { id: true, nombre: true, email: true, rol: true },
@@ -90,9 +115,16 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: { tenant_id: tenantId },
       select: {
-        id: true, email: true, nombre: true, rol: true, estado: true,
-        id_supervisor: true, ultimo_login: true, created_at: true,
-        intentos_login: true, bloqueado_hasta: true,
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        estado: true,
+        id_supervisor: true,
+        ultimo_login: true,
+        created_at: true,
+        intentos_login: true,
+        bloqueado_hasta: true,
         supervisor: { select: { id: true, nombre: true } },
         _count: { select: { subordinados: true } },
       },
@@ -104,8 +136,14 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({
       where: { id, tenant_id: tenantId },
       select: {
-        id: true, email: true, nombre: true, rol: true, estado: true,
-        id_supervisor: true, totp_habilitado: true, ultimo_login: true,
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        estado: true,
+        id_supervisor: true,
+        totp_habilitado: true,
+        ultimo_login: true,
         created_at: true,
         supervisor: { select: { id: true, nombre: true } },
         subordinados: { select: { id: true, nombre: true, rol: true } },
@@ -139,7 +177,14 @@ export class UsersService {
   async findMe(tenantId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId },
-      select: { id: true, email: true, nombre: true, rol: true, tema: true, totp_habilitado: true },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        tema: true,
+        totp_habilitado: true,
+      },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
@@ -195,29 +240,41 @@ export class UsersService {
 
   // ─── Transfer and deactivate ──────────────────────────────
 
-  async transferAndDeactivate(tenantId: string, fromUserId: string, toUserId: string) {
+  async transferAndDeactivate(
+    tenantId: string,
+    fromUserId: string,
+    toUserId: string,
+  ) {
     const [fromUser, toUser] = await Promise.all([
-      this.prisma.user.findFirst({ where: { id: fromUserId, tenant_id: tenantId } }),
-      this.prisma.user.findFirst({ where: { id: toUserId, tenant_id: tenantId, estado: 'ACTIVO' } }),
+      this.prisma.user.findFirst({
+        where: { id: fromUserId, tenant_id: tenantId },
+      }),
+      this.prisma.user.findFirst({
+        where: { id: toUserId, tenant_id: tenantId, estado: 'ACTIVO' },
+      }),
     ]);
     if (!fromUser) throw new NotFoundException('Usuario origen no encontrado');
-    if (!toUser)   throw new NotFoundException('Usuario destino no encontrado o inactivo');
-    if (fromUserId === toUserId) throw new BadRequestException('El usuario origen y destino deben ser distintos');
+    if (!toUser)
+      throw new NotFoundException('Usuario destino no encontrado o inactivo');
+    if (fromUserId === toUserId)
+      throw new BadRequestException(
+        'El usuario origen y destino deben ser distintos',
+      );
 
     const [propiedades, clientes] = await this.prisma.$transaction([
       this.prisma.propiedad.updateMany({
         where: { agente_id: fromUserId, tenant_id: tenantId },
-        data:  { agente_id: toUserId },
+        data: { agente_id: toUserId },
       }),
       this.prisma.cliente.updateMany({
         where: { agente_id: fromUserId, tenant_id: tenantId },
-        data:  { agente_id: toUserId },
+        data: { agente_id: toUserId },
       }),
     ]);
 
     await this.prisma.user.update({
       where: { id: fromUserId },
-      data:  { estado: 'INACTIVO' },
+      data: { estado: 'INACTIVO' },
     });
 
     return {
@@ -233,7 +290,13 @@ export class UsersService {
   async getHierarchyTree(tenantId: string) {
     const users = await this.prisma.user.findMany({
       where: { tenant_id: tenantId, estado: { not: 'INACTIVO' } },
-      select: { id: true, nombre: true, email: true, rol: true, id_supervisor: true },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        id_supervisor: true,
+      },
       orderBy: { nombre: 'asc' },
     });
 
@@ -254,16 +317,25 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: { rol: 'ADMIN' },
       select: {
-        id: true, email: true, nombre: true, rol: true, estado: true,
-        ultimo_login: true, created_at: true,
-        tenant: { select: { id: true, nombre: true, plan: true, estado: true } },
+        id: true,
+        email: true,
+        nombre: true,
+        rol: true,
+        estado: true,
+        ultimo_login: true,
+        created_at: true,
+        tenant: {
+          select: { id: true, nombre: true, plan: true, estado: true },
+        },
       },
       orderBy: [{ tenant: { nombre: 'asc' } }, { nombre: 'asc' }],
     });
   }
 
   async createAdmin(dto: CreateAdminDto) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: dto.tenantId },
+    });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
 
     const existingAdmin = await this.prisma.user.findFirst({
@@ -297,23 +369,29 @@ export class UsersService {
       this.logger.debug(`Admin activation: ${activationUrl}`);
     }
 
-    this.email.sendSystemEmail({
-      to: user.email,
-      subject: '¡Bienvenido/a al CRM! — GestProp',
-      heading: `¡Bienvenido/a, ${user.nombre}!`,
-      body: `Tu cuenta como <strong>Administrador</strong> ha sido creada en GestProp CRM para la empresa <strong>${tenant.nombre}</strong>. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
-      cta: { label: 'Activar mi cuenta', url: activationUrl },
-    }).catch(() => {});
+    this.email
+      .sendSystemEmail({
+        to: user.email,
+        subject: '¡Bienvenido/a al CRM! — GestProp',
+        heading: `¡Bienvenido/a, ${user.nombre}!`,
+        body: `Tu cuenta como <strong>Administrador</strong> ha sido creada en GestProp CRM para la empresa <strong>${tenant.nombre}</strong>. Usa el siguiente enlace para establecer tu contraseña e ingresar al sistema.`,
+        cta: { label: 'Activar mi cuenta', url: activationUrl },
+      })
+      .catch(() => {});
 
     return { ...user, activationToken };
   }
 
   async updateAdmin(id: string, dto: UpdateAdminDto) {
-    const user = await this.prisma.user.findFirst({ where: { id, rol: 'ADMIN' } });
+    const user = await this.prisma.user.findFirst({
+      where: { id, rol: 'ADMIN' },
+    });
     if (!user) throw new NotFoundException('Administrador no encontrado');
 
     if (dto.tenantId && dto.tenantId !== user.tenant_id) {
-      const tenant = await this.prisma.tenant.findUnique({ where: { id: dto.tenantId } });
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: dto.tenantId },
+      });
       if (!tenant) throw new NotFoundException('Empresa no encontrada');
 
       const existingAdmin = await this.prisma.user.findFirst({
@@ -345,7 +423,9 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     if (user.estado !== 'PENDIENTE') {
-      throw new BadRequestException('Solo se puede reenviar el correo a usuarios pendientes de activación');
+      throw new BadRequestException(
+        'Solo se puede reenviar el correo a usuarios pendientes de activación',
+      );
     }
 
     const activationToken = randomUUID();
@@ -362,13 +442,15 @@ export class UsersService {
       this.logger.debug(`Resend activation: ${activationUrl}`);
     }
 
-    this.email.sendSystemEmail({
-      to: user.email,
-      subject: 'Activa tu cuenta — GestProp',
-      heading: `Hola, ${user.nombre}`,
-      body: `Se ha generado un nuevo enlace de activación para tu cuenta como <strong>${user.rol}</strong> en GestProp CRM. El enlace anterior ya no es válido.`,
-      cta: { label: 'Activar mi cuenta', url: activationUrl },
-    }).catch(() => {});
+    this.email
+      .sendSystemEmail({
+        to: user.email,
+        subject: 'Activa tu cuenta — GestProp',
+        heading: `Hola, ${user.nombre}`,
+        body: `Se ha generado un nuevo enlace de activación para tu cuenta como <strong>${user.rol}</strong> en GestProp CRM. El enlace anterior ya no es válido.`,
+        cta: { label: 'Activar mi cuenta', url: activationUrl },
+      })
+      .catch(() => {});
 
     return { message: 'Correo de activación reenviado' };
   }
@@ -376,7 +458,9 @@ export class UsersService {
   // ─── P-01: Admin manual unlock ───────────────────────────
 
   async desbloquear(tenantId: string, id: string) {
-    const user = await this.prisma.user.findFirst({ where: { id, tenant_id: tenantId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenant_id: tenantId },
+    });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     await this.prisma.user.update({
@@ -389,39 +473,63 @@ export class UsersService {
   // ─── P-03: Reset 2FA por Administrador ──────────────────
 
   async resetTotp(tenantId: string, id: string) {
-    const user = await this.prisma.user.findFirst({ where: { id, tenant_id: tenantId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenant_id: tenantId },
+    });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     await this.prisma.user.update({
       where: { id },
       data: { totp_secret: null, totp_habilitado: false },
     });
-    return { message: '2FA desactivado. El usuario deberá configurarlo nuevamente en su próximo login.' };
+    return {
+      message:
+        '2FA desactivado. El usuario deberá configurarlo nuevamente en su próximo login.',
+    };
   }
 
   // ─── F-08: Reasignación masiva de subordinados ──────────
 
-  async reasignarSubordinados(tenantId: string, fromUserId: string, toSupervisorId: string) {
+  async reasignarSubordinados(
+    tenantId: string,
+    fromUserId: string,
+    toSupervisorId: string,
+  ) {
     const [fromUser, toUser] = await Promise.all([
-      this.prisma.user.findFirst({ where: { id: fromUserId, tenant_id: tenantId } }),
-      this.prisma.user.findFirst({ where: { id: toSupervisorId, tenant_id: tenantId } }),
+      this.prisma.user.findFirst({
+        where: { id: fromUserId, tenant_id: tenantId },
+      }),
+      this.prisma.user.findFirst({
+        where: { id: toSupervisorId, tenant_id: tenantId },
+      }),
     ]);
     if (!fromUser) throw new NotFoundException('Usuario origen no encontrado');
-    if (!toUser)   throw new NotFoundException('Usuario destino no encontrado');
-    if (toUser.rol === 'JUNIOR') throw new BadRequestException('El destino no puede ser un Agente Junior');
-    if (fromUserId === toSupervisorId) throw new BadRequestException('El origen y el destino no pueden ser el mismo usuario');
+    if (!toUser) throw new NotFoundException('Usuario destino no encontrado');
+    if (toUser.rol === 'JUNIOR')
+      throw new BadRequestException('El destino no puede ser un Agente Junior');
+    if (fromUserId === toSupervisorId)
+      throw new BadRequestException(
+        'El origen y el destino no pueden ser el mismo usuario',
+      );
 
     const count = await this.prisma.user.updateMany({
       where: { tenant_id: tenantId, id_supervisor: fromUserId },
       data: { id_supervisor: toSupervisorId },
     });
 
-    return { reasignados: count.count, message: `${count.count} subordinado(s) reasignado(s) a ${toUser.nombre}` };
+    return {
+      reasignados: count.count,
+      message: `${count.count} subordinado(s) reasignado(s) a ${toUser.nombre}`,
+    };
   }
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────
 
-  private async validateSupervisor(tenantId: string, supervisorId: string, rol?: string) {
+  private async validateSupervisor(
+    tenantId: string,
+    supervisorId: string,
+    rol?: string,
+  ) {
     const supervisor = await this.prisma.user.findFirst({
       where: { id: supervisorId, tenant_id: tenantId },
     });
@@ -435,17 +543,25 @@ export class UsersService {
   async savePushToken(userId: string, pushToken: string) {
     if (!pushToken?.trim()) return { ok: true };
     // Store in user notas_internas or as metadata; simple approach: upsert via raw JSON update
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { push_token: pushToken } as any, // field added via db push when needed
-    }).catch(() => {
-      // If column doesn't exist yet, log and continue — push infra is optional
-      this.logger.warn(`push_token column not yet migrated for user ${userId}`);
-    });
+    await this.prisma.user
+      .update({
+        where: { id: userId },
+        data: { push_token: pushToken } as any, // field added via db push when needed
+      })
+      .catch(() => {
+        // If column doesn't exist yet, log and continue — push infra is optional
+        this.logger.warn(
+          `push_token column not yet migrated for user ${userId}`,
+        );
+      });
     return { ok: true };
   }
 
-  private async checkCircularReference(userId: string, newSupervisorId: string, tenantId: string) {
+  private async checkCircularReference(
+    userId: string,
+    newSupervisorId: string,
+    tenantId: string,
+  ) {
     // Get the full downline of the user being edited
     const downline = await this.getDownline(tenantId, userId);
     const downlineIds = downline.map((d) => d.id);

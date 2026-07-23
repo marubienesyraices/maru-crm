@@ -29,6 +29,11 @@ export class EmailTriggersController {
     @Param('evento') evento: string,
     @Body() body: { activo: boolean; plantillaId?: string | null },
   ) {
-    return this.svc.upsertTrigger(user.tenantId, evento, body.activo, body.plantillaId);
+    return this.svc.upsertTrigger(
+      user.tenantId,
+      evento,
+      body.activo,
+      body.plantillaId,
+    );
   }
 }

@@ -1,89 +1,134 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsInt, IsEnum, IsDateString, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsEnum,
+  IsDateString,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateTenantDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
 
   @IsEmail()
   adminEmail: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   adminNombre: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   logoUrl?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   plan?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   moneda?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   zonaHoraria?: string;
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   limiteUsuarios?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   limitePropiedades?: number;
 
-  @IsOptional() @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
+  @IsOptional()
+  @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
   estado?: string;
 
-  @IsOptional() @Transform(({ value }) => value || undefined) @IsDateString()
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsDateString()
   trialHasta?: string;
 }
 
 export class UpdateTenantDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   nombre?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   logoUrl?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   colorPrimario?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   colorSecundario?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   colorAcento?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   plan?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   moneda?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   zonaHoraria?: string;
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   limiteUsuarios?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional()
+  @IsInt()
   limitePropiedades?: number;
 
-  @IsOptional() @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
+  @IsOptional()
+  @IsEnum(['ACTIVA', 'SUSPENDIDA', 'TRIAL', 'CANCELADA'])
   estado?: string;
 
-  @IsOptional() @Transform(({ value }) => value || undefined) @IsDateString()
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsDateString()
   trialHasta?: string;
 }
 
 export class UpdateConfigSeguridadDto {
-  @IsOptional() @IsNumber() @Min(0) @Max(1)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
   porcentaje_iva?: number;
 
-  @IsOptional() @IsNumber() @Min(0) @Max(100)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
   comision_pct_venta_default?: number;
 
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
   dias_inactividad_lead?: number;
 
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   buffer_entre_citas_min?: number;
 }

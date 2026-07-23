@@ -17,8 +17,6 @@ import { EmailService } from '../email/email.service';
 import { LoginDto, Verify2FADto, ResetPasswordDto, OnboardingDto } from './dto';
 import { randomUUID } from 'crypto';
 
-
-
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -43,8 +41,13 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    if (user.tenant.estado === 'SUSPENDIDA' || user.tenant.estado === 'CANCELADA') {
-      throw new ForbiddenException('La empresa se encuentra suspendida o cancelada');
+    if (
+      user.tenant.estado === 'SUSPENDIDA' ||
+      user.tenant.estado === 'CANCELADA'
+    ) {
+      throw new ForbiddenException(
+        'La empresa se encuentra suspendida o cancelada',
+      );
     }
 
     if (user.bloqueado_hasta && user.bloqueado_hasta > new Date()) {
@@ -62,7 +65,10 @@ export class AuthService {
 
     await this.validateGeofence(ip, user.tenant_id);
 
-    const passwordValid = await bcrypt.compare(dto.password, user.password_hash);
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user.password_hash,
+    );
     if (!passwordValid) {
       await this.handleFailedLogin(user.id, user.tenant_id, ip, userAgent);
       throw new UnauthorizedException('Credenciales inválidas');
@@ -71,12 +77,22 @@ export class AuthService {
     if (user.totp_habilitado) {
       const tempToken = this.jwt.sign(
         { sub: user.id, tenantId: user.tenant_id, step: '2fa' },
-        { secret: this.config.get<string>('JWT_ACCESS_SECRET'), expiresIn: 300 },
+        {
+          secret: this.config.get<string>('JWT_ACCESS_SECRET'),
+          expiresIn: 300,
+        },
       );
       return { requires2FA: true, tempToken };
     }
 
-    return this.issueTokens(user.id, user.tenant_id, user.email, user.rol, ip, userAgent);
+    return this.issueTokens(
+      user.id,
+      user.tenant_id,
+      user.email,
+      user.rol,
+      ip,
+      userAgent,
+    );
   }
 
   // ─── LOGIN STEP 2: TOTP Verification ─────────────────────
@@ -109,14 +125,20 @@ export class AuthService {
 
     const failCount = parseInt((await this.redis.get(totpFailKey)) ?? '0', 10);
     if (failCount >= MAX_TOTP_ATTEMPTS) {
-      throw new ForbiddenException('Demasiados intentos fallidos. Intente en 15 minutos.');
+      throw new ForbiddenException(
+        'Demasiados intentos fallidos. Intente en 15 minutos.',
+      );
     }
 
-    const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
-    const isValid = totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
+    const totpInstance = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(user.totp_secret),
+    });
+    const isValid =
+      totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
 
     if (!isValid) {
-      await this.redis.client.multi()
+      await this.redis.client
+        .multi()
         .incr(totpFailKey)
         .expire(totpFailKey, TOTP_LOCKOUT_SECONDS)
         .exec();
@@ -127,16 +149,32 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { intentos_login: 0, bloqueado_hasta: null, ultimo_login: new Date() },
+      data: {
+        intentos_login: 0,
+        bloqueado_hasta: null,
+        ultimo_login: new Date(),
+      },
     });
 
-    await this.auditLog(user.tenant_id, user.id, user.nombre, 'LOGIN', 'Auth', 'User', user.id, ip, userAgent);
+    await this.auditLog(
+      user.tenant_id,
+      user.id,
+      user.nombre,
+      'LOGIN',
+      'Auth',
+      'User',
+      user.id,
+      ip,
+      userAgent,
+    );
 
     // P-02: Check password expiry (90-day policy)
     const EXPIRY_DAYS = 90;
     const WARN_DAYS = 7;
     const passwordAge = user.password_changed_at
-      ? Math.floor((Date.now() - user.password_changed_at.getTime()) / 86_400_000)
+      ? Math.floor(
+          (Date.now() - user.password_changed_at.getTime()) / 86_400_000,
+        )
       : EXPIRY_DAYS + 1;
     const daysLeft = EXPIRY_DAYS - passwordAge;
     let passwordExpiresIn: number | undefined;
@@ -148,8 +186,17 @@ export class AuthService {
       passwordExpiresIn = daysLeft;
     }
 
-    const tokens = await this.issueTokens(user.id, user.tenant_id, user.email, user.rol, ip, userAgent);
-    return passwordExpiresIn !== undefined ? { ...tokens, passwordExpiresIn } : tokens;
+    const tokens = await this.issueTokens(
+      user.id,
+      user.tenant_id,
+      user.email,
+      user.rol,
+      ip,
+      userAgent,
+    );
+    return passwordExpiresIn !== undefined
+      ? { ...tokens, passwordExpiresIn }
+      : tokens;
   }
 
   // ─── SETUP 2FA ────────────────────────────────────────────
@@ -183,8 +230,11 @@ export class AuthService {
       throw new BadRequestException('Configure 2FA primero');
     }
 
-    const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
-    const isValid = totpInstance.validate({ token: totpCode, window: 1 }) !== null;
+    const totpInstance = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(user.totp_secret),
+    });
+    const isValid =
+      totpInstance.validate({ token: totpCode, window: 1 }) !== null;
     if (!isValid) {
       throw new BadRequestException('Código inválido');
     }
@@ -197,17 +247,24 @@ export class AuthService {
     return { message: '2FA activado exitosamente' };
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('Usuario no encontrado');
 
     const valid = await bcrypt.compare(currentPassword, user.password_hash);
-    if (!valid) throw new BadRequestException('La contraseña actual es incorrecta');
+    if (!valid)
+      throw new BadRequestException('La contraseña actual es incorrecta');
 
     const history: string[] = (user.password_history as string[]) || [];
     for (const oldHash of history) {
       if (await bcrypt.compare(newPassword, oldHash)) {
-        throw new BadRequestException('No puede reutilizar las últimas 5 contraseñas');
+        throw new BadRequestException(
+          'No puede reutilizar las últimas 5 contraseñas',
+        );
       }
     }
 
@@ -232,8 +289,11 @@ export class AuthService {
       throw new BadRequestException('El 2FA no está habilitado');
     }
 
-    const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
-    const isValid = totpInstance.validate({ token: totpCode, window: 1 }) !== null;
+    const totpInstance = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(user.totp_secret),
+    });
+    const isValid =
+      totpInstance.validate({ token: totpCode, window: 1 }) !== null;
     if (!isValid) {
       throw new BadRequestException('Código inválido');
     }
@@ -264,12 +324,21 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
 
     if (user.tenant.estado !== 'ACTIVA' && user.tenant.estado !== 'TRIAL') {
-      await this.prisma.session.deleteMany({ where: { refresh_token: refreshToken } });
-      throw new UnauthorizedException('La empresa se encuentra suspendida o cancelada');
+      await this.prisma.session.deleteMany({
+        where: { refresh_token: refreshToken },
+      });
+      throw new UnauthorizedException(
+        'La empresa se encuentra suspendida o cancelada',
+      );
     }
 
     const accessToken = this.jwt.sign(
-      { sub: user.id, tenantId: user.tenant_id, email: user.email, rol: user.rol },
+      {
+        sub: user.id,
+        tenantId: user.tenant_id,
+        email: user.email,
+        rol: user.rol,
+      },
       {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: 900,
@@ -281,11 +350,29 @@ export class AuthService {
 
   // ─── LOGOUT ───────────────────────────────────────────────
 
-  async logout(refreshToken: string, userId: string, tenantId: string, ip: string, userAgent: string) {
-    await this.prisma.session.deleteMany({ where: { refresh_token: refreshToken } });
+  async logout(
+    refreshToken: string,
+    userId: string,
+    tenantId: string,
+    ip: string,
+    userAgent: string,
+  ) {
+    await this.prisma.session.deleteMany({
+      where: { refresh_token: refreshToken },
+    });
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user) {
-      await this.auditLog(tenantId, userId, user.nombre, 'LOGOUT', 'Auth', 'User', userId, ip, userAgent);
+      await this.auditLog(
+        tenantId,
+        userId,
+        user.nombre,
+        'LOGOUT',
+        'Auth',
+        'User',
+        userId,
+        ip,
+        userAgent,
+      );
     }
     return { message: 'Sesión cerrada' };
   }
@@ -294,7 +381,10 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findFirst({ where: { email } });
-    if (!user) return { message: 'Si el correo existe, recibirá un enlace de recuperación' };
+    if (!user)
+      return {
+        message: 'Si el correo existe, recibirá un enlace de recuperación',
+      };
 
     const token = randomUUID();
     const expires = new Date(Date.now() + 30 * 60 * 1000);
@@ -310,15 +400,19 @@ export class AuthService {
       this.logger.debug(`Reset link: ${resetUrl}`);
     }
 
-    this.email.sendSystemEmail({
-      to: user.email,
-      subject: 'Recuperación de contraseña — GestProp CRM',
-      heading: 'Restablecer contraseña',
-      body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta. Usa el siguiente enlace (válido por 30 minutos). Si no solicitaste este cambio, puedes ignorar este correo.`,
-      cta: { label: 'Restablecer contraseña', url: resetUrl },
-    }).catch(() => {});
+    this.email
+      .sendSystemEmail({
+        to: user.email,
+        subject: 'Recuperación de contraseña — GestProp CRM',
+        heading: 'Restablecer contraseña',
+        body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta. Usa el siguiente enlace (válido por 30 minutos). Si no solicitaste este cambio, puedes ignorar este correo.`,
+        cta: { label: 'Restablecer contraseña', url: resetUrl },
+      })
+      .catch(() => {});
 
-    return { message: 'Si el correo existe, recibirá un enlace de recuperación' };
+    return {
+      message: 'Si el correo existe, recibirá un enlace de recuperación',
+    };
   }
 
   // ─── RESET PASSWORD ──────────────────────────────────────
@@ -336,17 +430,28 @@ export class AuthService {
     // F-02: If user has 2FA enabled, require TOTP verification
     if (user.totp_habilitado && user.totp_secret) {
       if (!dto.totpCode) {
-        throw new BadRequestException(JSON.stringify({ requiresTOTP: true, message: 'Tu cuenta tiene 2FA activo. Ingresa el código de tu app autenticadora.' }));
+        throw new BadRequestException(
+          JSON.stringify({
+            requiresTOTP: true,
+            message:
+              'Tu cuenta tiene 2FA activo. Ingresa el código de tu app autenticadora.',
+          }),
+        );
       }
-      const totpInstance = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
-      const isValid = totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
+      const totpInstance = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(user.totp_secret),
+      });
+      const isValid =
+        totpInstance.validate({ token: dto.totpCode, window: 1 }) !== null;
       if (!isValid) throw new BadRequestException('Código 2FA incorrecto');
     }
 
     const history: string[] = (user.password_history as string[]) || [];
     for (const oldHash of history) {
       if (await bcrypt.compare(dto.newPassword, oldHash)) {
-        throw new BadRequestException('No puede reutilizar las últimas 5 contraseñas');
+        throw new BadRequestException(
+          'No puede reutilizar las últimas 5 contraseñas',
+        );
       }
     }
 
@@ -380,7 +485,8 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new BadRequestException('Token de activación inválido o expirado');
+    if (!user)
+      throw new BadRequestException('Token de activación inválido o expirado');
 
     const hash = await bcrypt.hash(dto.password, 12);
 
@@ -402,15 +508,23 @@ export class AuthService {
   // ─── PRIVATE HELPERS ─────────────────────────────────────
 
   private async issueTokens(
-    userId: string, tenantId: string, email: string, rol: string,
-    ip: string, userAgent: string,
+    userId: string,
+    tenantId: string,
+    email: string,
+    rol: string,
+    ip: string,
+    userAgent: string,
   ) {
     const payload = { sub: userId, tenantId, email, rol };
 
     // Actualiza último login y limpia contadores de intentos fallidos
     await this.prisma.user.update({
       where: { id: userId },
-      data: { ultimo_login: new Date(), intentos_login: 0, bloqueado_hasta: null },
+      data: {
+        ultimo_login: new Date(),
+        intentos_login: 0,
+        bloqueado_hasta: null,
+      },
     });
 
     const accessToken = this.jwt.sign(payload, {
@@ -444,7 +558,12 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async handleFailedLogin(userId: string, tenantId: string, ip: string, userAgent: string) {
+  private async handleFailedLogin(
+    userId: string,
+    tenantId: string,
+    ip: string,
+    userAgent: string,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return;
 
@@ -464,9 +583,22 @@ export class AuthService {
       data: { intentos_login: attempts, bloqueado_hasta: blockedUntil },
     });
 
-    await this.auditLog(tenantId, userId, user.nombre, 'LOGIN', 'Auth', 'User', userId, ip, userAgent, {
-      resultado: 'FALLIDO', intentos: attempts, bloqueado: !!blockedUntil,
-    });
+    await this.auditLog(
+      tenantId,
+      userId,
+      user.nombre,
+      'LOGIN',
+      'Auth',
+      'User',
+      userId,
+      ip,
+      userAgent,
+      {
+        resultado: 'FALLIDO',
+        intentos: attempts,
+        bloqueado: !!blockedUntil,
+      },
+    );
 
     // §3 CA-4: Notify user by email on suspicious access (3+ failed attempts)
     if (attempts >= 3 && user.email) {
@@ -476,19 +608,27 @@ export class AuthService {
           : `Tu cuenta ha sido bloqueada temporalmente. Intenta nuevamente en ${attempts >= 6 ? '1 hora' : '15 minutos'}.`
         : 'Te recomendamos cambiar tu contraseña si no fuiste tú.';
 
-      this.email.sendSystemEmail({
-        to: user.email,
-        subject: 'Alerta de seguridad: intentos de acceso fallidos — GestProp',
-        heading: '⚠️ Alerta de seguridad',
-        body: `Detectamos ${attempts} intento(s) fallido(s) de inicio de sesión en tu cuenta desde la IP ${ip}. ${bloqueoMsg}`,
-      }).catch(() => {});
+      this.email
+        .sendSystemEmail({
+          to: user.email,
+          subject:
+            'Alerta de seguridad: intentos de acceso fallidos — GestProp',
+          heading: '⚠️ Alerta de seguridad',
+          body: `Detectamos ${attempts} intento(s) fallido(s) de inicio de sesión en tu cuenta desde la IP ${ip}. ${bloqueoMsg}`,
+        })
+        .catch(() => {});
     }
   }
 
   private async validateGeofence(ip: string, tenantId: string) {
     // Skip geofence for local/private IPs (development)
     const localPatterns = ['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost'];
-    if (localPatterns.includes(ip) || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+    if (
+      localPatterns.includes(ip) ||
+      ip.startsWith('192.168.') ||
+      ip.startsWith('10.') ||
+      ip.startsWith('172.')
+    ) {
       return;
     }
 
@@ -502,7 +642,9 @@ export class AuthService {
     if (config.ips_permitidas) {
       const allowedIps = config.ips_permitidas as string[];
       if (allowedIps.length > 0 && !allowedIps.includes(ip)) {
-        throw new ForbiddenException('Acceso denegado: su dirección IP no está autorizada');
+        throw new ForbiddenException(
+          'Acceso denegado: su dirección IP no está autorizada',
+        );
       }
     }
 
@@ -510,23 +652,38 @@ export class AuthService {
     if (config.geo_paises) {
       const geo = geoip.lookup(ip);
       const allowedCountries = config.geo_paises as string[];
-      if (allowedCountries.length > 0 && (!geo || !allowedCountries.includes(geo.country))) {
+      if (
+        allowedCountries.length > 0 &&
+        (!geo || !allowedCountries.includes(geo.country))
+      ) {
         throw new ForbiddenException('Acceso denegado desde su ubicación');
       }
     }
   }
 
   private async auditLog(
-    tenantId: string, userId: string, nombre: string,
-    accion: string, modulo: string, entidad: string,
-    entidadId: string, ip: string, userAgent: string,
+    tenantId: string,
+    userId: string,
+    nombre: string,
+    accion: string,
+    modulo: string,
+    entidad: string,
+    entidadId: string,
+    ip: string,
+    userAgent: string,
     payload?: any,
   ) {
     await this.prisma.auditLog.create({
       data: {
-        tenant_id: tenantId, user_id: userId, nombre_usuario: nombre,
-        accion: accion as any, modulo, entidad, entidad_id: entidadId,
-        ip_address: ip, user_agent: userAgent,
+        tenant_id: tenantId,
+        user_id: userId,
+        nombre_usuario: nombre,
+        accion: accion as any,
+        modulo,
+        entidad,
+        entidad_id: entidadId,
+        ip_address: ip,
+        user_agent: userAgent,
         payload_cambio: payload || undefined,
       },
     });

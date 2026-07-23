@@ -2,7 +2,8 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { tenantContextStorage, TenantContext } from '../context/tenant-context';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * TenantMiddleware
@@ -35,9 +36,15 @@ export class TenantMiddleware implements NestMiddleware {
         const payloadB64 = token.split('.')[1];
         // base64url → base64 → JSON (no crypto verification — JwtAuthGuard handles that)
         const payload = JSON.parse(
-          Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'),
+          Buffer.from(
+            payloadB64.replace(/-/g, '+').replace(/_/g, '/'),
+            'base64',
+          ).toString('utf8'),
         );
-        if (typeof payload.tenantId === 'string' && UUID_RE.test(payload.tenantId)) {
+        if (
+          typeof payload.tenantId === 'string' &&
+          UUID_RE.test(payload.tenantId)
+        ) {
           tenantId = payload.tenantId;
         }
         isSuperAdmin = payload.rol === 'SUPER_ADMIN';

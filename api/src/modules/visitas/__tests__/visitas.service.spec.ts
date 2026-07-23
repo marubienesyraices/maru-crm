@@ -1,11 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VisitasService } from '../visitas.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { EmailService } from '../../email/email.service';
-import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+import {
+  createMockPrismaService,
+  MockPrismaService,
+} from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
 const AGENTE_ID = 'agente-001';
@@ -19,7 +26,7 @@ const mockInteres = {
 };
 
 const INICIO = '2026-05-10T10:00:00Z';
-const FIN    = '2026-05-10T11:00:00Z';
+const FIN = '2026-05-10T11:00:00Z';
 
 const mockVisita = {
   id: VISITA_ID,
@@ -51,8 +58,17 @@ describe('VisitasService', () => {
         VisitasService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificacionesService, useValue: notificaciones },
-        { provide: EmailService, useValue: { sendClientEmail: jest.fn().mockResolvedValue(undefined), send: jest.fn().mockResolvedValue(undefined) } },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') } },
+        {
+          provide: EmailService,
+          useValue: {
+            sendClientEmail: jest.fn().mockResolvedValue(undefined),
+            send: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') },
+        },
       ],
     }).compile();
 
@@ -105,7 +121,11 @@ describe('VisitasService', () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.create(TENANT_ID, AGENTE_ID, { interesId: 'x', fechaInicio: INICIO, fechaFin: FIN }),
+        service.create(TENANT_ID, AGENTE_ID, {
+          interesId: 'x',
+          fechaInicio: INICIO,
+          fechaFin: FIN,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -170,7 +190,9 @@ describe('VisitasService', () => {
       await service.findAll(TENANT_ID, ['agente-001', 'agente-002'], {});
 
       const call = prisma.visita.findMany.mock.calls[0][0];
-      expect(call.where.agente_id).toEqual({ in: ['agente-001', 'agente-002'] });
+      expect(call.where.agente_id).toEqual({
+        in: ['agente-001', 'agente-002'],
+      });
     });
   });
 
@@ -179,26 +201,34 @@ describe('VisitasService', () => {
   describe('update', () => {
     it('actualiza estado a CONFIRMADA', async () => {
       prisma.visita.findFirst.mockResolvedValue(mockVisita);
-      prisma.visita.update.mockResolvedValue({ ...mockVisita, estado: 'CONFIRMADA' });
+      prisma.visita.update.mockResolvedValue({
+        ...mockVisita,
+        estado: 'CONFIRMADA',
+      });
 
-      const result = await service.update(TENANT_ID, VISITA_ID, { estado: 'CONFIRMADA' });
+      const result = await service.update(TENANT_ID, VISITA_ID, {
+        estado: 'CONFIRMADA',
+      });
 
       expect(result.estado).toBe('CONFIRMADA');
       expect(prisma.visita.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ estado: 'CONFIRMADA' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ estado: 'CONFIRMADA' }),
+        }),
       );
     });
 
     it('lanza NotFoundException si la visita no existe', async () => {
       prisma.visita.findFirst.mockResolvedValue(null);
 
-      await expect(service.update(TENANT_ID, 'x', { estado: 'CANCELADA' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.update(TENANT_ID, 'x', { estado: 'CANCELADA' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('detecta solapamiento al reprogramar', async () => {
       prisma.visita.findFirst
-        .mockResolvedValueOnce(mockVisita)  // findOne check
+        .mockResolvedValueOnce(mockVisita) // findOne check
         .mockResolvedValueOnce(mockVisita); // overlap check
 
       await expect(
@@ -225,7 +255,9 @@ describe('VisitasService', () => {
     it('lanza NotFoundException si no existe', async () => {
       prisma.visita.findFirst.mockResolvedValue(null);
 
-      await expect(service.delete(TENANT_ID, 'x')).rejects.toThrow(NotFoundException);
+      await expect(service.delete(TENANT_ID, 'x')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -250,7 +282,9 @@ describe('VisitasService', () => {
     it('lanza NotFoundException si la visita no existe', async () => {
       prisma.visita.findFirst.mockResolvedValue(null);
 
-      await expect(service.generateIcs(TENANT_ID, 'x')).rejects.toThrow(NotFoundException);
+      await expect(service.generateIcs(TENANT_ID, 'x')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

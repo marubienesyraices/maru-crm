@@ -24,7 +24,7 @@ export class UpdateConfigIntegracionesDto {
   @IsOptional() @IsString() docusign_account_id?: string;
   @IsOptional() @IsString() docusign_user_id?: string;
   @IsOptional() @IsString() docusign_rsa_private_key?: string;
-  @IsOptional() @IsUrl()    docusign_base_url?: string;
+  @IsOptional() @IsUrl() docusign_base_url?: string;
 
   // ── Sindicación ────────────────────────────────
   @IsOptional() @IsString() encuentra24_api_key?: string;

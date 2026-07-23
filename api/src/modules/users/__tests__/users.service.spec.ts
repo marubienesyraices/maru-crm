@@ -33,8 +33,18 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
-        { provide: EmailService, useValue: { send: jest.fn().mockResolvedValue(undefined), sendClientEmail: jest.fn().mockResolvedValue(undefined), sendSystemEmail: jest.fn().mockResolvedValue(undefined) } },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') } },
+        {
+          provide: EmailService,
+          useValue: {
+            send: jest.fn().mockResolvedValue(undefined),
+            sendClientEmail: jest.fn().mockResolvedValue(undefined),
+            sendSystemEmail: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://localhost:5173') },
+        },
       ],
     }).compile();
 
@@ -60,7 +70,10 @@ describe('UsersService', () => {
     });
 
     it('debe rechazar si se excede el límite de usuarios', async () => {
-      prisma.tenant.findUnique.mockResolvedValue({ ...mockTenant, limite_usuarios: 2 });
+      prisma.tenant.findUnique.mockResolvedValue({
+        ...mockTenant,
+        limite_usuarios: 2,
+      });
       prisma.user.count.mockResolvedValue(2);
 
       await expect(
@@ -153,7 +166,9 @@ describe('UsersService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('tenant-1', 'no-exist')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('tenant-1', 'no-exist')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -162,10 +177,34 @@ describe('UsersService', () => {
   describe('getHierarchyTree', () => {
     it('debe construir árbol jerárquico correcto', async () => {
       prisma.user.findMany.mockResolvedValue([
-        { id: 'senior', nombre: 'Carlos', email: 'c@t.com', rol: 'SENIOR', id_supervisor: null },
-        { id: 'jr1', nombre: 'Ana', email: 'a@t.com', rol: 'JUNIOR', id_supervisor: 'senior' },
-        { id: 'jr2', nombre: 'Pedro', email: 'p@t.com', rol: 'JUNIOR', id_supervisor: 'senior' },
-        { id: 'admin', nombre: 'María', email: 'm@t.com', rol: 'ADMIN', id_supervisor: null },
+        {
+          id: 'senior',
+          nombre: 'Carlos',
+          email: 'c@t.com',
+          rol: 'SENIOR',
+          id_supervisor: null,
+        },
+        {
+          id: 'jr1',
+          nombre: 'Ana',
+          email: 'a@t.com',
+          rol: 'JUNIOR',
+          id_supervisor: 'senior',
+        },
+        {
+          id: 'jr2',
+          nombre: 'Pedro',
+          email: 'p@t.com',
+          rol: 'JUNIOR',
+          id_supervisor: 'senior',
+        },
+        {
+          id: 'admin',
+          nombre: 'María',
+          email: 'm@t.com',
+          rol: 'ADMIN',
+          id_supervisor: null,
+        },
       ]);
 
       const tree = await service.getHierarchyTree('tenant-1');
@@ -189,7 +228,7 @@ describe('UsersService', () => {
     it('debe rechazar si nuevo supervisor crearía ciclo', async () => {
       // user-1 is the parent, user-2 is the child
       prisma.user.findFirst.mockResolvedValue({ ...mockUser, id: 'user-1' });
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      prisma.$queryRaw.mockResolvedValue([
         { id: 'user-2', nombre: 'Child', nivel: 0 },
       ]);
 
@@ -200,7 +239,7 @@ describe('UsersService', () => {
 
     it('debe rechazar si se intenta asignar a sí mismo como supervisor', async () => {
       prisma.user.findFirst.mockResolvedValue(mockUser);
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+      prisma.$queryRaw.mockResolvedValue([]);
 
       await expect(
         service.update('tenant-1', 'user-1', { idSupervisor: 'user-1' }),

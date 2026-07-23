@@ -182,4 +182,3 @@ export function createMockPrismaService(): MockPrismaService {
     $disconnect: jest.fn(),
   } as unknown as MockPrismaService;
 }
-

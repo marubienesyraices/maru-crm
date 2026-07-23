@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,24 +32,47 @@ export class WhatsappService {
 
   // ─── Enviar brochure ────────────────────────────────────────
 
-  async enviarBrochure(tenantId: string, userId: string, propiedadId: string, dto: EnviarWhatsappDto) {
+  async enviarBrochure(
+    tenantId: string,
+    userId: string,
+    propiedadId: string,
+    dto: EnviarWhatsappDto,
+  ) {
     const telefono = this.normalizePhone(dto.telefono);
 
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: tenantId },
       select: {
-        titulo: true, codigo: true, gestion: true, moneda: true,
-        precio_venta: true, precio_renta: true,
+        titulo: true,
+        codigo: true,
+        gestion: true,
+        moneda: true,
+        precio_venta: true,
+        precio_renta: true,
         agente: { select: { nombre: true, email: true } },
       },
     });
     if (!propiedad) throw new NotFoundException('Propiedad no encontrada');
 
     if (!this.isConfigured) {
-      return this.fallbackLink(tenantId, propiedadId, userId, telefono, propiedad, dto.mensaje);
+      return this.fallbackLink(
+        tenantId,
+        propiedadId,
+        userId,
+        telefono,
+        propiedad,
+        dto.mensaje,
+      );
     }
 
-    return this.enviarViaApi(tenantId, propiedadId, userId, telefono, propiedad, dto.mensaje);
+    return this.enviarViaApi(
+      tenantId,
+      propiedadId,
+      userId,
+      telefono,
+      propiedad,
+      dto.mensaje,
+    );
   }
 
   // ─── Historial ──────────────────────────────────────────────
@@ -61,10 +89,17 @@ export class WhatsappService {
   // ─── Private: Cloud API path ────────────────────────────────
 
   private async enviarViaApi(
-    tenantId: string, propiedadId: string, userId: string,
-    telefono: string, propiedad: any, customMsg?: string,
+    tenantId: string,
+    propiedadId: string,
+    userId: string,
+    telefono: string,
+    propiedad: any,
+    customMsg?: string,
   ) {
-    const { buffer, codigo } = await this.brochure.generateBuffer(propiedadId, tenantId);
+    const { buffer, codigo } = await this.brochure.generateBuffer(
+      propiedadId,
+      tenantId,
+    );
     const filename = `Brochure-${codigo}.pdf`;
     const caption = customMsg ?? this.buildCaption(propiedad);
 
@@ -72,39 +107,85 @@ export class WhatsappService {
     try {
       mediaId = await this.uploadMedia(buffer, filename);
     } catch (err: any) {
-      await this.registrar(tenantId, propiedadId, userId, telefono, customMsg, 'FALLIDO', null, err.message);
-      throw new BadRequestException(`Error al subir PDF a WhatsApp Media API: ${err.message}`);
+      await this.registrar(
+        tenantId,
+        propiedadId,
+        userId,
+        telefono,
+        customMsg,
+        'FALLIDO',
+        null,
+        err.message,
+      );
+      throw new BadRequestException(
+        `Error al subir PDF a WhatsApp Media API: ${err.message}`,
+      );
     }
 
     let messageId: string;
     try {
       messageId = await this.sendDocument(telefono, mediaId, filename, caption);
     } catch (err: any) {
-      await this.registrar(tenantId, propiedadId, userId, telefono, customMsg, 'FALLIDO', null, err.message);
-      throw new BadRequestException(`Error al enviar mensaje WhatsApp: ${err.message}`);
+      await this.registrar(
+        tenantId,
+        propiedadId,
+        userId,
+        telefono,
+        customMsg,
+        'FALLIDO',
+        null,
+        err.message,
+      );
+      throw new BadRequestException(
+        `Error al enviar mensaje WhatsApp: ${err.message}`,
+      );
     }
 
-    await this.registrar(tenantId, propiedadId, userId, telefono, customMsg, 'ENVIADO', messageId, null);
+    await this.registrar(
+      tenantId,
+      propiedadId,
+      userId,
+      telefono,
+      customMsg,
+      'ENVIADO',
+      messageId,
+      null,
+    );
     return { status: 'ENVIADO', message_id: messageId, telefono };
   }
 
   // ─── Private: wa.me fallback ────────────────────────────────
 
   private async fallbackLink(
-    tenantId: string, propiedadId: string, userId: string,
-    telefono: string, propiedad: any, customMsg?: string,
+    tenantId: string,
+    propiedadId: string,
+    userId: string,
+    telefono: string,
+    propiedad: any,
+    customMsg?: string,
   ) {
     const texto = customMsg ?? this.buildTextoLink(propiedad);
     const waLink = `https://wa.me/${telefono}?text=${encodeURIComponent(texto)}`;
 
-    await this.registrar(tenantId, propiedadId, userId, telefono, customMsg, 'LINK', null, null);
+    await this.registrar(
+      tenantId,
+      propiedadId,
+      userId,
+      telefono,
+      customMsg,
+      'LINK',
+      null,
+      null,
+    );
     return { status: 'LINK_GENERADO', wa_link: waLink, telefono };
   }
 
   // ─── Private: WhatsApp Cloud API calls ──────────────────────
 
   private async uploadMedia(buffer: Buffer, filename: string): Promise<string> {
-    const blob = new Blob([new Uint8Array(buffer)], { type: 'application/pdf' });
+    const blob = new Blob([new Uint8Array(buffer)], {
+      type: 'application/pdf',
+    });
     const form = new FormData();
     form.append('messaging_product', 'whatsapp');
     form.append('type', 'application/pdf');
@@ -125,7 +206,12 @@ export class WhatsappService {
     return json.id;
   }
 
-  private async sendDocument(to: string, mediaId: string, filename: string, caption: string): Promise<string> {
+  private async sendDocument(
+    to: string,
+    mediaId: string,
+    filename: string,
+    caption: string,
+  ): Promise<string> {
     const res = await fetch(`${this.apiBase}/${this.phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
@@ -161,38 +247,59 @@ export class WhatsappService {
 
   private buildCaption(p: any): string {
     const lines = [`*${p.titulo}*`];
-    if (p.precio_venta) lines.push(`Precio venta: ${p.moneda} ${Number(p.precio_venta).toLocaleString('es-GT')}`);
-    if (p.precio_renta) lines.push(`Renta mensual: ${p.moneda} ${Number(p.precio_renta).toLocaleString('es-GT')}`);
+    if (p.precio_venta)
+      lines.push(
+        `Precio venta: ${p.moneda} ${Number(p.precio_venta).toLocaleString('es-GT')}`,
+      );
+    if (p.precio_renta)
+      lines.push(
+        `Renta mensual: ${p.moneda} ${Number(p.precio_renta).toLocaleString('es-GT')}`,
+      );
     lines.push('\nSi te interesa, contáctanos para agendar una visita.');
     return lines.join('\n');
   }
 
   private buildTextoLink(p: any): string {
     const lines = [`*${p.titulo}*`, `Código: ${p.codigo}`];
-    if (p.precio_venta) lines.push(`Precio venta: ${p.moneda} ${Number(p.precio_venta).toLocaleString('es-GT')}`);
-    if (p.precio_renta) lines.push(`Renta mensual: ${p.moneda} ${Number(p.precio_renta).toLocaleString('es-GT')}`);
+    if (p.precio_venta)
+      lines.push(
+        `Precio venta: ${p.moneda} ${Number(p.precio_venta).toLocaleString('es-GT')}`,
+      );
+    if (p.precio_renta)
+      lines.push(
+        `Renta mensual: ${p.moneda} ${Number(p.precio_renta).toLocaleString('es-GT')}`,
+      );
     if (p.agente?.nombre) lines.push(`\nAgente: ${p.agente.nombre}`);
     lines.push('\n¿Te gustaría agendar una visita?');
     return lines.join('\n');
   }
 
   private async registrar(
-    tenantId: string, propiedadId: string, userId: string,
-    telefono: string, mensaje: string | undefined,
-    status: string, wabaId: string | null, error: string | null,
+    tenantId: string,
+    propiedadId: string,
+    userId: string,
+    telefono: string,
+    mensaje: string | undefined,
+    status: string,
+    wabaId: string | null,
+    error: string | null,
   ) {
-    await this.prisma.whatsappEnvio.create({
-      data: {
-        id: randomUUID(),
-        tenant_id: tenantId,
-        propiedad_id: propiedadId,
-        user_id: userId,
-        telefono_destino: telefono,
-        mensaje: mensaje ?? null,
-        status,
-        waba_message_id: wabaId,
-        error,
-      },
-    }).catch((err: unknown) => this.logger.warn(`WhatsappEnvio.create failed: ${err}`));
+    await this.prisma.whatsappEnvio
+      .create({
+        data: {
+          id: randomUUID(),
+          tenant_id: tenantId,
+          propiedad_id: propiedadId,
+          user_id: userId,
+          telefono_destino: telefono,
+          mensaje: mensaje ?? null,
+          status,
+          waba_message_id: wabaId,
+          error,
+        },
+      })
+      .catch((err: unknown) =>
+        this.logger.warn(`WhatsappEnvio.create failed: ${err}`),
+      );
   }
 }

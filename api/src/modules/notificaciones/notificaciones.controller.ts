@@ -1,4 +1,11 @@
-import { Controller, Get, Patch, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificacionesService } from './notificaciones.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -14,7 +21,9 @@ export class NotificacionesController {
   constructor(private service: NotificacionesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar notificaciones del usuario (con filtro soloNoLeidas)' })
+  @ApiOperation({
+    summary: 'Listar notificaciones del usuario (con filtro soloNoLeidas)',
+  })
   findAll(
     @CurrentUser('sub') userId: string,
     @CurrentUser('tenantId') tenantId: string,
@@ -34,10 +43,7 @@ export class NotificacionesController {
 
   @Patch(':id/leer')
   @ApiOperation({ summary: 'Marcar notificación específica como leída' })
-  marcarLeida(
-    @Param('id') id: string,
-    @CurrentUser('sub') userId: string,
-  ) {
+  marcarLeida(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.service.marcarLeida(id, userId);
   }
 

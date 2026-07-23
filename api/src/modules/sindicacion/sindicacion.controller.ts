@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -25,7 +33,10 @@ export class SindicacionController {
   }
 
   @Post(':propiedadId/publicar')
-  @ApiOperation({ summary: 'Publicar propiedad en portal externo (Encuentra24 o MercadoLibre)' })
+  @ApiOperation({
+    summary:
+      'Publicar propiedad en portal externo (Encuentra24 o MercadoLibre)',
+  })
   publicar(
     @CurrentUser() user: any,
     @Param('propiedadId') id: string,

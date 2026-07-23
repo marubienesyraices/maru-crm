@@ -1,11 +1,21 @@
 import {
-  BadRequestException, Injectable, Logger, NotFoundException, ConflictException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { EmailService } from '../email/email.service';
-import { CreateVisitaDto, UpdateVisitaDto, FiltrosVisitaDto, ReporteVisitaDto, AccionReprogramarDto } from './dto';
+import {
+  CreateVisitaDto,
+  UpdateVisitaDto,
+  FiltrosVisitaDto,
+  ReporteVisitaDto,
+  AccionReprogramarDto,
+} from './dto';
 import { randomUUID } from 'crypto';
 
 const VISITA_INCLUDE = {
@@ -20,8 +30,12 @@ const VISITA_INCLUDE = {
 
 function fmtFecha(d: Date): string {
   return d.toLocaleString('es-GT', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
     timeZone: 'America/Guatemala',
   });
 }
@@ -37,16 +51,22 @@ export class VisitasService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
   }
 
   async getConfig(tenantId: string) {
-    const config = await this.prisma.configSeguridad.findUnique({ where: { tenant_id: tenantId } });
+    const config = await this.prisma.configSeguridad.findUnique({
+      where: { tenant_id: tenantId },
+    });
     return { buffer_entre_citas_min: config?.buffer_entre_citas_min ?? 30 };
   }
 
   private async getBufferMs(tenantId: string): Promise<number> {
-    const config = await this.prisma.configSeguridad.findUnique({ where: { tenant_id: tenantId } });
+    const config = await this.prisma.configSeguridad.findUnique({
+      where: { tenant_id: tenantId },
+    });
     return (config?.buffer_entre_citas_min ?? 30) * 60 * 1000;
   }
 
@@ -64,7 +84,9 @@ export class VisitasService {
     const fechaFin = new Date(dto.fechaFin);
 
     if (fechaFin <= fechaInicio) {
-      throw new BadRequestException('La fecha de fin debe ser posterior a la fecha de inicio');
+      throw new BadRequestException(
+        'La fecha de fin debe ser posterior a la fecha de inicio',
+      );
     }
 
     const bufferMs = await this.getBufferMs(tenantId);
@@ -79,7 +101,9 @@ export class VisitasService {
     });
     if (overlap) {
       const bufferMin = bufferMs / 60000;
-      throw new ConflictException(`El agente ya tiene una visita en ese horario (incluido buffer de ${bufferMin} min)`);
+      throw new ConflictException(
+        `El agente ya tiene una visita en ese horario (incluido buffer de ${bufferMin} min)`,
+      );
     }
 
     const rescheduleToken = randomUUID();
@@ -100,15 +124,17 @@ export class VisitasService {
 
     const fechaStr = fmtFecha(fechaInicio);
 
-    this.notificaciones.create({
-      tenantId,
-      userId: agenteId,
-      tipo: 'VISITA_AGENDADA',
-      titulo: 'Visita agendada',
-      mensaje: `Visita con ${interes.cliente.nombre} en ${interes.propiedad.codigo} el ${fechaStr}`,
-      entidad: 'visita',
-      entidadId: visita.id,
-    }).catch(() => {});
+    this.notificaciones
+      .create({
+        tenantId,
+        userId: agenteId,
+        tipo: 'VISITA_AGENDADA',
+        titulo: 'Visita agendada',
+        mensaje: `Visita con ${interes.cliente.nombre} en ${interes.propiedad.codigo} el ${fechaStr}`,
+        entidad: 'visita',
+        entidadId: visita.id,
+      })
+      .catch(() => {});
 
     if (interes.cliente.email) {
       this.sendVisitaEmail(interes.cliente.email, interes.cliente.nombre, {
@@ -125,7 +151,11 @@ export class VisitasService {
     return visita;
   }
 
-  async findAll(tenantId: string, visibleUserIds: string[] | null, filtros: FiltrosVisitaDto) {
+  async findAll(
+    tenantId: string,
+    visibleUserIds: string[] | null,
+    filtros: FiltrosVisitaDto,
+  ) {
     const where: any = { interes: { cliente: { tenant_id: tenantId } } };
 
     if (visibleUserIds) where.agente_id = { in: visibleUserIds };
@@ -149,11 +179,15 @@ export class VisitasService {
     const visita = await this.findOneWithTenantCheck(tenantId, id);
 
     if (dto.fechaInicio || dto.fechaFin) {
-      const fechaInicio = dto.fechaInicio ? new Date(dto.fechaInicio) : visita.fecha_inicio;
+      const fechaInicio = dto.fechaInicio
+        ? new Date(dto.fechaInicio)
+        : visita.fecha_inicio;
       const fechaFin = dto.fechaFin ? new Date(dto.fechaFin) : visita.fecha_fin;
 
       if (fechaFin <= fechaInicio) {
-        throw new BadRequestException('La fecha de fin debe ser posterior a la fecha de inicio');
+        throw new BadRequestException(
+          'La fecha de fin debe ser posterior a la fecha de inicio',
+        );
       }
 
       if (dto.estado !== 'CANCELADA') {
@@ -169,17 +203,23 @@ export class VisitasService {
         });
         if (overlap) {
           const bufferMs2 = await this.getBufferMs(tenantId);
-          throw new ConflictException(`El agente ya tiene una visita en ese horario (incluido buffer de ${bufferMs2 / 60000} min)`);
+          throw new ConflictException(
+            `El agente ya tiene una visita en ese horario (incluido buffer de ${bufferMs2 / 60000} min)`,
+          );
         }
       }
     }
 
-    const newFechaInicio = dto.fechaInicio ? new Date(dto.fechaInicio) : undefined;
+    const newFechaInicio = dto.fechaInicio
+      ? new Date(dto.fechaInicio)
+      : undefined;
 
     return this.prisma.visita.update({
       where: { id },
       data: {
-        ...(newFechaInicio ? { fecha_inicio: newFechaInicio, reschedule_expires: newFechaInicio } : {}),
+        ...(newFechaInicio
+          ? { fecha_inicio: newFechaInicio, reschedule_expires: newFechaInicio }
+          : {}),
         ...(dto.fechaFin ? { fecha_fin: new Date(dto.fechaFin) } : {}),
         ...(dto.ubicacion !== undefined ? { ubicacion: dto.ubicacion } : {}),
         ...(dto.notas !== undefined ? { notas: dto.notas } : {}),
@@ -202,24 +242,35 @@ export class VisitasService {
     });
     if (!visita) throw new NotFoundException('Visita no encontrada');
 
-    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const esc = (s: string) => s.replace(/[,;\\]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
+    const fmt = (d: Date) =>
+      d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const esc = (s: string) =>
+      s.replace(/[,;\\]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
 
     const summary = `Visita - ${visita.interes.propiedad.codigo}`;
     const desc = esc(
       `Cliente: ${visita.interes.cliente.nombre}\n` +
-      `Propiedad: ${visita.interes.propiedad.codigo} - ${visita.interes.propiedad.titulo}` +
-      (visita.notas ? `\nNotas: ${visita.notas}` : ''),
+        `Propiedad: ${visita.interes.propiedad.codigo} - ${visita.interes.propiedad.titulo}` +
+        (visita.notas ? `\nNotas: ${visita.notas}` : ''),
     );
 
     const lines = [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GestProp CRM//CRM//ES',
-      'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
-      `UID:${visita.id}@maru.crm`, `DTSTAMP:${fmt(new Date())}`,
-      `DTSTART:${fmt(visita.fecha_inicio)}`, `DTEND:${fmt(visita.fecha_fin)}`,
-      `SUMMARY:${summary}`, `DESCRIPTION:${desc}`,
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//GestProp CRM//CRM//ES',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${visita.id}@maru.crm`,
+      `DTSTAMP:${fmt(new Date())}`,
+      `DTSTART:${fmt(visita.fecha_inicio)}`,
+      `DTEND:${fmt(visita.fecha_fin)}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${desc}`,
       ...(visita.ubicacion ? [`LOCATION:${esc(visita.ubicacion)}`] : []),
-      'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR',
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR',
     ];
 
     return lines.join('\r\n');
@@ -236,7 +287,9 @@ export class VisitasService {
         reporte_siguiente_paso: dto.siguientePaso ?? null,
         reporte_fecha: new Date(),
         estado: 'REALIZADA',
-        ...(dto.fotosVisita !== undefined ? { fotos_visita: dto.fotosVisita } : {}),
+        ...(dto.fotosVisita !== undefined
+          ? { fotos_visita: dto.fotosVisita }
+          : {}),
       },
       include: VISITA_INCLUDE,
     });
@@ -290,15 +343,17 @@ export class VisitasService {
         data: { estado: 'CONFIRMADA' },
       });
 
-      this.notificaciones.create({
-        tenantId,
-        userId: agenteId,
-        tipo: 'VISITA_AGENDADA',
-        titulo: 'Visita confirmada por el cliente',
-        mensaje: `${clienteNombre} confirmó la visita del ${fechaOriginal} (${propCodigo})`,
-        entidad: 'visita',
-        entidadId: visita.id,
-      }).catch(() => {});
+      this.notificaciones
+        .create({
+          tenantId,
+          userId: agenteId,
+          tipo: 'VISITA_AGENDADA',
+          titulo: 'Visita confirmada por el cliente',
+          mensaje: `${clienteNombre} confirmó la visita del ${fechaOriginal} (${propCodigo})`,
+          entidad: 'visita',
+          entidadId: visita.id,
+        })
+        .catch(() => {});
 
       return { success: true, accion: 'CONFIRMAR' };
     }
@@ -314,29 +369,35 @@ export class VisitasService {
         },
       });
 
-      this.notificaciones.create({
-        tenantId,
-        userId: agenteId,
-        tipo: 'SISTEMA',
-        titulo: 'Visita cancelada por el cliente',
-        mensaje: `${clienteNombre} canceló la visita del ${fechaOriginal} (${propCodigo})${dto.notas ? ': ' + dto.notas : ''}`,
-        entidad: 'visita',
-        entidadId: visita.id,
-      }).catch(() => {});
+      this.notificaciones
+        .create({
+          tenantId,
+          userId: agenteId,
+          tipo: 'SISTEMA',
+          titulo: 'Visita cancelada por el cliente',
+          mensaje: `${clienteNombre} canceló la visita del ${fechaOriginal} (${propCodigo})${dto.notas ? ': ' + dto.notas : ''}`,
+          entidad: 'visita',
+          entidadId: visita.id,
+        })
+        .catch(() => {});
 
       return { success: true, accion: 'CANCELAR' };
     }
 
     // REPROGRAMAR
     if (!dto.fecha_inicio || !dto.fecha_fin) {
-      throw new BadRequestException('Se requiere fecha_inicio y fecha_fin para reprogramar');
+      throw new BadRequestException(
+        'Se requiere fecha_inicio y fecha_fin para reprogramar',
+      );
     }
 
     const propInicio = new Date(dto.fecha_inicio);
     const propFin = new Date(dto.fecha_fin);
 
     if (propFin <= propInicio) {
-      throw new BadRequestException('La fecha de fin debe ser posterior a la fecha de inicio');
+      throw new BadRequestException(
+        'La fecha de fin debe ser posterior a la fecha de inicio',
+      );
     }
     if (propInicio <= new Date()) {
       throw new BadRequestException('La fecha propuesta debe ser futura');
@@ -354,31 +415,43 @@ export class VisitasService {
 
     const nuevaFecha = fmtFecha(propInicio);
 
-    this.notificaciones.create({
-      tenantId,
-      userId: agenteId,
-      tipo: 'VISITA_AGENDADA',
-      titulo: 'Solicitud de reprogramación de visita',
-      mensaje: `${clienteNombre} solicita reprogramar la visita del ${fechaOriginal} → propone ${nuevaFecha} (${propCodigo})`,
-      entidad: 'visita',
-      entidadId: visita.id,
-    }).catch(() => {});
+    this.notificaciones
+      .create({
+        tenantId,
+        userId: agenteId,
+        tipo: 'VISITA_AGENDADA',
+        titulo: 'Solicitud de reprogramación de visita',
+        mensaje: `${clienteNombre} solicita reprogramar la visita del ${fechaOriginal} → propone ${nuevaFecha} (${propCodigo})`,
+        entidad: 'visita',
+        entidadId: visita.id,
+      })
+      .catch(() => {});
 
     return { success: true, accion: 'REPROGRAMAR' };
   }
 
   // ─── Private helpers ─────────────────────────────────────────
 
-  private assertTokenActive(visita: { reschedule_expires: Date | null; estado: string }) {
+  private assertTokenActive(visita: {
+    reschedule_expires: Date | null;
+    estado: string;
+  }) {
     if (visita.estado === 'CANCELADA' || visita.estado === 'REALIZADA') {
-      throw new BadRequestException('Esta visita ya fue ' + (visita.estado === 'CANCELADA' ? 'cancelada' : 'realizada'));
+      throw new BadRequestException(
+        'Esta visita ya fue ' +
+          (visita.estado === 'CANCELADA' ? 'cancelada' : 'realizada'),
+      );
     }
     if (!visita.reschedule_expires || visita.reschedule_expires < new Date()) {
-      throw new BadRequestException('El enlace ha expirado. Contacta al agente para reagendar.');
+      throw new BadRequestException(
+        'El enlace ha expirado. Contacta al agente para reagendar.',
+      );
     }
   }
 
-  private async getTenantId(visita: { interes: { propiedad: { id: string } } }) {
+  private async getTenantId(visita: {
+    interes: { propiedad: { id: string } };
+  }) {
     const prop = await this.prisma.propiedad.findUnique({
       where: { id: visita.interes.propiedad.id },
       select: { tenant_id: true },
@@ -397,7 +470,9 @@ export class VisitasService {
           include: {
             propiedad: {
               include: {
-                propietario: { select: { nombre: true, email: true, telefono: true } },
+                propietario: {
+                  select: { nombre: true, email: true, telefono: true },
+                },
                 tenant: { select: { nombre: true } },
               },
             },
@@ -410,14 +485,26 @@ export class VisitasService {
 
     const propietario = visita.interes.propiedad.propietario;
     if (!propietario?.email) {
-      return { sent: false, reason: 'El propietario no tiene email registrado' };
+      return {
+        sent: false,
+        reason: 'El propietario no tiene email registrado',
+      };
     }
 
-    const propiedad  = visita.interes.propiedad;
+    const propiedad = visita.interes.propiedad;
     const tenantName = propiedad.tenant.nombre;
-    const fechaStr   = fmtFecha(visita.fecha_inicio);
-    const nivelMap: Record<string, string> = { 1: '1 — Muy bajo', 2: '2 — Bajo', 3: '3 — Medio', 4: '4 — Alto', 5: '5 — Muy alto' };
-    const nivelTexto = visita.reporte_nivel_interes ? nivelMap[visita.reporte_nivel_interes] ?? String(visita.reporte_nivel_interes) : 'No registrado';
+    const fechaStr = fmtFecha(visita.fecha_inicio);
+    const nivelMap: Record<string, string> = {
+      1: '1 — Muy bajo',
+      2: '2 — Bajo',
+      3: '3 — Medio',
+      4: '4 — Alto',
+      5: '5 — Muy alto',
+    };
+    const nivelTexto = visita.reporte_nivel_interes
+      ? (nivelMap[visita.reporte_nivel_interes] ??
+        String(visita.reporte_nivel_interes))
+      : 'No registrado';
 
     await this.email.sendHtml({
       to: propietario.email,
@@ -476,7 +563,9 @@ export class VisitasService {
     const url = `${this.frontendUrl}/portal/reprogramar/${info.token}`;
     const fechaStr = fmtFecha(info.fechaInicio);
     const horaFin = info.fechaFin.toLocaleString('es-GT', {
-      hour: '2-digit', minute: '2-digit', timeZone: 'America/Guatemala',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Guatemala',
     });
 
     await this.email.sendHtml({

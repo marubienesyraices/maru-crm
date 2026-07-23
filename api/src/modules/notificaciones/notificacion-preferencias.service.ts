@@ -30,10 +30,18 @@ export class NotificacionPreferenciasService {
 
     return TIPOS_NOTIFICACION.map((tipo) => {
       const found = existing.find((p) => p.tipo === tipo);
-      return found ?? {
-        id: null, tenant_id: tenantId, user_id: userId, tipo,
-        canal_inapp: true, canal_email: true, canal_push: true, activa: true,
-      };
+      return (
+        found ?? {
+          id: null,
+          tenant_id: tenantId,
+          user_id: userId,
+          tipo,
+          canal_inapp: true,
+          canal_email: true,
+          canal_push: true,
+          activa: true,
+        }
+      );
     });
   }
 
@@ -41,10 +49,17 @@ export class NotificacionPreferenciasService {
     tenantId: string,
     userId: string,
     tipo: string,
-    canales: { canal_inapp?: boolean; canal_email?: boolean; canal_push?: boolean; activa?: boolean },
+    canales: {
+      canal_inapp?: boolean;
+      canal_email?: boolean;
+      canal_push?: boolean;
+      activa?: boolean;
+    },
   ) {
     return this.prisma.notificacionPreferencia.upsert({
-      where: { tenant_id_user_id_tipo: { tenant_id: tenantId, user_id: userId, tipo } },
+      where: {
+        tenant_id_user_id_tipo: { tenant_id: tenantId, user_id: userId, tipo },
+      },
       create: {
         id: randomUUID(),
         tenant_id: tenantId,

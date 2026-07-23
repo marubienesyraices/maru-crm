@@ -4,8 +4,8 @@ import { VideollamadasController } from './videollamadas.controller';
 import { ConfigIntegracionesModule } from '../config-integraciones/config-integraciones.module';
 
 @Module({
-  imports:     [ConfigIntegracionesModule],
+  imports: [ConfigIntegracionesModule],
   controllers: [VideollamadasController],
-  providers:   [VideollamadasService],
+  providers: [VideollamadasService],
 })
 export class VideollamadasModule {}

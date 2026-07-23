@@ -26,7 +26,12 @@ export class WhatsappController {
     @CurrentUser() user: any,
     @Body() dto: EnviarWhatsappDto,
   ) {
-    return this.service.enviarBrochure(user.tenantId, user.sub, propiedadId, dto);
+    return this.service.enviarBrochure(
+      user.tenantId,
+      user.sub,
+      propiedadId,
+      dto,
+    );
   }
 
   @SkipAudit()

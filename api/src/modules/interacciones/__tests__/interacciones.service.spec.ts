@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { InteraccionesService } from '../interacciones.service';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+import {
+  createMockPrismaService,
+  MockPrismaService,
+} from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
 const USUARIO_ID = 'user-001';
@@ -39,7 +42,12 @@ describe('InteraccionesService', () => {
         InteraccionesService,
         { provide: PrismaService, useValue: prisma },
         { provide: 'NotificacionesService', useValue: { create: jest.fn() } },
-        { provide: require('../../../modules/notificaciones/notificaciones.service').NotificacionesService, useValue: { create: jest.fn() } },
+        {
+          provide:
+            require('../../../modules/notificaciones/notificaciones.service')
+              .NotificacionesService,
+          useValue: { create: jest.fn() },
+        },
       ],
     }).compile();
     service = module.get<InteraccionesService>(InteraccionesService);
@@ -75,7 +83,10 @@ describe('InteraccionesService', () => {
 
     it('usa NEUTRO como resultado por defecto', async () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue(mockInteres);
-      prisma.interaccion.create.mockResolvedValue({ ...mockInteraccion, resultado: 'NEUTRO' });
+      prisma.interaccion.create.mockResolvedValue({
+        ...mockInteraccion,
+        resultado: 'NEUTRO',
+      });
 
       await service.create(TENANT_ID, USUARIO_ID, {
         interesId: INTERES_ID,
@@ -107,7 +118,10 @@ describe('InteraccionesService', () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.create(TENANT_ID, USUARIO_ID, { interesId: 'otro', tipo: 'LLAMADA' }),
+        service.create(TENANT_ID, USUARIO_ID, {
+          interesId: 'otro',
+          tipo: 'LLAMADA',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -130,9 +144,9 @@ describe('InteraccionesService', () => {
     it('lanza NotFoundException si el trámite no pertenece al tenant', async () => {
       prisma.clientePropiedad.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.findByInteres(TENANT_ID, 'otro'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findByInteres(TENANT_ID, 'otro')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -154,9 +168,9 @@ describe('InteraccionesService', () => {
     it('lanza NotFoundException si no existe o es de otro tenant', async () => {
       prisma.interaccion.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.delete(TENANT_ID, 'no-existe'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.delete(TENANT_ID, 'no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

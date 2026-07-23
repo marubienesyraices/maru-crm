@@ -30,8 +30,10 @@ export class AuditService {
     if (filters.entidad) where.entidad = filters.entidad;
     if (filters.fechaDesde || filters.fechaHasta) {
       where.created_at = {};
-      if (filters.fechaDesde) where.created_at.gte = new Date(filters.fechaDesde);
-      if (filters.fechaHasta) where.created_at.lte = new Date(filters.fechaHasta);
+      if (filters.fechaDesde)
+        where.created_at.gte = new Date(filters.fechaDesde);
+      if (filters.fechaHasta)
+        where.created_at.lte = new Date(filters.fechaHasta);
     }
 
     const [data, total] = await Promise.all([

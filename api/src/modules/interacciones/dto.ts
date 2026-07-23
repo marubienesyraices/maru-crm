@@ -1,7 +1,21 @@
-import { IsEnum, IsOptional, IsString, IsInt, Min, IsISO8601 } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsInt,
+  Min,
+  IsISO8601,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
-const TIPOS = ['LLAMADA', 'VISITA', 'MENSAJE', 'NOTA', 'WHATSAPP', 'EMAIL'] as const;
+const TIPOS = [
+  'LLAMADA',
+  'VISITA',
+  'MENSAJE',
+  'NOTA',
+  'WHATSAPP',
+  'EMAIL',
+] as const;
 const RESULTADOS = ['POSITIVO', 'NEUTRO', 'NEGATIVO', 'SIN_RESPUESTA'] as const;
 
 export class CreateInteraccionDto {

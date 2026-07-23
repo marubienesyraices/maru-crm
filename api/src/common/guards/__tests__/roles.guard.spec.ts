@@ -25,7 +25,9 @@ describe('RolesGuard', () => {
   });
 
   it('debe permitir acceso si el rol del usuario está incluido', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['ADMIN', 'SUPER_ADMIN']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['ADMIN', 'SUPER_ADMIN']);
     expect(guard.canActivate(mockContext('ADMIN'))).toBe(true);
   });
 

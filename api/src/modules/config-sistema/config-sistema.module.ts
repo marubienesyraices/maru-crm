@@ -4,7 +4,7 @@ import { ConfigSistemaController } from './config-sistema.controller';
 
 @Module({
   controllers: [ConfigSistemaController],
-  providers:   [ConfigSistemaService],
-  exports:     [ConfigSistemaService],
+  providers: [ConfigSistemaService],
+  exports: [ConfigSistemaService],
 })
 export class ConfigSistemaModule {}

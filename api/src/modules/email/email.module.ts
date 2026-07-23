@@ -5,9 +5,9 @@ import { ConfigIntegracionesModule } from '../config-integraciones/config-integr
 import { ConfigSistemaModule } from '../config-sistema/config-sistema.module';
 
 @Module({
-  imports:     [ConfigIntegracionesModule, ConfigSistemaModule],
+  imports: [ConfigIntegracionesModule, ConfigSistemaModule],
   controllers: [EmailTrackingController],
-  providers:   [EmailService],
-  exports:     [EmailService],
+  providers: [EmailService],
+  exports: [EmailService],
 })
 export class EmailModule {}

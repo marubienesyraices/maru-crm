@@ -17,7 +17,9 @@ export class PasswordExpiryScheduler {
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async checkPasswordExpiry() {
-    const warnCutoff = new Date(Date.now() - (EXPIRY_DAYS - WARN_DAYS) * 86_400_000);
+    const warnCutoff = new Date(
+      Date.now() - (EXPIRY_DAYS - WARN_DAYS) * 86_400_000,
+    );
 
     const users = await this.prisma.user.findMany({
       where: {
@@ -25,7 +27,13 @@ export class PasswordExpiryScheduler {
         password_expiry_warned: false,
         password_changed_at: { lte: warnCutoff },
       },
-      select: { id: true, email: true, nombre: true, password_changed_at: true, tenant_id: true },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        password_changed_at: true,
+        tenant_id: true,
+      },
     });
 
     if (!users.length) return;
@@ -33,17 +41,24 @@ export class PasswordExpiryScheduler {
     let warned = 0;
     for (const user of users) {
       const age = user.password_changed_at
-        ? Math.floor((Date.now() - user.password_changed_at.getTime()) / 86_400_000)
+        ? Math.floor(
+            (Date.now() - user.password_changed_at.getTime()) / 86_400_000,
+          )
         : EXPIRY_DAYS;
       const daysLeft = Math.max(0, EXPIRY_DAYS - age);
 
-      this.email.sendSystemEmail({
-        to: user.email,
-        subject: `Tu contraseña expira en ${daysLeft} día(s) — GestProp CRM`,
-        heading: 'Actualiza tu contraseña',
-        body: `Hola ${user.nombre}, tu contraseña de GestProp CRM expirará en <strong>${daysLeft} día(s)</strong>. Te recomendamos cambiarla desde tu perfil para evitar interrupciones.`,
-        cta: { label: 'Cambiar contraseña', url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/settings/perfil` },
-      }).catch(() => {});
+      this.email
+        .sendSystemEmail({
+          to: user.email,
+          subject: `Tu contraseña expira en ${daysLeft} día(s) — GestProp CRM`,
+          heading: 'Actualiza tu contraseña',
+          body: `Hola ${user.nombre}, tu contraseña de GestProp CRM expirará en <strong>${daysLeft} día(s)</strong>. Te recomendamos cambiarla desde tu perfil para evitar interrupciones.`,
+          cta: {
+            label: 'Cambiar contraseña',
+            url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/settings/perfil`,
+          },
+        })
+        .catch(() => {});
 
       await this.prisma.user.update({
         where: { id: user.id },
@@ -52,6 +67,9 @@ export class PasswordExpiryScheduler {
       warned++;
     }
 
-    if (warned > 0) this.logger.warn(`🔐 Password expiry: ${warned} usuario(s) notificado(s)`);
+    if (warned > 0)
+      this.logger.warn(
+        `🔐 Password expiry: ${warned} usuario(s) notificado(s)`,
+      );
   }
 }

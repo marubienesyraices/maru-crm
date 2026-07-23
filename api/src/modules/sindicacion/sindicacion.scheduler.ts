@@ -22,8 +22,12 @@ export class SindicacionScheduler {
     });
 
     for (const c of configs) {
-      this.logger.log(`🔄 Sincronizando portales cada hora para tenant ${c.tenant_id}`);
-      await this.sindicacion.sincronizarPorFrecuencia(c.tenant_id).catch(() => {});
+      this.logger.log(
+        `🔄 Sincronizando portales cada hora para tenant ${c.tenant_id}`,
+      );
+      await this.sindicacion
+        .sincronizarPorFrecuencia(c.tenant_id)
+        .catch(() => {});
     }
   }
 
@@ -36,8 +40,12 @@ export class SindicacionScheduler {
     });
 
     for (const c of configs) {
-      this.logger.log(`🔄 Sincronizando portales diariamente para tenant ${c.tenant_id}`);
-      await this.sindicacion.sincronizarPorFrecuencia(c.tenant_id).catch(() => {});
+      this.logger.log(
+        `🔄 Sincronizando portales diariamente para tenant ${c.tenant_id}`,
+      );
+      await this.sindicacion
+        .sincronizarPorFrecuencia(c.tenant_id)
+        .catch(() => {});
     }
   }
 }

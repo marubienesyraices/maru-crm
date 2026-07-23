@@ -42,7 +42,9 @@ export class FirmaDigitalController {
   // DocuSign Connect webhook (unauthenticated)
   @SkipAudit()
   @Post('webhook/docusign')
-  @ApiOperation({ summary: 'Webhook DocuSign Connect — actualiza estado de sobres' })
+  @ApiOperation({
+    summary: 'Webhook DocuSign Connect — actualiza estado de sobres',
+  })
   webhook(@Body() body: any) {
     return this.svc.handleWebhook(body);
   }

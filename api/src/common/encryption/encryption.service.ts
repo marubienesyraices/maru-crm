@@ -15,16 +15,19 @@ export class EncryptionService {
     if (!raw || raw.length !== 64) {
       throw new InternalServerErrorException(
         'MASTER_ENCRYPTION_KEY must be a 64-char hex string (32 bytes). ' +
-        'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+          "Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
       );
     }
     this.key = Buffer.from(raw, 'hex');
   }
 
   encrypt(plaintext: string): string {
-    const iv  = crypto.randomBytes(IV_BYTES);
+    const iv = crypto.randomBytes(IV_BYTES);
     const cipher = crypto.createCipheriv(ALGO, this.key, iv);
-    const enc = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const enc = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
     const tag = cipher.getAuthTag();
     // layout: iv(12) + tag(16) + ciphertext — all base64
     return Buffer.concat([iv, tag, enc]).toString('base64');
@@ -32,7 +35,7 @@ export class EncryptionService {
 
   decrypt(ciphertext: string): string {
     const buf = Buffer.from(ciphertext, 'base64');
-    const iv  = buf.subarray(0, IV_BYTES);
+    const iv = buf.subarray(0, IV_BYTES);
     const tag = buf.subarray(IV_BYTES, IV_BYTES + TAG_BYTES);
     const enc = buf.subarray(IV_BYTES + TAG_BYTES);
     const decipher = crypto.createDecipheriv(ALGO, this.key, iv);

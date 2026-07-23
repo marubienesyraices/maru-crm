@@ -26,9 +26,13 @@ export class EmailService {
   private readonly envFallbackKey: string | null;
   private readonly envFallbackFrom: string;
   /** Cache of per-tenant Resend clients keyed by tenantId. */
-  private readonly clientCache = new Map<string, { resend: Resend | null; from: string }>();
+  private readonly clientCache = new Map<
+    string,
+    { resend: Resend | null; from: string }
+  >();
   /** In-memory cache for the resolved system client (TTL managed by ConfigSistemaService). */
-  private systemClientCache: { resend: Resend | null; from: string } | null = null;
+  private systemClientCache: { resend: Resend | null; from: string } | null =
+    null;
   private systemClientExpiresAt = 0;
 
   constructor(
@@ -37,10 +41,16 @@ export class EmailService {
     @Optional() private readonly integraciones?: ConfigIntegracionesService,
     @Optional() private readonly configSistema?: ConfigSistemaService,
   ) {
-    this.envFallbackKey  = config.get<string>('RESEND_API_KEY') ?? null;
-    this.envFallbackFrom = config.get<string>('EMAIL_FROM') ?? 'GestProp CRM <onboarding@resend.dev>';
-    this.appUrl          = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
-    this.frontendUrl     = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.envFallbackKey = config.get<string>('RESEND_API_KEY') ?? null;
+    this.envFallbackFrom =
+      config.get<string>('EMAIL_FROM') ??
+      'GestProp CRM <onboarding@resend.dev>';
+    this.appUrl = (
+      config.get<string>('APP_URL') ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
   }
 
   get isConfigured(): boolean {
@@ -116,7 +126,12 @@ export class EmailService {
 </html>`;
 
     try {
-      await resend.emails.send({ from, to: [params.to], subject: params.subject, html });
+      await resend.emails.send({
+        from,
+        to: [params.to],
+        subject: params.subject,
+        html,
+      });
     } catch (err) {
       this.logger.error(`sendSystemEmail failed to ${params.to}: ${err}`);
     }
@@ -131,7 +146,8 @@ export class EmailService {
     cta?: { label: string; url: string };
     tenantId?: string;
   }): Promise<void> {
-    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
+    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId)))
+      return;
 
     const { resend, from } = await this.resolveClient(params.tenantId);
     if (!resend) return;
@@ -141,9 +157,16 @@ export class EmailService {
       try {
         eventId = randomUUID();
         await this.prisma.emailEvento.create({
-          data: { id: eventId, tenant_id: params.tenantId, destinatario: params.to, tipo: 'SISTEMA' },
+          data: {
+            id: eventId,
+            tenant_id: params.tenantId,
+            destinatario: params.to,
+            tipo: 'SISTEMA',
+          },
         });
-      } catch { eventId = undefined; }
+      } catch {
+        eventId = undefined;
+      }
     }
 
     const ctaHtml = params.cta
@@ -195,19 +218,35 @@ export class EmailService {
 </html>`;
 
     try {
-      await resend.emails.send({ from, to: [params.to], subject: params.subject, html });
+      await resend.emails.send({
+        from,
+        to: [params.to],
+        subject: params.subject,
+        html,
+      });
     } catch (err) {
       this.logger.error(`sendClientEmail failed to ${params.to}: ${err}`);
     }
   }
 
-  async sendHtml(params: { to: string; subject: string; html: string; tenantId?: string }): Promise<void> {
-    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId))) return;
+  async sendHtml(params: {
+    to: string;
+    subject: string;
+    html: string;
+    tenantId?: string;
+  }): Promise<void> {
+    if (params.tenantId && !(await this.planAllowsEmail(params.tenantId)))
+      return;
 
     const { resend, from } = await this.resolveClient(params.tenantId);
     if (!resend) return;
     try {
-      await resend.emails.send({ from, to: [params.to], subject: params.subject, html: params.html });
+      await resend.emails.send({
+        from,
+        to: [params.to],
+        subject: params.subject,
+        html: params.html,
+      });
     } catch (err) {
       this.logger.error(`sendHtml failed to ${params.to}: ${err}`);
     }
@@ -251,17 +290,24 @@ export class EmailService {
   // ─── Private helpers ────────────────────────────────────────
 
   /** Resolves the system-level Resend client from ConfigSistema DB (60s TTL), falling back to env vars. */
-  private async resolveSystemClient(): Promise<{ resend: Resend | null; from: string }> {
+  private async resolveSystemClient(): Promise<{
+    resend: Resend | null;
+    from: string;
+  }> {
     if (this.systemClientCache && Date.now() < this.systemClientExpiresAt) {
       return this.systemClientCache;
     }
 
     if (this.configSistema) {
       const creds = await this.configSistema.getSystemCredentials();
-      const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : null;
+      const resend = creds.resend_api_key
+        ? new Resend(creds.resend_api_key)
+        : null;
       this.systemClientCache = { resend, from: creds.email_from };
     } else {
-      const resend = this.envFallbackKey ? new Resend(this.envFallbackKey) : null;
+      const resend = this.envFallbackKey
+        ? new Resend(this.envFallbackKey)
+        : null;
       this.systemClientCache = { resend, from: this.envFallbackFrom };
     }
 
@@ -287,8 +333,12 @@ export class EmailService {
     }
   }
 
-  private async resolveClient(tenantId?: string): Promise<{ resend: Resend | null; from: string }> {
-    const envResend = this.envFallbackKey ? new Resend(this.envFallbackKey) : null;
+  private async resolveClient(
+    tenantId?: string,
+  ): Promise<{ resend: Resend | null; from: string }> {
+    const envResend = this.envFallbackKey
+      ? new Resend(this.envFallbackKey)
+      : null;
 
     if (!tenantId || !this.integraciones) {
       return { resend: envResend, from: this.envFallbackFrom };
@@ -299,9 +349,11 @@ export class EmailService {
     }
 
     const creds = await this.integraciones.getCredentials(tenantId);
-    const resend = creds.resend_api_key ? new Resend(creds.resend_api_key) : envResend;
-    const from   = creds.email_from ?? this.envFallbackFrom;
-    const entry  = { resend, from };
+    const resend = creds.resend_api_key
+      ? new Resend(creds.resend_api_key)
+      : envResend;
+    const from = creds.email_from ?? this.envFallbackFrom;
+    const entry = { resend, from };
     this.clientCache.set(tenantId, entry);
     return entry;
   }
@@ -309,10 +361,10 @@ export class EmailService {
   private resolveCtaUrl(entidad?: string, entidadId?: string): string {
     if (!entidad || !entidadId) return `${this.frontendUrl}/dashboard`;
     const map: Record<string, string> = {
-      propiedad:        `${this.frontendUrl}/propiedades/${entidadId}`,
+      propiedad: `${this.frontendUrl}/propiedades/${entidadId}`,
       PropiedadDocumento: `${this.frontendUrl}/propiedades`,
       clientePropiedad: `${this.frontendUrl}/pipeline`,
-      cliente:          `${this.frontendUrl}/clientes/${entidadId}`,
+      cliente: `${this.frontendUrl}/clientes/${entidadId}`,
     };
     return map[entidad] ?? `${this.frontendUrl}/dashboard`;
   }

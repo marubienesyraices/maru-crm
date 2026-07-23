@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto, UpdateClienteDto, FiltrosClienteDto } from './dto';
@@ -19,7 +28,9 @@ export class ClientesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar contactos (clientes y/o propietarios) con filtros' })
+  @ApiOperation({
+    summary: 'Listar contactos (clientes y/o propietarios) con filtros',
+  })
   findAll(@CurrentUser() user: any, @Query() filtros: FiltrosClienteDto) {
     return this.service.findAll(user.tenantId, filtros);
   }
@@ -38,12 +49,18 @@ export class ClientesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar datos del cliente' })
-  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateClienteDto) {
+  update(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateClienteDto,
+  ) {
     return this.service.update(user.tenantId, id, dto);
   }
 
   @Get(':id/matching')
-  @ApiOperation({ summary: 'Propiedades que coinciden con las preferencias del cliente' })
+  @ApiOperation({
+    summary: 'Propiedades que coinciden con las preferencias del cliente',
+  })
   findMatchingProperties(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.findMatchingProperties(user.tenantId, id);
   }

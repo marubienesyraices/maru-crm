@@ -28,12 +28,21 @@ export class BrochureProcessor extends WorkerHost {
 
   async process(job: Job<BrochureJobData>): Promise<void> {
     const { jobDbId, propiedadId, tenantId } = job.data;
-    this.logger.log(`Generating brochure for propiedad ${propiedadId} (job ${jobDbId})`);
+    this.logger.log(
+      `Generating brochure for propiedad ${propiedadId} (job ${jobDbId})`,
+    );
 
     try {
-      const { buffer, codigo } = await this.brochureService.generateBuffer(propiedadId, tenantId);
+      const { buffer, codigo } = await this.brochureService.generateBuffer(
+        propiedadId,
+        tenantId,
+      );
       const filename = `brochure-${codigo}-${jobDbId}.pdf`;
-      const url = await this.storage.upload(buffer, filename, 'application/pdf');
+      const url = await this.storage.upload(
+        buffer,
+        filename,
+        'application/pdf',
+      );
 
       await this.prisma.brochureJob.update({
         where: { id: jobDbId },

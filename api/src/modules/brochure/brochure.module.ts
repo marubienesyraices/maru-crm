@@ -6,9 +6,7 @@ import { BrochureService } from './brochure.service';
 import { BROCHURE_QUEUE } from './brochure.processor';
 
 @Module({
-  imports: [
-    BullModule.registerQueue({ name: BROCHURE_QUEUE }),
-  ],
+  imports: [BullModule.registerQueue({ name: BROCHURE_QUEUE })],
   controllers: [BrochureController],
   providers: [BrochureService, BrochureProcessor],
   exports: [BrochureService],

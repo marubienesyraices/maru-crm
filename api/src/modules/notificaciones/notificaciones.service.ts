@@ -81,7 +81,10 @@ export class NotificacionesService {
 
   // ─── Private helpers ────────────────────────────────────────
 
-  private async dispatchEmail(dto: CreateNotificacionDto, notificacionId: string): Promise<void> {
+  private async dispatchEmail(
+    dto: CreateNotificacionDto,
+    notificacionId: string,
+  ): Promise<void> {
     if (!this.email.isConfigured) return;
 
     const user = await this.prisma.user.findUnique({

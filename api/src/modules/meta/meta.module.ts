@@ -11,6 +11,6 @@ import { ConfigIntegracionesModule } from '../config-integraciones/config-integr
     ConfigIntegracionesModule,
   ],
   controllers: [MetaController],
-  providers:   [MetaService, MetaProcessor],
+  providers: [MetaService, MetaProcessor],
 })
 export class MetaModule {}

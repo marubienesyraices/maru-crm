@@ -1,18 +1,31 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { ConfigPortalService } from '../config-portal/config-portal.service';
-import { ChatbotLeadDto, FiltrosPublicasDto, RegistroPortalDto } from './portal.dto';
+import {
+  ChatbotLeadDto,
+  FiltrosPublicasDto,
+  RegistroPortalDto,
+} from './portal.dto';
 import { randomUUID } from 'crypto';
 
 const TENANT_ID = process.env.PORTAL_TENANT_ID;
 
 const PUBLIC_PROPERTY_INCLUDE = {
-  imagenes: { orderBy: { orden: 'asc' as const }, take: 6, select: { url: true, nombre: true, tipo: true, orden: true } },
-  tenant:   { select: { nombre: true, logo_url: true } },
+  imagenes: {
+    orderBy: { orden: 'asc' as const },
+    take: 6,
+    select: { url: true, nombre: true, tipo: true, orden: true },
+  },
+  tenant: { select: { nombre: true, logo_url: true } },
 };
 
 @Injectable()
@@ -28,7 +41,9 @@ export class PortalService {
     private readonly jwt: JwtService,
     private readonly configPortal: ConfigPortalService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
     const configuredPortal = config.get<string>('PORTAL_URL');
     this.portalBase = configuredPortal
       ? configuredPortal.replace(/\/$/, '')
@@ -36,9 +51,9 @@ export class PortalService {
   }
 
   async findPublicProperties(filtros: FiltrosPublicasDto) {
-    const page  = filtros.page  || 1;
+    const page = filtros.page || 1;
     const limit = Math.min(filtros.limit || 12, 500);
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     const where: any = { estado: 'DISPONIBLE' };
     // Distingue el sitio público del tenant del mapa interno del CRM
@@ -55,14 +70,21 @@ export class PortalService {
     const resolvedTenantId = TENANT_ID || filtros.tenantId;
     if (resolvedTenantId) where.tenant_id = resolvedTenantId;
 
-    if (filtros.tipo)    where.tipo    = filtros.tipo;
+    if (filtros.tipo) where.tipo = filtros.tipo;
     if (filtros.gestion) where.gestion = filtros.gestion;
 
-    if (filtros.departamento) where.departamento = { contains: filtros.departamento, mode: 'insensitive' };
-    if (filtros.municipio)    where.municipio    = { contains: filtros.municipio,    mode: 'insensitive' };
-    if (filtros.zona)         where.zona         = { contains: filtros.zona,         mode: 'insensitive' };
+    if (filtros.departamento)
+      where.departamento = {
+        contains: filtros.departamento,
+        mode: 'insensitive',
+      };
+    if (filtros.municipio)
+      where.municipio = { contains: filtros.municipio, mode: 'insensitive' };
+    if (filtros.zona)
+      where.zona = { contains: filtros.zona, mode: 'insensitive' };
 
-    if (filtros.habitacionesMin) where.habitaciones = { gte: filtros.habitacionesMin };
+    if (filtros.habitacionesMin)
+      where.habitaciones = { gte: filtros.habitacionesMin };
 
     if (filtros.precioMin || filtros.precioMax) {
       const range: any = {};
@@ -73,12 +95,12 @@ export class PortalService {
 
     if (filtros.busqueda) {
       where.OR = [
-        { titulo:      { contains: filtros.busqueda, mode: 'insensitive' } },
-        { codigo:      { contains: filtros.busqueda, mode: 'insensitive' } },
+        { titulo: { contains: filtros.busqueda, mode: 'insensitive' } },
+        { codigo: { contains: filtros.busqueda, mode: 'insensitive' } },
         { descripcion: { contains: filtros.busqueda, mode: 'insensitive' } },
-        { zona:        { contains: filtros.busqueda, mode: 'insensitive' } },
-        { municipio:   { contains: filtros.busqueda, mode: 'insensitive' } },
-        { departamento:{ contains: filtros.busqueda, mode: 'insensitive' } },
+        { zona: { contains: filtros.busqueda, mode: 'insensitive' } },
+        { municipio: { contains: filtros.busqueda, mode: 'insensitive' } },
+        { departamento: { contains: filtros.busqueda, mode: 'insensitive' } },
       ];
     }
 
@@ -86,12 +108,27 @@ export class PortalService {
       this.prisma.propiedad.findMany({
         where,
         select: {
-          id: true, codigo: true, titulo: true, tipo: true, gestion: true,
-          precio_venta: true, precio_renta: true, moneda: true,
-          departamento: true, municipio: true, zona: true,
-          latitud: true, longitud: true,
-          habitaciones: true, banos: true, area_construccion_m2: true,
-          imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+          id: true,
+          codigo: true,
+          titulo: true,
+          tipo: true,
+          gestion: true,
+          precio_venta: true,
+          precio_renta: true,
+          moneda: true,
+          departamento: true,
+          municipio: true,
+          zona: true,
+          latitud: true,
+          longitud: true,
+          habitaciones: true,
+          banos: true,
+          area_construccion_m2: true,
+          imagenes: {
+            where: { tipo: 'portada' },
+            take: 1,
+            select: { url: true },
+          },
           tenant: { select: { nombre: true } },
           agente: { select: { nombre: true } },
         },
@@ -102,7 +139,10 @@ export class PortalService {
       this.prisma.propiedad.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findPublicProperty(id: string, vista?: string, tenantId?: string) {
@@ -172,7 +212,12 @@ export class PortalService {
           where: { id: existing.id },
           data: { activation_token: token, activation_expires: expires },
         });
-        await this.sendVerificationEmail(dto.email, existing.nombre, token, tenantId);
+        await this.sendVerificationEmail(
+          dto.email,
+          existing.nombre,
+          token,
+          tenantId,
+        );
       }
       // Silent success whether verified or not — no email enumeration
       return { message: 'Revisa tu correo para confirmar el registro' };
@@ -217,13 +262,23 @@ export class PortalService {
       select: { id: true, nombre: true, activation_expires: true },
     });
 
-    if (!cliente || !cliente.activation_expires || cliente.activation_expires < new Date()) {
-      throw new BadRequestException('El enlace no es válido o ha expirado. Solicita uno nuevo.');
+    if (
+      !cliente ||
+      !cliente.activation_expires ||
+      cliente.activation_expires < new Date()
+    ) {
+      throw new BadRequestException(
+        'El enlace no es válido o ha expirado. Solicita uno nuevo.',
+      );
     }
 
     await this.prisma.cliente.update({
       where: { id: cliente.id },
-      data: { activation_token: null, activation_expires: null, portal_verificado: true },
+      data: {
+        activation_token: null,
+        activation_expires: null,
+        portal_verificado: true,
+      },
     });
 
     return { success: true, nombre: cliente.nombre };
@@ -244,15 +299,19 @@ export class PortalService {
       tenantId = TENANT_ID ?? '';
     }
 
-    if (!tenantId) throw new BadRequestException('No se pudo determinar el tenant');
+    if (!tenantId)
+      throw new BadRequestException('No se pudo determinar el tenant');
 
     const lines: string[] = [`Nombre: ${dto.nombre}`];
-    if (dto.email)           lines.push(`Email: ${dto.email}`);
-    if (dto.telefono)        lines.push(`Teléfono: ${dto.telefono}`);
+    if (dto.email) lines.push(`Email: ${dto.email}`);
+    if (dto.telefono) lines.push(`Teléfono: ${dto.telefono}`);
     if (dto.gestion_interes) lines.push(`Gestión: ${dto.gestion_interes}`);
-    if (dto.zona_interes)    lines.push(`Zona: ${dto.zona_interes}`);
-    if (dto.presupuesto_max) lines.push(`Presupuesto máx: Q${dto.presupuesto_max.toLocaleString('es-GT')}`);
-    if (dto.tipo_propiedad)  lines.push(`Tipo: ${dto.tipo_propiedad}`);
+    if (dto.zona_interes) lines.push(`Zona: ${dto.zona_interes}`);
+    if (dto.presupuesto_max)
+      lines.push(
+        `Presupuesto máx: Q${dto.presupuesto_max.toLocaleString('es-GT')}`,
+      );
+    if (dto.tipo_propiedad) lines.push(`Tipo: ${dto.tipo_propiedad}`);
     const notas = lines.join(' · ');
 
     // Upsert cliente
@@ -266,25 +325,28 @@ export class PortalService {
         await this.prisma.cliente.update({
           where: { id: existing.id },
           data: {
-            nombre:          dto.nombre,
-            telefono:        dto.telefono ?? existing.telefono,
-            gestion_interes: (dto.gestion_interes as any) ?? existing.gestion_interes,
-            zona_interes:    dto.zona_interes ?? existing.zona_interes,
-            presupuesto_max: dto.presupuesto_max ? dto.presupuesto_max : existing.presupuesto_max,
-            notas:           notas,
+            nombre: dto.nombre,
+            telefono: dto.telefono ?? existing.telefono,
+            gestion_interes:
+              (dto.gestion_interes as any) ?? existing.gestion_interes,
+            zona_interes: dto.zona_interes ?? existing.zona_interes,
+            presupuesto_max: dto.presupuesto_max
+              ? dto.presupuesto_max
+              : existing.presupuesto_max,
+            notas: notas,
           },
         });
       } else {
         const c = await this.prisma.cliente.create({
           data: {
-            id:              randomUUID(),
-            tenant_id:       tenantId,
-            nombre:          dto.nombre,
-            email:           dto.email,
-            telefono:        dto.telefono ?? null,
-            origen:          'PORTAL_WEB',
-            gestion_interes: dto.gestion_interes as any ?? null,
-            zona_interes:    dto.zona_interes ?? null,
+            id: randomUUID(),
+            tenant_id: tenantId,
+            nombre: dto.nombre,
+            email: dto.email,
+            telefono: dto.telefono ?? null,
+            origen: 'PORTAL_WEB',
+            gestion_interes: (dto.gestion_interes as any) ?? null,
+            zona_interes: dto.zona_interes ?? null,
             presupuesto_max: dto.presupuesto_max ?? null,
             notas,
           },
@@ -294,13 +356,13 @@ export class PortalService {
     } else {
       const c = await this.prisma.cliente.create({
         data: {
-          id:              randomUUID(),
-          tenant_id:       tenantId,
-          nombre:          dto.nombre,
-          telefono:        dto.telefono ?? null,
-          origen:          'PORTAL_WEB',
-          gestion_interes: dto.gestion_interes as any ?? null,
-          zona_interes:    dto.zona_interes ?? null,
+          id: randomUUID(),
+          tenant_id: tenantId,
+          nombre: dto.nombre,
+          telefono: dto.telefono ?? null,
+          origen: 'PORTAL_WEB',
+          gestion_interes: (dto.gestion_interes as any) ?? null,
+          zona_interes: dto.zona_interes ?? null,
           presupuesto_max: dto.presupuesto_max ?? null,
           notas,
         },
@@ -311,8 +373,18 @@ export class PortalService {
     // Link to property if provided
     if (dto.propiedad_id) {
       await this.prisma.clientePropiedad.upsert({
-        where: { cliente_id_propiedad_id: { cliente_id: clienteId, propiedad_id: dto.propiedad_id } },
-        create: { id: randomUUID(), cliente_id: clienteId, propiedad_id: dto.propiedad_id, notas },
+        where: {
+          cliente_id_propiedad_id: {
+            cliente_id: clienteId,
+            propiedad_id: dto.propiedad_id,
+          },
+        },
+        create: {
+          id: randomUUID(),
+          cliente_id: clienteId,
+          propiedad_id: dto.propiedad_id,
+          notas,
+        },
         update: {},
       });
     }
@@ -325,7 +397,11 @@ export class PortalService {
     const modo = config?.modo_asignacion_leads ?? 'Manual';
 
     const activeAgents = await this.prisma.user.findMany({
-      where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SENIOR', 'JUNIOR'] } },
+      where: {
+        tenant_id: tenantId,
+        estado: 'ACTIVO',
+        rol: { in: ['ADMIN', 'SENIOR', 'JUNIOR'] },
+      },
       select: { id: true, rol: true, ultimo_login: true },
       orderBy: { ultimo_login: 'asc' },
     });
@@ -336,20 +412,28 @@ export class PortalService {
       // Assign to the agent who received a lead least recently (approximated by oldest ultimo_login)
       const lastLeadCounts = await this.prisma.cliente.groupBy({
         by: ['agente_id'],
-        where: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) }, origen: 'PORTAL_WEB' },
+        where: {
+          tenant_id: tenantId,
+          agente_id: { in: activeAgents.map((a) => a.id) },
+          origen: 'PORTAL_WEB',
+        },
         _count: { agente_id: true },
         orderBy: { _count: { agente_id: 'asc' } },
       });
       const assignedIds = new Set(lastLeadCounts.map((r) => r.agente_id));
       const unassigned = activeAgents.find((a) => !assignedIds.has(a.id));
-      assignedAgentId = unassigned?.id ?? lastLeadCounts[0]?.agente_id ?? activeAgents[0].id;
+      assignedAgentId =
+        unassigned?.id ?? lastLeadCounts[0]?.agente_id ?? activeAgents[0].id;
     } else if (modo === 'MenosCarga' && activeAgents.length > 0) {
       // Assign to agent with fewest active pipeline items
       const loads = await this.prisma.clientePropiedad.groupBy({
         by: ['cliente_id'],
         where: {
           estado: { notIn: ['GANADO', 'PERDIDO'] },
-          cliente: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) } },
+          cliente: {
+            tenant_id: tenantId,
+            agente_id: { in: activeAgents.map((a) => a.id) },
+          },
         },
         _count: { cliente_id: true },
       });
@@ -357,16 +441,23 @@ export class PortalService {
       const loadByAgent: Record<string, number> = {};
       for (const ag of activeAgents) loadByAgent[ag.id] = 0;
       const clienteAgentMap = await this.prisma.cliente.findMany({
-        where: { tenant_id: tenantId, agente_id: { in: activeAgents.map((a) => a.id) } },
+        where: {
+          tenant_id: tenantId,
+          agente_id: { in: activeAgents.map((a) => a.id) },
+        },
         select: { id: true, agente_id: true },
       });
       const clienteToAgent: Record<string, string> = {};
-      for (const c of clienteAgentMap) if (c.agente_id) clienteToAgent[c.id] = c.agente_id;
+      for (const c of clienteAgentMap)
+        if (c.agente_id) clienteToAgent[c.id] = c.agente_id;
       for (const l of loads) {
         const ag = clienteToAgent[l.cliente_id];
-        if (ag) loadByAgent[ag] = (loadByAgent[ag] ?? 0) + (l._count.cliente_id ?? 0);
+        if (ag)
+          loadByAgent[ag] = (loadByAgent[ag] ?? 0) + (l._count.cliente_id ?? 0);
       }
-      assignedAgentId = Object.entries(loadByAgent).sort((a, b) => a[1] - b[1])[0]?.[0] ?? activeAgents[0].id;
+      assignedAgentId =
+        Object.entries(loadByAgent).sort((a, b) => a[1] - b[1])[0]?.[0] ??
+        activeAgents[0].id;
     }
 
     // Assign client to agent if determined
@@ -380,19 +471,25 @@ export class PortalService {
     // Notify: assigned agent (or all ADMINs if Manual/no assignment)
     const notifyIds: string[] = assignedAgentId
       ? [assignedAgentId]
-      : (await this.prisma.user.findMany({
-          where: { tenant_id: tenantId, estado: 'ACTIVO', rol: { in: ['ADMIN', 'SUPER_ADMIN'] } },
-          select: { id: true },
-        })).map((u) => u.id);
+      : (
+          await this.prisma.user.findMany({
+            where: {
+              tenant_id: tenantId,
+              estado: 'ACTIVO',
+              rol: { in: ['ADMIN', 'SUPER_ADMIN'] },
+            },
+            select: { id: true },
+          })
+        ).map((u) => u.id);
 
     const notifData = notifyIds.map((uid) => ({
-      id:         randomUUID(),
-      tenant_id:  tenantId,
-      user_id:    uid,
-      tipo:       'SISTEMA' as const,
-      titulo:     '🤖 Nuevo lead via chatbot',
-      mensaje:    `${dto.nombre} está interesado/a. ${notas}`,
-      entidad:    'Cliente',
+      id: randomUUID(),
+      tenant_id: tenantId,
+      user_id: uid,
+      tipo: 'SISTEMA' as const,
+      titulo: '🤖 Nuevo lead via chatbot',
+      mensaje: `${dto.nombre} está interesado/a. ${notas}`,
+      entidad: 'Cliente',
       entidad_id: clienteId,
     }));
 
@@ -412,15 +509,25 @@ export class PortalService {
 
     const cliente = await this.prisma.cliente.findFirst({
       where,
-      select: { id: true, nombre: true, email: true, tenant_id: true, portal_verificado: true },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        tenant_id: true,
+        portal_verificado: true,
+      },
     });
 
     if (!cliente || !cliente.email) {
-      return { message: 'Si tu correo está registrado, recibirás un enlace de acceso.' };
+      return {
+        message: 'Si tu correo está registrado, recibirás un enlace de acceso.',
+      };
     }
 
-    const token   = randomUUID();
-    const expires = new Date(Date.now() + (cliente.portal_verificado ? 15 : 24) * 60 * 60 * 1000);
+    const token = randomUUID();
+    const expires = new Date(
+      Date.now() + (cliente.portal_verificado ? 15 : 24) * 60 * 60 * 1000,
+    );
 
     await this.prisma.cliente.update({
       where: { id: cliente.id },
@@ -428,31 +535,64 @@ export class PortalService {
     });
 
     if (cliente.portal_verificado) {
-      await this.sendMagicLoginEmail(cliente.email, cliente.nombre, token, cliente.tenant_id);
+      await this.sendMagicLoginEmail(
+        cliente.email,
+        cliente.nombre,
+        token,
+        cliente.tenant_id,
+      );
     } else {
-      await this.sendVerificationEmail(cliente.email, cliente.nombre, token, cliente.tenant_id);
+      await this.sendVerificationEmail(
+        cliente.email,
+        cliente.nombre,
+        token,
+        cliente.tenant_id,
+      );
     }
 
-    return { message: 'Si tu correo está registrado, recibirás un enlace de acceso.' };
+    return {
+      message: 'Si tu correo está registrado, recibirás un enlace de acceso.',
+    };
   }
 
   async accederConToken(token: string) {
     const cliente = await this.prisma.cliente.findUnique({
       where: { activation_token: token },
-      select: { id: true, nombre: true, email: true, tenant_id: true, activation_expires: true },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        tenant_id: true,
+        activation_expires: true,
+      },
     });
 
-    if (!cliente || !cliente.activation_expires || cliente.activation_expires < new Date()) {
-      throw new BadRequestException('El enlace no es válido o ha expirado. Solicita uno nuevo.');
+    if (
+      !cliente ||
+      !cliente.activation_expires ||
+      cliente.activation_expires < new Date()
+    ) {
+      throw new BadRequestException(
+        'El enlace no es válido o ha expirado. Solicita uno nuevo.',
+      );
     }
 
     await this.prisma.cliente.update({
       where: { id: cliente.id },
-      data: { activation_token: null, activation_expires: null, portal_verificado: true },
+      data: {
+        activation_token: null,
+        activation_expires: null,
+        portal_verificado: true,
+      },
     });
 
     const accessToken = this.jwt.sign(
-      { sub: cliente.id, tenantId: cliente.tenant_id, email: cliente.email, type: 'cliente' },
+      {
+        sub: cliente.id,
+        tenantId: cliente.tenant_id,
+        email: cliente.email,
+        type: 'cliente',
+      },
       { expiresIn: '30d' },
     );
 
@@ -463,20 +603,46 @@ export class PortalService {
     const cliente = await this.prisma.cliente.findUnique({
       where: { id: clienteId },
       select: {
-        id: true, nombre: true, email: true, telefono: true,
-        gestion_interes: true, zona_interes: true, presupuesto_max: true,
-        tipo_interes: true, habitaciones_min: true, created_at: true,
+        id: true,
+        nombre: true,
+        email: true,
+        telefono: true,
+        gestion_interes: true,
+        zona_interes: true,
+        presupuesto_max: true,
+        tipo_interes: true,
+        habitaciones_min: true,
+        created_at: true,
         intereses: {
           orderBy: { created_at: 'desc' as const },
           select: {
-            id: true, estado: true, nivel_interes: true, notas: true,
-            fecha_contacto: true, fecha_cierre: true, precio_cierre: true, created_at: true,
+            id: true,
+            estado: true,
+            nivel_interes: true,
+            notas: true,
+            fecha_contacto: true,
+            fecha_cierre: true,
+            precio_cierre: true,
+            created_at: true,
             propiedad: {
               select: {
-                id: true, codigo: true, titulo: true, tipo: true, gestion: true,
-                precio_venta: true, precio_renta: true, moneda: true,
-                estado: true, zona: true, municipio: true, departamento: true,
-                imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+                id: true,
+                codigo: true,
+                titulo: true,
+                tipo: true,
+                gestion: true,
+                precio_venta: true,
+                precio_renta: true,
+                moneda: true,
+                estado: true,
+                zona: true,
+                municipio: true,
+                departamento: true,
+                imagenes: {
+                  where: { tipo: 'portada' },
+                  take: 1,
+                  select: { url: true },
+                },
               },
             },
             visitas: {
@@ -487,8 +653,12 @@ export class PortalService {
               orderBy: { fecha_inicio: 'asc' as const },
               take: 1,
               select: {
-                id: true, fecha_inicio: true, fecha_fin: true,
-                estado: true, zoom_join_url: true, ubicacion: true,
+                id: true,
+                fecha_inicio: true,
+                fecha_fin: true,
+                estado: true,
+                zoom_join_url: true,
+                ubicacion: true,
               },
             },
           },
@@ -496,13 +666,27 @@ export class PortalService {
         favoritos: {
           orderBy: { created_at: 'desc' as const },
           select: {
-            id: true, created_at: true,
+            id: true,
+            created_at: true,
             propiedad: {
               select: {
-                id: true, codigo: true, titulo: true, tipo: true, gestion: true,
-                precio_venta: true, precio_renta: true, moneda: true,
-                estado: true, zona: true, municipio: true, departamento: true,
-                imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+                id: true,
+                codigo: true,
+                titulo: true,
+                tipo: true,
+                gestion: true,
+                precio_venta: true,
+                precio_renta: true,
+                moneda: true,
+                estado: true,
+                zona: true,
+                municipio: true,
+                departamento: true,
+                imagenes: {
+                  where: { tipo: 'portada' },
+                  take: 1,
+                  select: { url: true },
+                },
               },
             },
           },
@@ -510,7 +694,13 @@ export class PortalService {
         // §10 CA-2: Búsquedas guardadas
         busquedas_guardadas: {
           orderBy: { created_at: 'desc' as const },
-          select: { id: true, nombre: true, filtros: true, alertas: true, created_at: true },
+          select: {
+            id: true,
+            nombre: true,
+            filtros: true,
+            alertas: true,
+            created_at: true,
+          },
         },
       },
     });
@@ -520,12 +710,25 @@ export class PortalService {
   }
 
   async addFavorito(clienteId: string, tenantId: string, propiedadId: string) {
-    const prop = await this.prisma.propiedad.findUnique({ where: { id: propiedadId }, select: { id: true } });
+    const prop = await this.prisma.propiedad.findUnique({
+      where: { id: propiedadId },
+      select: { id: true },
+    });
     if (!prop) throw new NotFoundException('Propiedad no encontrada');
 
     await this.prisma.favorito.upsert({
-      where: { cliente_id_propiedad_id: { cliente_id: clienteId, propiedad_id: propiedadId } },
-      create: { id: randomUUID(), tenant_id: tenantId, cliente_id: clienteId, propiedad_id: propiedadId },
+      where: {
+        cliente_id_propiedad_id: {
+          cliente_id: clienteId,
+          propiedad_id: propiedadId,
+        },
+      },
+      create: {
+        id: randomUUID(),
+        tenant_id: tenantId,
+        cliente_id: clienteId,
+        propiedad_id: propiedadId,
+      },
       update: {},
     });
     return { success: true };
@@ -546,14 +749,29 @@ export class PortalService {
     });
   }
 
-  async saveBusquedaGuardada(clienteId: string, tenantId: string, nombre: string, filtros: Record<string, unknown>, alertas = true) {
+  async saveBusquedaGuardada(
+    clienteId: string,
+    tenantId: string,
+    nombre: string,
+    filtros: Record<string, unknown>,
+    alertas = true,
+  ) {
     return this.prisma.busquedaGuardada.create({
-      data: { id: randomUUID(), tenant_id: tenantId, cliente_id: clienteId, nombre, filtros: filtros as Prisma.InputJsonValue, alertas },
+      data: {
+        id: randomUUID(),
+        tenant_id: tenantId,
+        cliente_id: clienteId,
+        nombre,
+        filtros: filtros as Prisma.InputJsonValue,
+        alertas,
+      },
     });
   }
 
   async deleteBusquedaGuardada(clienteId: string, id: string) {
-    const b = await this.prisma.busquedaGuardada.findFirst({ where: { id, cliente_id: clienteId } });
+    const b = await this.prisma.busquedaGuardada.findFirst({
+      where: { id, cliente_id: clienteId },
+    });
     if (!b) throw new NotFoundException('Búsqueda no encontrada');
     await this.prisma.busquedaGuardada.delete({ where: { id } });
     return { deleted: true };
@@ -564,13 +782,27 @@ export class PortalService {
       where: { cliente_id: clienteId },
       orderBy: { created_at: 'desc' },
       select: {
-        id: true, created_at: true,
+        id: true,
+        created_at: true,
         propiedad: {
           select: {
-            id: true, codigo: true, titulo: true, tipo: true, gestion: true,
-            precio_venta: true, precio_renta: true, moneda: true,
-            estado: true, zona: true, municipio: true, departamento: true,
-            imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+            id: true,
+            codigo: true,
+            titulo: true,
+            tipo: true,
+            gestion: true,
+            precio_venta: true,
+            precio_renta: true,
+            moneda: true,
+            estado: true,
+            zona: true,
+            municipio: true,
+            departamento: true,
+            imagenes: {
+              where: { tipo: 'portada' },
+              take: 1,
+              select: { url: true },
+            },
           },
         },
       },
@@ -591,8 +823,16 @@ export class PortalService {
 
   // ─── Private helpers ─────────────────────────────────────────
 
-  private async sendMagicLoginEmail(email: string, nombre: string, token: string, tenantId: string) {
-    const base = await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalBase);
+  private async sendMagicLoginEmail(
+    email: string,
+    nombre: string,
+    token: string,
+    tenantId: string,
+  ) {
+    const base = await this.configPortal.resolvePortalBaseUrl(
+      tenantId,
+      this.portalBase,
+    );
     const url = `${base}/mi-cuenta/verify?token=${token}`;
     try {
       await this.email.sendHtml({
@@ -647,8 +887,15 @@ export class PortalService {
 </html>`;
   }
 
-  private async sendVerificationEmail(email: string, nombre: string, token: string, tenantId?: string) {
-    const base = tenantId ? await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalBase) : this.portalBase;
+  private async sendVerificationEmail(
+    email: string,
+    nombre: string,
+    token: string,
+    tenantId?: string,
+  ) {
+    const base = tenantId
+      ? await this.configPortal.resolvePortalBaseUrl(tenantId, this.portalBase)
+      : this.portalBase;
     const url = `${base}/verificar?token=${token}`;
     try {
       await this.email.sendHtml({
@@ -707,23 +954,34 @@ export class PortalService {
   // ─── F-12: Google OAuth ──────────────────────────────────────
 
   async googleAuth(credential: string, tenantId?: string) {
-    if (!credential) throw new BadRequestException('Credencial de Google requerida');
+    if (!credential)
+      throw new BadRequestException('Credencial de Google requerida');
 
     // Verify Google credential by calling Google's tokeninfo endpoint
-    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const res = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+    );
     if (!res.ok) throw new BadRequestException('Credencial de Google inválida');
 
-    const payload = await res.json() as { email?: string; name?: string; sub?: string; email_verified?: string };
+    const payload = (await res.json()) as {
+      email?: string;
+      name?: string;
+      sub?: string;
+      email_verified?: string;
+    };
     if (!payload.email || payload.email_verified !== 'true') {
       throw new BadRequestException('El email de Google no está verificado');
     }
 
     const resolvedTenantId = TENANT_ID || tenantId;
-    if (!resolvedTenantId) throw new BadRequestException('No se pudo determinar el tenant');
+    if (!resolvedTenantId)
+      throw new BadRequestException('No se pudo determinar el tenant');
 
     // Create or find cliente
     let cliente = await this.prisma.cliente.findUnique({
-      where: { tenant_id_email: { tenant_id: resolvedTenantId, email: payload.email } },
+      where: {
+        tenant_id_email: { tenant_id: resolvedTenantId, email: payload.email },
+      },
     });
 
     if (!cliente) {
@@ -738,11 +996,19 @@ export class PortalService {
         },
       });
     } else if (!cliente.portal_verificado) {
-      await this.prisma.cliente.update({ where: { id: cliente.id }, data: { portal_verificado: true } });
+      await this.prisma.cliente.update({
+        where: { id: cliente.id },
+        data: { portal_verificado: true },
+      });
     }
 
     const accessToken = this.jwt.sign(
-      { sub: cliente.id, tenantId: cliente.tenant_id, email: cliente.email, type: 'cliente' },
+      {
+        sub: cliente.id,
+        tenantId: cliente.tenant_id,
+        email: cliente.email,
+        type: 'cliente',
+      },
       { expiresIn: '30d' },
     );
 

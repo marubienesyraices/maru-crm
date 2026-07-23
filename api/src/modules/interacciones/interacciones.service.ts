@@ -20,7 +20,10 @@ export class InteraccionesService {
   ) {}
 
   async create(tenantId: string, usuarioId: string, dto: CreateInteraccionDto) {
-    const interes = await this.findInteresWithTenantCheck(tenantId, dto.interesId);
+    const interes = await this.findInteresWithTenantCheck(
+      tenantId,
+      dto.interesId,
+    );
     if (!interes) throw new NotFoundException('Trámite no encontrado');
 
     // F-18: Resolve @mentions from notas
@@ -29,7 +32,11 @@ export class InteraccionesService {
 
     if (mentionNames.length > 0) {
       const users = await this.prisma.user.findMany({
-        where: { tenant_id: tenantId, nombre: { in: mentionNames }, estado: 'ACTIVO' },
+        where: {
+          tenant_id: tenantId,
+          nombre: { in: mentionNames },
+          estado: 'ACTIVO',
+        },
         select: { id: true, nombre: true },
       });
       mentionedUsers.push(...users);
@@ -66,7 +73,9 @@ export class InteraccionesService {
           entidad_id: interaccion.id,
         }));
       if (notifData.length > 0) {
-        this.prisma.notificacion.createMany({ data: notifData }).catch(() => {});
+        this.prisma.notificacion
+          .createMany({ data: notifData })
+          .catch(() => {});
       }
     }
 
@@ -89,7 +98,9 @@ export class InteraccionesService {
   async delete(tenantId: string, id: string) {
     const interaccion = await this.prisma.interaccion.findFirst({
       where: { id },
-      include: { interes: { include: { cliente: { select: { tenant_id: true } } } } },
+      include: {
+        interes: { include: { cliente: { select: { tenant_id: true } } } },
+      },
     });
 
     if (!interaccion || interaccion.interes.cliente.tenant_id !== tenantId) {
@@ -102,7 +113,10 @@ export class InteraccionesService {
 
   // ─── Private ────────────────────────────────────────────────
 
-  private async findInteresWithTenantCheck(tenantId: string, interesId: string) {
+  private async findInteresWithTenantCheck(
+    tenantId: string,
+    interesId: string,
+  ) {
     const interes = await this.prisma.clientePropiedad.findFirst({
       where: { id: interesId },
       include: { cliente: { select: { tenant_id: true } } },

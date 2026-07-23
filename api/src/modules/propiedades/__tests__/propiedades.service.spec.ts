@@ -5,7 +5,10 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { StorageService } from '../../storage/storage.service';
 import { ConfigService } from '@nestjs/config';
-import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+import {
+  createMockPrismaService,
+  MockPrismaService,
+} from '../../../../test/mocks/prisma.mock';
 
 const mockNotificacionesService = { create: jest.fn().mockResolvedValue({}) };
 const mockConfigService = { get: jest.fn().mockReturnValue(undefined) };
@@ -80,14 +83,21 @@ describe('PropiedadesService', () => {
       prisma.user.findFirst.mockResolvedValue(mockAgenteSenior);
       prisma.user.count.mockResolvedValue(1);
       prisma.propiedad.count.mockResolvedValue(0);
-      prisma.propiedad.create.mockResolvedValue({ ...mockPropiedad, codigo: 'CASA-0001' });
+      prisma.propiedad.create.mockResolvedValue({
+        ...mockPropiedad,
+        codigo: 'CASA-0001',
+      });
 
-      const result = await service.create(TENANT_ID, {
-        titulo: 'Casa Moderna en Zona 14',
-        tipo: 'CASA',
-        gestion: 'VENTA',
-        precioVenta: 2500000,
-      }, USER_ID);
+      const result = await service.create(
+        TENANT_ID,
+        {
+          titulo: 'Casa Moderna en Zona 14',
+          tipo: 'CASA',
+          gestion: 'VENTA',
+          precioVenta: 2500000,
+        },
+        USER_ID,
+      );
 
       expect(result.codigo).toBe('CASA-0001');
       expect(prisma.propiedad.create).toHaveBeenCalledWith(
@@ -103,11 +113,18 @@ describe('PropiedadesService', () => {
     });
 
     it('debe rechazar si se alcanzó el límite de propiedades', async () => {
-      prisma.tenant.findUnique.mockResolvedValue({ ...mockTenant, limite_propiedades: 5 });
+      prisma.tenant.findUnique.mockResolvedValue({
+        ...mockTenant,
+        limite_propiedades: 5,
+      });
       prisma.propiedad.count.mockResolvedValue(5);
 
       await expect(
-        service.create(TENANT_ID, { titulo: 'Test', tipo: 'CASA', gestion: 'VENTA' }, USER_ID),
+        service.create(
+          TENANT_ID,
+          { titulo: 'Test', tipo: 'CASA', gestion: 'VENTA' },
+          USER_ID,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -115,7 +132,11 @@ describe('PropiedadesService', () => {
       prisma.tenant.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create(TENANT_ID, { titulo: 'Test', tipo: 'CASA', gestion: 'VENTA' }, USER_ID),
+        service.create(
+          TENANT_ID,
+          { titulo: 'Test', tipo: 'CASA', gestion: 'VENTA' },
+          USER_ID,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -124,13 +145,20 @@ describe('PropiedadesService', () => {
       prisma.user.findFirst.mockResolvedValue(mockAgenteSenior);
       prisma.user.count.mockResolvedValue(1);
       prisma.propiedad.count.mockResolvedValue(7);
-      prisma.propiedad.create.mockResolvedValue({ ...mockPropiedad, codigo: 'APAR-0008' });
+      prisma.propiedad.create.mockResolvedValue({
+        ...mockPropiedad,
+        codigo: 'APAR-0008',
+      });
 
-      await service.create(TENANT_ID, {
-        titulo: 'Apartamento en Z10',
-        tipo: 'APARTAMENTO',
-        gestion: 'RENTA',
-      }, USER_ID);
+      await service.create(
+        TENANT_ID,
+        {
+          titulo: 'Apartamento en Z10',
+          tipo: 'APARTAMENTO',
+          gestion: 'RENTA',
+        },
+        USER_ID,
+      );
 
       expect(prisma.propiedad.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -151,7 +179,12 @@ describe('PropiedadesService', () => {
       const result = await service.findAll(TENANT_ID, {});
 
       expect(result.data).toHaveLength(1);
-      expect(result.meta).toEqual({ total: 1, page: 1, limit: 20, totalPages: 1 });
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
     });
 
     it('debe aplicar filtros de tipo y estado', async () => {
@@ -208,9 +241,9 @@ describe('PropiedadesService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       prisma.propiedad.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.findOne(TENANT_ID, 'no-existe'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(TENANT_ID, 'no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -218,72 +251,127 @@ describe('PropiedadesService', () => {
 
   describe('cambiarEstado', () => {
     it('debe permitir BORRADOR → DISPONIBLE', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'BORRADOR' });
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'BORRADOR',
+      });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'DISPONIBLE',
+      });
       prisma.cliente.findMany.mockResolvedValue([]);
 
-      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'DISPONIBLE' });
+      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', {
+        nuevoEstado: 'DISPONIBLE',
+      });
 
       expect(result.estado).toBe('DISPONIBLE');
     });
 
     it('debe rechazar BORRADOR → VENDIDA (no permitida)', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'BORRADOR' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'BORRADOR',
+      });
 
       await expect(
-        service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'VENDIDA' }),
+        service.cambiarEstado(TENANT_ID, 'prop-001', {
+          nuevoEstado: 'VENDIDA',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('debe permitir DISPONIBLE → RESERVADA', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'RESERVADA' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'DISPONIBLE',
+      });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'RESERVADA',
+      });
 
-      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'RESERVADA' });
+      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', {
+        nuevoEstado: 'RESERVADA',
+      });
 
       expect(result.estado).toBe('RESERVADA');
     });
 
     it('debe rechazar DISPONIBLE → VENDIDA (debe pasar por EN_NEGOCIACION)', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'DISPONIBLE',
+      });
 
       await expect(
-        service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'VENDIDA' }),
+        service.cambiarEstado(TENANT_ID, 'prop-001', {
+          nuevoEstado: 'VENDIDA',
+        }),
       ).rejects.toThrow(/Transición inválida/);
     });
 
     it('debe permitir EN_NEGOCIACION → VENDIDA', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'EN_NEGOCIACION' });
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'VENDIDA' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'EN_NEGOCIACION',
+      });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'VENDIDA',
+      });
 
-      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'VENDIDA' });
+      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', {
+        nuevoEstado: 'VENDIDA',
+      });
 
       expect(result.estado).toBe('VENDIDA');
     });
 
     it('VENDIDA es estado terminal (no permite transiciones)', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'VENDIDA' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'VENDIDA',
+      });
 
       await expect(
-        service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'DISPONIBLE' }),
+        service.cambiarEstado(TENANT_ID, 'prop-001', {
+          nuevoEstado: 'DISPONIBLE',
+        }),
       ).rejects.toThrow(/ninguna \(estado terminal\)/);
     });
 
     it('debe permitir RENTADA → DISPONIBLE (re-listar)', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'RENTADA' });
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'DISPONIBLE' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'RENTADA',
+      });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'DISPONIBLE',
+      });
       prisma.cliente.findMany.mockResolvedValue([]);
 
-      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'DISPONIBLE' });
+      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', {
+        nuevoEstado: 'DISPONIBLE',
+      });
 
       expect(result.estado).toBe('DISPONIBLE');
     });
 
     it('debe permitir SUSPENDIDA → BORRADOR', async () => {
-      prisma.propiedad.findFirst.mockResolvedValue({ ...mockPropiedad, estado: 'SUSPENDIDA' });
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, estado: 'BORRADOR' });
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'SUSPENDIDA',
+      });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        estado: 'BORRADOR',
+      });
 
-      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', { nuevoEstado: 'BORRADOR' });
+      const result = await service.cambiarEstado(TENANT_ID, 'prop-001', {
+        nuevoEstado: 'BORRADOR',
+      });
 
       expect(result.estado).toBe('BORRADOR');
     });
@@ -295,8 +383,14 @@ describe('PropiedadesService', () => {
     it('debe retornar estadísticas agrupadas', async () => {
       prisma.propiedad.count.mockResolvedValue(10);
       prisma.propiedad.groupBy
-        .mockResolvedValueOnce([{ estado: 'DISPONIBLE', _count: 5 }, { estado: 'BORRADOR', _count: 3 }])
-        .mockResolvedValueOnce([{ tipo: 'CASA', _count: 6 }, { tipo: 'APARTAMENTO', _count: 4 }]);
+        .mockResolvedValueOnce([
+          { estado: 'DISPONIBLE', _count: 5 },
+          { estado: 'BORRADOR', _count: 3 },
+        ])
+        .mockResolvedValueOnce([
+          { tipo: 'CASA', _count: 6 },
+          { tipo: 'APARTAMENTO', _count: 4 },
+        ]);
 
       const result = await service.getStats(TENANT_ID);
 
@@ -311,10 +405,15 @@ describe('PropiedadesService', () => {
   describe('update', () => {
     it('debe actualizar propiedad existente', async () => {
       prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
-      prisma.propiedad.update.mockResolvedValue({ ...mockPropiedad, titulo: 'Nuevo Titulo' });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        titulo: 'Nuevo Titulo',
+      });
       prisma.tenant.findUnique.mockResolvedValue(mockTenant);
 
-      const result = await service.update(TENANT_ID, 'prop-001', { titulo: 'Nuevo Titulo' });
+      const result = await service.update(TENANT_ID, 'prop-001', {
+        titulo: 'Nuevo Titulo',
+      });
 
       expect(result.titulo).toBe('Nuevo Titulo');
       expect(prisma.propiedad.update).toHaveBeenCalledWith(

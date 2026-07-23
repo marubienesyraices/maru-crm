@@ -1,4 +1,14 @@
-import { IsInt, IsString, IsBoolean, IsOptional, IsArray, Min, Max, Matches, ValidateNested } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsArray,
+  Min,
+  Max,
+  Matches,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpsertHorarioDto {

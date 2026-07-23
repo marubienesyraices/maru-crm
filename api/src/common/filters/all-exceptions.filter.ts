@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -16,7 +23,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message = exception instanceof Error ? exception.message : 'Unknown error';
+    const message =
+      exception instanceof Error ? exception.message : 'Unknown error';
     const stack = exception instanceof Error ? exception.stack : '';
 
     this.logger.error(`Status: ${status} Error: ${message}`, stack);

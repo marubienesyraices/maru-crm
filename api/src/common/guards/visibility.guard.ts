@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, SetMetadata } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  SetMetadata,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UsersService } from '../../modules/users/users.service';
 
@@ -34,7 +39,10 @@ export class VisibilityGuard implements CanActivate {
 
     // SENIOR: self + downline
     if (user.rol === 'SENIOR') {
-      const downline = await this.usersService.getDownline(user.tenantId, user.sub);
+      const downline = await this.usersService.getDownline(
+        user.tenantId,
+        user.sub,
+      );
       request.visibleUserIds = [user.sub, ...downline.map((d: any) => d.id)];
       return true;
     }

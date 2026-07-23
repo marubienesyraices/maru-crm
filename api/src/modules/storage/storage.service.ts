@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { writeFile, unlink, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -34,14 +38,20 @@ export class StorageService {
     }
   }
 
-  async upload(buffer: Buffer, filename: string, contentType: string): Promise<string> {
+  async upload(
+    buffer: Buffer,
+    filename: string,
+    contentType: string,
+  ): Promise<string> {
     if (this.s3 && this.bucket) {
-      await this.s3.send(new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: filename,
-        Body: buffer,
-        ContentType: contentType,
-      }));
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: filename,
+          Body: buffer,
+          ContentType: contentType,
+        }),
+      );
       const base = (this.publicUrl || '').replace(/\/$/, '');
       return `${base}/${filename}`;
     }
@@ -57,7 +67,9 @@ export class StorageService {
       const filename = url.split('/').pop();
       if (!filename) return;
       try {
-        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: filename }));
+        await this.s3.send(
+          new DeleteObjectCommand({ Bucket: this.bucket, Key: filename }),
+        );
       } catch (err) {
         this.logger.warn(`R2 delete failed for ${filename}: ${err}`);
       }
@@ -67,7 +79,9 @@ export class StorageService {
     const filename = url.replace('/uploads/', '');
     const filePath = join(this.uploadDir, filename);
     if (existsSync(filePath)) {
-      await unlink(filePath).catch((err) => this.logger.warn(`Local delete failed: ${err}`));
+      await unlink(filePath).catch((err) =>
+        this.logger.warn(`Local delete failed: ${err}`),
+      );
     }
   }
 

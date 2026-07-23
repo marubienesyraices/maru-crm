@@ -1,10 +1,30 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsInt, IsUUID, IsBoolean, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsInt,
+  IsUUID,
+  IsBoolean,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePropiedadDto {
   @IsString() titulo: string;
   @IsOptional() @IsString() descripcion?: string;
-  @IsEnum(['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'])
+  @IsEnum([
+    'CASA',
+    'APARTAMENTO',
+    'TERRENO',
+    'LOCAL_COMERCIAL',
+    'OFICINA',
+    'BODEGA',
+    'FINCA',
+    'EDIFICIO',
+    'OTRO',
+  ])
   tipo: string;
   @IsEnum(['VENTA', 'RENTA', 'AMBAS']) gestion: string;
 
@@ -40,7 +60,18 @@ export class CreatePropiedadDto {
 export class UpdatePropiedadDto {
   @IsOptional() @IsString() titulo?: string;
   @IsOptional() @IsString() descripcion?: string;
-  @IsOptional() @IsEnum(['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'])
+  @IsOptional()
+  @IsEnum([
+    'CASA',
+    'APARTAMENTO',
+    'TERRENO',
+    'LOCAL_COMERCIAL',
+    'OFICINA',
+    'BODEGA',
+    'FINCA',
+    'EDIFICIO',
+    'OTRO',
+  ])
   tipo?: string;
   @IsOptional() @IsEnum(['VENTA', 'RENTA', 'AMBAS']) gestion?: string;
 
@@ -74,7 +105,15 @@ export class UpdatePropiedadDto {
 }
 
 export class CambiarEstadoDto {
-  @IsEnum(['BORRADOR', 'DISPONIBLE', 'RESERVADA', 'EN_NEGOCIACION', 'VENDIDA', 'RENTADA', 'SUSPENDIDA'])
+  @IsEnum([
+    'BORRADOR',
+    'DISPONIBLE',
+    'RESERVADA',
+    'EN_NEGOCIACION',
+    'VENDIDA',
+    'RENTADA',
+    'SUSPENDIDA',
+  ])
   nuevoEstado: string;
   @IsOptional() @IsString() motivo?: string;
 }
@@ -82,10 +121,25 @@ export class CambiarEstadoDto {
 export class PrecioSugeridoQueryDto {
   @IsOptional() @Type(() => Number) @IsNumber() lat?: number;
   @IsOptional() @Type(() => Number) @IsNumber() lng?: number;
-  @IsEnum(['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'])
+  @IsEnum([
+    'CASA',
+    'APARTAMENTO',
+    'TERRENO',
+    'LOCAL_COMERCIAL',
+    'OFICINA',
+    'BODEGA',
+    'FINCA',
+    'EDIFICIO',
+    'OTRO',
+  ])
   tipo: string;
   @IsEnum(['VENTA', 'RENTA', 'AMBAS']) gestion: string;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) @Max(50) radioKm?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(50)
+  radioKm?: number;
   @IsOptional() @IsString() departamento?: string;
   @IsOptional() @IsUUID() excludeId?: string;
 }

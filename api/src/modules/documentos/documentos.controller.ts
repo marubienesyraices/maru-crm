@@ -1,8 +1,22 @@
 import {
-  Controller, Post, Get, Delete, Param, UseGuards, UseInterceptors,
-  UploadedFile, BadRequestException, Body,
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Body,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
@@ -14,12 +28,24 @@ import { StorageService } from '../storage/storage.service';
 import { TipoDocumento } from '@prisma/client';
 
 const ALLOWED_MIMES = [
-  'application/pdf', 'image/jpeg', 'image/png', 'image/webp',
-  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-const VALID_TIPOS = ['ESCRITURA', 'PLANO', 'IUSI', 'BOLETO_COMPRAVENTA', 'CONTRATO_ARRENDAMIENTO', 'DPI_PROPIETARIO', 'OTRO'];
+const VALID_TIPOS = [
+  'ESCRITURA',
+  'PLANO',
+  'IUSI',
+  'BOLETO_COMPRAVENTA',
+  'CONTRATO_ARRENDAMIENTO',
+  'DPI_PROPIETARIO',
+  'OTRO',
+];
 
 @ApiTags('Documentos')
 @ApiBearerAuth('JWT')
@@ -32,16 +58,30 @@ export class DocumentosController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Subir documento legal a una propiedad (PDF, imagen, Word)' })
+  @ApiOperation({
+    summary: 'Subir documento legal a una propiedad (PDF, imagen, Word)',
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, tipo: { type: 'string' }, nombre: { type: 'string' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        tipo: { type: 'string' },
+        nombre: { type: 'string' },
+      },
+    },
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIMES.includes(file.mimetype)) {
-          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}`), false);
+          cb(
+            new BadRequestException(`Tipo no permitido: ${file.mimetype}`),
+            false,
+          );
         } else {
           cb(null, true);
         }
@@ -58,8 +98,10 @@ export class DocumentosController {
     @Body('fechaVencimiento') fechaVencimiento?: string,
   ) {
     if (!file) throw new BadRequestException('No se envió archivo');
-    if (!tipo) throw new BadRequestException('El tipo de documento es requerido');
-    if (!VALID_TIPOS.includes(tipo)) throw new BadRequestException(`Tipo inválido: ${tipo}`);
+    if (!tipo)
+      throw new BadRequestException('El tipo de documento es requerido');
+    if (!VALID_TIPOS.includes(tipo))
+      throw new BadRequestException(`Tipo inválido: ${tipo}`);
 
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id: propiedadId, tenant_id: user.tenantId },

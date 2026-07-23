@@ -29,7 +29,13 @@ export class PropiedadesScheduler {
 
     const borradores = await this.prisma.propiedad.findMany({
       where: { estado: 'BORRADOR', created_at: { lte: umbral } },
-      select: { id: true, titulo: true, codigo: true, tenant_id: true, agente_id: true },
+      select: {
+        id: true,
+        titulo: true,
+        codigo: true,
+        tenant_id: true,
+        agente_id: true,
+      },
     });
 
     if (!borradores.length) return;
@@ -53,7 +59,9 @@ export class PropiedadesScheduler {
     }
 
     if (borradores.length > 0) {
-      this.logger.log(`📋 Auto-publicación: ${borradores.length} propiedad(es) BORRADOR → DISPONIBLE`);
+      this.logger.log(
+        `📋 Auto-publicación: ${borradores.length} propiedad(es) BORRADOR → DISPONIBLE`,
+      );
     }
   }
 
@@ -91,7 +99,9 @@ export class PropiedadesScheduler {
 
     if (!propiedades.length) return;
 
-    const dedupCutoff = new Date(now.getTime() - DEDUP_WINDOW_DAYS * 86_400_000);
+    const dedupCutoff = new Date(
+      now.getTime() - DEDUP_WINDOW_DAYS * 86_400_000,
+    );
     const recentNotifs = await this.prisma.notificacion.findMany({
       where: {
         tipo: 'PROPIEDAD_ESTANCADA',
@@ -111,11 +121,17 @@ export class PropiedadesScheduler {
       const activityDates: Date[] = [prop.updated_at];
       for (const interes of prop.interesados) {
         activityDates.push(interes.updated_at);
-        if (interes.interacciones[0]?.fecha) activityDates.push(interes.interacciones[0].fecha);
-        if (interes.visitas[0]?.fecha_inicio) activityDates.push(interes.visitas[0].fecha_inicio);
+        if (interes.interacciones[0]?.fecha)
+          activityDates.push(interes.interacciones[0].fecha);
+        if (interes.visitas[0]?.fecha_inicio)
+          activityDates.push(interes.visitas[0].fecha_inicio);
       }
-      const lastActivity = activityDates.reduce((max, d) => (d > max ? d : max));
-      const daysSince = Math.floor((now.getTime() - lastActivity.getTime()) / 86_400_000);
+      const lastActivity = activityDates.reduce((max, d) =>
+        d > max ? d : max,
+      );
+      const daysSince = Math.floor(
+        (now.getTime() - lastActivity.getTime()) / 86_400_000,
+      );
 
       // Find the highest applicable threshold
       const umbral = [...UMBRALES].reverse().find((u) => daysSince >= u);
@@ -135,7 +151,9 @@ export class PropiedadesScheduler {
     }
 
     if (sent > 0) {
-      this.logger.warn(`📊 Propiedades estancadas: ${sent} alerta(s) enviada(s)`);
+      this.logger.warn(
+        `📊 Propiedades estancadas: ${sent} alerta(s) enviada(s)`,
+      );
     }
   }
 }

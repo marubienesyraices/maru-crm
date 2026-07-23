@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { Plan, EstadoTenant } from '@prisma/client';
-import { CreateTenantDto, UpdateTenantDto, UpdateConfigSeguridadDto } from './dto';
+import {
+  CreateTenantDto,
+  UpdateTenantDto,
+  UpdateConfigSeguridadDto,
+} from './dto';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
@@ -17,7 +25,9 @@ export class TenantsService {
 
   async create(dto: CreateTenantDto) {
     const plan = (dto.plan as Plan) || 'FREE';
-    const catalogoConfig = await this.prisma.catalogoPlan.findUnique({ where: { plan } });
+    const catalogoConfig = await this.prisma.catalogoPlan.findUnique({
+      where: { plan },
+    });
 
     const tenant = await this.prisma.tenant.create({
       data: {
@@ -26,8 +36,10 @@ export class TenantsService {
         plan,
         moneda: dto.moneda || 'GTQ',
         zona_horaria: dto.zonaHoraria || 'America/Guatemala',
-        limite_usuarios: dto.limiteUsuarios ?? catalogoConfig?.limite_usuarios ?? 1,
-        limite_propiedades: dto.limitePropiedades ?? catalogoConfig?.limite_propiedades ?? 5,
+        limite_usuarios:
+          dto.limiteUsuarios ?? catalogoConfig?.limite_usuarios ?? 1,
+        limite_propiedades:
+          dto.limitePropiedades ?? catalogoConfig?.limite_propiedades ?? 5,
         estado: (dto.estado as EstadoTenant) || 'ACTIVA',
         trial_hasta: dto.trialHasta ? new Date(dto.trialHasta) : null,
       },
@@ -57,24 +69,44 @@ export class TenantsService {
       },
     });
 
-    console.log(`[DEV] Activation link: ${process.env.FRONTEND_URL}/onboarding?token=${activationToken}`);
+    console.log(
+      `[DEV] Activation link: ${process.env.FRONTEND_URL}/onboarding?token=${activationToken}`,
+    );
 
-    return { tenant, admin: { id: admin.id, email: admin.email, activationToken } };
+    return {
+      tenant,
+      admin: { id: admin.id, email: admin.email, activationToken },
+    };
   }
 
   async getBranding(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { nombre: true, logo_url: true, color_primario: true, color_secundario: true, color_acento: true, plan: true, limite_usuarios: true, limite_propiedades: true },
+      select: {
+        nombre: true,
+        logo_url: true,
+        color_primario: true,
+        color_secundario: true,
+        color_acento: true,
+        plan: true,
+        limite_usuarios: true,
+        limite_propiedades: true,
+      },
     });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
 
     const features = await this.prisma.catalogoPlan.findUnique({
       where: { plan: tenant.plan },
       select: {
-        tiene_correo: true, tiene_campanas: true, tiene_portal: true,
-        tiene_sitio_propio: true, tiene_integraciones: true, tiene_meta: true,
-        tiene_mapas: true, tiene_ranking: true, tiene_organigrama: true,
+        tiene_correo: true,
+        tiene_campanas: true,
+        tiene_portal: true,
+        tiene_sitio_propio: true,
+        tiene_integraciones: true,
+        tiene_meta: true,
+        tiene_mapas: true,
+        tiene_ranking: true,
+        tiene_organigrama: true,
       },
     });
 
@@ -91,7 +123,10 @@ export class TenantsService {
   async findOne(id: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
-      include: { config_seguridad: true, _count: { select: { usuarios: true } } },
+      include: {
+        config_seguridad: true,
+        _count: { select: { usuarios: true } },
+      },
     });
     if (!tenant) throw new NotFoundException('Empresa no encontrada');
     return tenant;
@@ -104,7 +139,11 @@ export class TenantsService {
     let limitePropiedades = dto.limitePropiedades;
 
     // Si se cambia el plan pero no se especifican límites, adoptar los del catálogo
-    if (dto.plan && dto.limiteUsuarios === undefined && dto.limitePropiedades === undefined) {
+    if (
+      dto.plan &&
+      dto.limiteUsuarios === undefined &&
+      dto.limitePropiedades === undefined
+    ) {
       const catalogoConfig = await this.prisma.catalogoPlan.findUnique({
         where: { plan: dto.plan as Plan },
       });
@@ -115,7 +154,9 @@ export class TenantsService {
     }
 
     if (limiteUsuarios !== undefined) {
-      const userCount = await this.prisma.user.count({ where: { tenant_id: id } });
+      const userCount = await this.prisma.user.count({
+        where: { tenant_id: id },
+      });
       if (userCount > limiteUsuarios) {
         throw new BadRequestException(
           `No se puede aplicar el límite de ${limiteUsuarios} usuarios: la empresa ya tiene ${userCount} usuarios registrados`,
@@ -124,7 +165,9 @@ export class TenantsService {
     }
 
     if (limitePropiedades !== undefined) {
-      const propCount = await this.prisma.propiedad.count({ where: { tenant_id: id } });
+      const propCount = await this.prisma.propiedad.count({
+        where: { tenant_id: id },
+      });
       if (propCount > limitePropiedades) {
         throw new BadRequestException(
           `No se puede aplicar el límite de ${limitePropiedades} propiedades: la empresa ya tiene ${propCount} propiedades registradas`,
@@ -146,9 +189,12 @@ export class TenantsService {
         limite_usuarios: limiteUsuarios,
         limite_propiedades: limitePropiedades,
         estado: dto.estado as EstadoTenant | undefined,
-        trial_hasta: dto.trialHasta !== undefined
-          ? (dto.trialHasta ? new Date(dto.trialHasta) : null)
-          : undefined,
+        trial_hasta:
+          dto.trialHasta !== undefined
+            ? dto.trialHasta
+              ? new Date(dto.trialHasta)
+              : null
+            : undefined,
       },
     });
 
@@ -173,10 +219,18 @@ export class TenantsService {
         buffer_entre_citas_min: dto.buffer_entre_citas_min ?? 30,
       },
       update: {
-        ...(dto.porcentaje_iva !== undefined && { porcentaje_iva: dto.porcentaje_iva }),
-        ...(dto.comision_pct_venta_default !== undefined && { comision_pct_venta_default: dto.comision_pct_venta_default }),
-        ...(dto.dias_inactividad_lead !== undefined && { dias_inactividad_lead: dto.dias_inactividad_lead }),
-        ...(dto.buffer_entre_citas_min !== undefined && { buffer_entre_citas_min: dto.buffer_entre_citas_min }),
+        ...(dto.porcentaje_iva !== undefined && {
+          porcentaje_iva: dto.porcentaje_iva,
+        }),
+        ...(dto.comision_pct_venta_default !== undefined && {
+          comision_pct_venta_default: dto.comision_pct_venta_default,
+        }),
+        ...(dto.dias_inactividad_lead !== undefined && {
+          dias_inactividad_lead: dto.dias_inactividad_lead,
+        }),
+        ...(dto.buffer_entre_citas_min !== undefined && {
+          buffer_entre_citas_min: dto.buffer_entre_citas_min,
+        }),
       },
     });
   }
@@ -194,37 +248,40 @@ export class TenantsService {
   async hardDeleteTenant(id: string) {
     await this.findOne(id);
 
-    await this.prisma.$transaction(async (tx) => {
-      const tid = id;
-      // 1. Leaf tables with tenant_id (must go before their FK parents)
-      await tx.$executeRaw`DELETE FROM email_eventos WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM whatsapp_envios WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM email_campanas WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM email_plantillas WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM email_triggers WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM brochure_jobs WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM meta_publicaciones WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM favoritos WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM busquedas_guardadas WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM notificacion_preferencias WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM notificaciones WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM tareas WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM horarios_laborales WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM audit_logs WHERE tenant_id = ${tid}::uuid`;
-      // 2. propiedades CASCADE → propiedad_imagenes/documentos/sindicacion/firma/cliente_propiedades → interacciones/visitas
-      await tx.$executeRaw`DELETE FROM propiedades WHERE tenant_id = ${tid}::uuid`;
-      // 3. clientes (remaining cliente_propiedades already gone via step 2 cascade)
-      await tx.$executeRaw`DELETE FROM clientes WHERE tenant_id = ${tid}::uuid`;
-      // 4. sessions before users
-      await tx.$executeRaw`DELETE FROM sessions WHERE tenant_id = ${tid}::uuid`;
-      // 5. users
-      await tx.$executeRaw`DELETE FROM users WHERE tenant_id = ${tid}::uuid`;
-      // 6. config tables (Prisma schema says CASCADE but DB constraint may differ)
-      await tx.$executeRaw`DELETE FROM config_seguridad WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM config_integraciones WHERE tenant_id = ${tid}::uuid`;
-      await tx.$executeRaw`DELETE FROM config_portal WHERE tenant_id = ${tid}::uuid`;
-      // 7. tenant
-      await tx.tenant.delete({ where: { id } });
-    }, { timeout: 30000 });
+    await this.prisma.$transaction(
+      async (tx) => {
+        const tid = id;
+        // 1. Leaf tables with tenant_id (must go before their FK parents)
+        await tx.$executeRaw`DELETE FROM email_eventos WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM whatsapp_envios WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM email_campanas WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM email_plantillas WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM email_triggers WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM brochure_jobs WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM meta_publicaciones WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM favoritos WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM busquedas_guardadas WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM notificacion_preferencias WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM notificaciones WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM tareas WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM horarios_laborales WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM audit_logs WHERE tenant_id = ${tid}::uuid`;
+        // 2. propiedades CASCADE → propiedad_imagenes/documentos/sindicacion/firma/cliente_propiedades → interacciones/visitas
+        await tx.$executeRaw`DELETE FROM propiedades WHERE tenant_id = ${tid}::uuid`;
+        // 3. clientes (remaining cliente_propiedades already gone via step 2 cascade)
+        await tx.$executeRaw`DELETE FROM clientes WHERE tenant_id = ${tid}::uuid`;
+        // 4. sessions before users
+        await tx.$executeRaw`DELETE FROM sessions WHERE tenant_id = ${tid}::uuid`;
+        // 5. users
+        await tx.$executeRaw`DELETE FROM users WHERE tenant_id = ${tid}::uuid`;
+        // 6. config tables (Prisma schema says CASCADE but DB constraint may differ)
+        await tx.$executeRaw`DELETE FROM config_seguridad WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM config_integraciones WHERE tenant_id = ${tid}::uuid`;
+        await tx.$executeRaw`DELETE FROM config_portal WHERE tenant_id = ${tid}::uuid`;
+        // 7. tenant
+        await tx.tenant.delete({ where: { id } });
+      },
+      { timeout: 30000 },
+    );
   }
 }

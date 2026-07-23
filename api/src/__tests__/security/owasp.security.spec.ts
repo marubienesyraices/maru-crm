@@ -31,7 +31,9 @@ describe('OWASP Top 10 — Security tests', () => {
 
     app = module.createNestApplication();
     app.getHttpAdapter().getInstance().disable('x-powered-by');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     await app.init();
   });
 
@@ -43,9 +45,7 @@ describe('OWASP Top 10 — Security tests', () => {
 
   describe('A01 — Broken Access Control', () => {
     it('should reject unauthenticated requests to protected routes', async () => {
-      await request(app.getHttpServer())
-        .get('/api/propiedades')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/propiedades').expect(401);
     });
 
     it('should reject requests with malformed JWT', async () => {
@@ -68,11 +68,7 @@ describe('OWASP Top 10 — Security tests', () => {
 
     it('should not expose admin endpoints without ADMIN role', async () => {
       // Without auth, admin routes return 401 not 200
-      const adminRoutes = [
-        '/api/tenants',
-        '/api/bi/agentes',
-        '/api/campanas',
-      ];
+      const adminRoutes = ['/api/tenants', '/api/bi/agentes', '/api/campanas'];
       for (const route of adminRoutes) {
         const res = await request(app.getHttpServer()).get(route);
         expect([401, 403]).toContain(res.status);
@@ -105,7 +101,9 @@ describe('OWASP Top 10 — Security tests', () => {
         .set('Authorization', `Bearer ${token}`);
 
       if (res.status === 200) {
-        const users = Array.isArray(res.body) ? res.body : (res.body.data ?? []);
+        const users = Array.isArray(res.body)
+          ? res.body
+          : (res.body.data ?? []);
         for (const u of users) {
           expect(u.password_hash).toBeUndefined();
           expect(u.password).toBeUndefined();
@@ -138,7 +136,7 @@ describe('OWASP Top 10 — Security tests', () => {
       const sqlPayloads = [
         "' OR '1'='1",
         "'; DROP TABLE users; --",
-        "1 UNION SELECT * FROM users --",
+        '1 UNION SELECT * FROM users --',
         "' OR 1=1 --",
       ];
 
@@ -187,8 +185,9 @@ describe('OWASP Top 10 — Security tests', () => {
 
   describe('A05 — Security Misconfiguration', () => {
     it('should not expose stack traces in error responses', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/nonexistent-route-xyz');
+      const res = await request(app.getHttpServer()).get(
+        '/api/nonexistent-route-xyz',
+      );
 
       expect(res.status).toBe(404);
       expect(res.body.stack).toBeUndefined();
@@ -212,10 +211,14 @@ describe('OWASP Top 10 — Security tests', () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pkg = require('../../../package.json');
       // Ensure critical packages are at minimum safe versions
-      const bcryptVersion = parseInt(pkg.dependencies['bcrypt']?.replace(/[^0-9]/g, '') ?? '0');
+      const bcryptVersion = parseInt(
+        pkg.dependencies['bcrypt']?.replace(/[^0-9]/g, '') ?? '0',
+      );
       expect(bcryptVersion).toBeGreaterThanOrEqual(5);
 
-      const nestVersion = parseInt(pkg.dependencies['@nestjs/core']?.replace(/[^0-9]/g, '') ?? '0');
+      const nestVersion = parseInt(
+        pkg.dependencies['@nestjs/core']?.replace(/[^0-9]/g, '') ?? '0',
+      );
       expect(nestVersion).toBeGreaterThanOrEqual(10);
     });
   });
@@ -224,7 +227,10 @@ describe('OWASP Top 10 — Security tests', () => {
 
   describe('A07 — Identification and Authentication Failures', () => {
     it('should block account after 5 failed login attempts', async () => {
-      const badCreds = { email: `brute-${Date.now()}@test.com`, password: 'wrongpass' };
+      const badCreds = {
+        email: `brute-${Date.now()}@test.com`,
+        password: 'wrongpass',
+      };
 
       // First attempt returns 401 (user not found), not 429
       const firstRes = await request(app.getHttpServer())
@@ -242,8 +248,12 @@ describe('OWASP Top 10 — Security tests', () => {
 
     it('should not accept JWT with none algorithm', async () => {
       // JWT with alg:none exploit
-      const header  = Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url');
-      const payload = Buffer.from('{"sub":"admin","rol":"SUPER_ADMIN","exp":9999999999}').toString('base64url');
+      const header = Buffer.from('{"alg":"none","typ":"JWT"}').toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        '{"sub":"admin","rol":"SUPER_ADMIN","exp":9999999999}',
+      ).toString('base64url');
       const fakeJwt = `${header}.${payload}.`;
 
       const res = await request(app.getHttpServer())
@@ -264,15 +274,11 @@ describe('OWASP Top 10 — Security tests', () => {
 
   describe('A09 — Security Logging and Monitoring', () => {
     it('audit_logs endpoint should require authentication', async () => {
-      await request(app.getHttpServer())
-        .get('/api/audit')
-        .expect(401);
+      await request(app.getHttpServer()).get('/api/audit').expect(401);
     });
 
     it('health endpoint should be publicly accessible', async () => {
-      await request(app.getHttpServer())
-        .get('/api/health')
-        .expect(200);
+      await request(app.getHttpServer()).get('/api/health').expect(200);
     });
   });
 });

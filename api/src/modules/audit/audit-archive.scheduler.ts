@@ -35,7 +35,11 @@ export class AuditArchiveScheduler {
 
     let archiveUrl: string | null = null;
     try {
-      archiveUrl = await this.storage.upload(buffer, `audit/${filename}`, 'application/json');
+      archiveUrl = await this.storage.upload(
+        buffer,
+        `audit/${filename}`,
+        'application/json',
+      );
     } catch (err) {
       this.logger.error(`Failed to upload audit archive: ${err}`);
       return;
@@ -44,9 +48,15 @@ export class AuditArchiveScheduler {
     const ids = logs.map((l) => l.id);
     await this.prisma.auditLog.updateMany({
       where: { id: { in: ids } },
-      data: { archivado: true, archivado_url: archiveUrl, archivado_at: new Date() },
+      data: {
+        archivado: true,
+        archivado_url: archiveUrl,
+        archivado_at: new Date(),
+      },
     });
 
-    this.logger.log(`📦 Audit archive: ${logs.length} registros archivados → ${filename}`);
+    this.logger.log(
+      `📦 Audit archive: ${logs.length} registros archivados → ${filename}`,
+    );
   }
 }

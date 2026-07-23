@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrigenCliente, TipoPropiedad, TipoGestion } from '@prisma/client';
 import { CreateClienteDto, UpdateClienteDto, FiltrosClienteDto } from './dto';
@@ -13,7 +17,9 @@ export class ClientesService {
         where: { tenant_id: tenantId, email: dto.email },
       });
       if (existing) {
-        throw new ConflictException(`Ya existe un contacto con email ${dto.email}: ${existing.nombre}`);
+        throw new ConflictException(
+          `Ya existe un contacto con email ${dto.email}: ${existing.nombre}`,
+        );
       }
     }
 
@@ -51,7 +57,8 @@ export class ClientesService {
     const where: any = { tenant_id: tenantId };
     if (filtros.origen) where.origen = filtros.origen;
     if (filtros.agenteId) where.agente_id = filtros.agenteId;
-    if (filtros.esPropietario !== undefined) where.es_propietario = filtros.esPropietario;
+    if (filtros.esPropietario !== undefined)
+      where.es_propietario = filtros.esPropietario;
 
     if (filtros.busqueda) {
       where.OR = [
@@ -76,7 +83,10 @@ export class ClientesService {
       this.prisma.cliente.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(tenantId: string, id: string) {
@@ -86,12 +96,29 @@ export class ClientesService {
         agente: { select: { id: true, nombre: true, email: true } },
         intereses: {
           include: {
-            propiedad: { select: { id: true, titulo: true, codigo: true, tipo: true, estado: true, precio_venta: true } },
+            propiedad: {
+              select: {
+                id: true,
+                titulo: true,
+                codigo: true,
+                tipo: true,
+                estado: true,
+                precio_venta: true,
+              },
+            },
           },
           orderBy: { created_at: 'desc' },
         },
         propiedades: {
-          select: { id: true, titulo: true, codigo: true, tipo: true, estado: true, precio_venta: true, precio_renta: true },
+          select: {
+            id: true,
+            titulo: true,
+            codigo: true,
+            tipo: true,
+            estado: true,
+            precio_venta: true,
+            precio_renta: true,
+          },
           orderBy: { created_at: 'desc' },
         },
       },
@@ -107,7 +134,10 @@ export class ClientesService {
       const existing = await this.prisma.cliente.findFirst({
         where: { tenant_id: tenantId, email: dto.email, NOT: { id } },
       });
-      if (existing) throw new ConflictException(`Email ${dto.email} ya registrado para: ${existing.nombre}`);
+      if (existing)
+        throw new ConflictException(
+          `Email ${dto.email} ya registrado para: ${existing.nombre}`,
+        );
     }
 
     return this.prisma.cliente.update({
@@ -139,13 +169,22 @@ export class ClientesService {
   async getStats(tenantId: string) {
     const [total, propietarios, porOrigenRaw] = await Promise.all([
       this.prisma.cliente.count({ where: { tenant_id: tenantId } }),
-      this.prisma.cliente.count({ where: { tenant_id: tenantId, es_propietario: true } }),
-      this.prisma.cliente.groupBy({ by: ['origen'], where: { tenant_id: tenantId }, _count: true }),
+      this.prisma.cliente.count({
+        where: { tenant_id: tenantId, es_propietario: true },
+      }),
+      this.prisma.cliente.groupBy({
+        by: ['origen'],
+        where: { tenant_id: tenantId },
+        _count: true,
+      }),
     ]);
     return {
       total,
       propietarios,
-      porOrigen: porOrigenRaw.map((r) => ({ origen: r.origen, _count: (r._count as any)._all ?? r._count })),
+      porOrigen: porOrigenRaw.map((r) => ({
+        origen: r.origen,
+        _count: (r._count as any)._all ?? r._count,
+      })),
     };
   }
 
@@ -155,17 +194,25 @@ export class ClientesService {
     });
     if (!cliente) throw new NotFoundException('Contacto no encontrado');
 
-    if (!cliente.tipo_interes && !cliente.gestion_interes && !cliente.presupuesto_max &&
-        !cliente.zona_interes && !cliente.habitaciones_min) {
+    if (
+      !cliente.tipo_interes &&
+      !cliente.gestion_interes &&
+      !cliente.presupuesto_max &&
+      !cliente.zona_interes &&
+      !cliente.habitaciones_min
+    ) {
       return [];
     }
 
     const andConditions: any[] = [];
 
-    if (cliente.tipo_interes) andConditions.push({ tipo: cliente.tipo_interes });
+    if (cliente.tipo_interes)
+      andConditions.push({ tipo: cliente.tipo_interes });
 
     if (cliente.gestion_interes && cliente.gestion_interes !== 'AMBAS') {
-      andConditions.push({ gestion: { in: [cliente.gestion_interes, 'AMBAS'] } });
+      andConditions.push({
+        gestion: { in: [cliente.gestion_interes, 'AMBAS'] },
+      });
     }
 
     if (cliente.habitaciones_min) {
@@ -185,8 +232,15 @@ export class ClientesService {
       andConditions.push({
         OR: [
           { zona: { contains: cliente.zona_interes, mode: 'insensitive' } },
-          { municipio: { contains: cliente.zona_interes, mode: 'insensitive' } },
-          { departamento: { contains: cliente.zona_interes, mode: 'insensitive' } },
+          {
+            municipio: { contains: cliente.zona_interes, mode: 'insensitive' },
+          },
+          {
+            departamento: {
+              contains: cliente.zona_interes,
+              mode: 'insensitive',
+            },
+          },
         ],
       });
     }

@@ -1,9 +1,19 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { CreateCampanaDto, CreatePlantillaDto, UpdateCampanaDto, UpdatePlantillaDto } from './dto';
+import {
+  CreateCampanaDto,
+  CreatePlantillaDto,
+  UpdateCampanaDto,
+  UpdatePlantillaDto,
+} from './dto';
 
 function extractVariables(html: string): string[] {
   const matches = html.matchAll(/\{\{(\w+)\}\}/g);
@@ -13,7 +23,10 @@ function extractVariables(html: string): string[] {
 }
 
 function interpolate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+  return template.replace(
+    /\{\{(\w+)\}\}/g,
+    (_, key) => vars[key] ?? `{{${key}}}`,
+  );
 }
 
 const ROL_LABELS: Record<string, string> = {
@@ -33,7 +46,9 @@ export class CampanasService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {
-    this.appUrl = (config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    this.appUrl = (
+      config.get<string>('APP_URL') ?? 'http://localhost:3000'
+    ).replace(/\/$/, '');
   }
 
   // ─── Plantillas ───────────────────────────────────────────────
@@ -42,12 +57,21 @@ export class CampanasService {
     return this.prisma.emailPlantilla.findMany({
       where: { tenant_id: tenantId },
       orderBy: { created_at: 'desc' },
-      select: { id: true, nombre: true, asunto: true, variables: true, created_at: true, updated_at: true },
+      select: {
+        id: true,
+        nombre: true,
+        asunto: true,
+        variables: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
   }
 
   async getPlantilla(tenantId: string, id: string) {
-    const p = await this.prisma.emailPlantilla.findFirst({ where: { id, tenant_id: tenantId } });
+    const p = await this.prisma.emailPlantilla.findFirst({
+      where: { id, tenant_id: tenantId },
+    });
     if (!p) throw new NotFoundException('Plantilla no encontrada');
     return p;
   }
@@ -55,11 +79,23 @@ export class CampanasService {
   async createPlantilla(tenantId: string, dto: CreatePlantillaDto) {
     const variables = extractVariables(dto.asunto + ' ' + dto.cuerpo_html);
     return this.prisma.emailPlantilla.create({
-      data: { id: randomUUID(), tenant_id: tenantId, nombre: dto.nombre, asunto: dto.asunto, cuerpo_html: dto.cuerpo_html, variables },
+      data: {
+        id: randomUUID(),
+        tenant_id: tenantId,
+        nombre: dto.nombre,
+        asunto: dto.asunto,
+        cuerpo_html: dto.cuerpo_html,
+        variables,
+      },
     });
   }
 
-  async updatePlantilla(tenantId: string, id: string, dto: UpdatePlantillaDto, changedById?: string) {
+  async updatePlantilla(
+    tenantId: string,
+    id: string,
+    dto: UpdatePlantillaDto,
+    changedById?: string,
+  ) {
     const current = await this.getPlantilla(tenantId, id);
     const data: Record<string, unknown> = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre;
@@ -75,7 +111,9 @@ export class CampanasService {
         changed_by: changedById ?? null,
       });
       data.cuerpo_html = dto.cuerpo_html;
-      data.variables = extractVariables((dto.asunto ?? '') + ' ' + dto.cuerpo_html);
+      data.variables = extractVariables(
+        (dto.asunto ?? '') + ' ' + dto.cuerpo_html,
+      );
       data.version = ((current as any).version ?? 1) + 1;
       data.historial = historial.slice(-10); // keep last 10 versions
     }
@@ -84,13 +122,26 @@ export class CampanasService {
 
   async deletePlantilla(tenantId: string, id: string) {
     await this.getPlantilla(tenantId, id);
-    const inUse = await this.prisma.emailCampana.count({ where: { plantilla_id: id, tenant_id: tenantId } });
-    if (inUse > 0) throw new BadRequestException('La plantilla está en uso por una o más campañas');
+    const inUse = await this.prisma.emailCampana.count({
+      where: { plantilla_id: id, tenant_id: tenantId },
+    });
+    if (inUse > 0)
+      throw new BadRequestException(
+        'La plantilla está en uso por una o más campañas',
+      );
     return this.prisma.emailPlantilla.delete({ where: { id } });
   }
 
-  previewPlantilla(plantilla: { asunto: string; cuerpo_html: string }, vars: Record<string, string>) {
-    const merged = { nombre: 'Juan Pérez', email: 'agente@ejemplo.com', rol: 'Agente Senior', ...vars };
+  previewPlantilla(
+    plantilla: { asunto: string; cuerpo_html: string },
+    vars: Record<string, string>,
+  ) {
+    const merged = {
+      nombre: 'Juan Pérez',
+      email: 'agente@ejemplo.com',
+      rol: 'Agente Senior',
+      ...vars,
+    };
     return {
       asunto: interpolate(plantilla.asunto, merged),
       cuerpo_html: this.wrapEmail(interpolate(plantilla.cuerpo_html, merged)),
@@ -116,13 +167,20 @@ export class CampanasService {
       where: { campana_id: { in: ids }, abierto_at: { not: null } },
       _count: { id: true },
     });
-    const statsMap = Object.fromEntries(stats.map((s) => [s.campana_id!, s._count.id]));
-    const abiertosMap = Object.fromEntries(abiertos.map((s) => [s.campana_id!, s._count.id]));
+    const statsMap = Object.fromEntries(
+      stats.map((s) => [s.campana_id!, s._count.id]),
+    );
+    const abiertosMap = Object.fromEntries(
+      abiertos.map((s) => [s.campana_id!, s._count.id]),
+    );
 
     return campanas.map((c) => ({
       ...c,
       total_abiertos: abiertosMap[c.id] ?? 0,
-      tasa_apertura: c.total_enviados > 0 ? Math.round(((abiertosMap[c.id] ?? 0) / c.total_enviados) * 100) : 0,
+      tasa_apertura:
+        c.total_enviados > 0
+          ? Math.round(((abiertosMap[c.id] ?? 0) / c.total_enviados) * 100)
+          : 0,
     }));
   }
 
@@ -132,8 +190,17 @@ export class CampanasService {
       include: { plantilla: true },
     });
     if (!c) throw new NotFoundException('Campaña no encontrada');
-    const abiertos = await this.prisma.emailEvento.count({ where: { campana_id: id, abierto_at: { not: null } } });
-    return { ...c, total_abiertos: abiertos, tasa_apertura: c.total_enviados > 0 ? Math.round((abiertos / c.total_enviados) * 100) : 0 };
+    const abiertos = await this.prisma.emailEvento.count({
+      where: { campana_id: id, abierto_at: { not: null } },
+    });
+    return {
+      ...c,
+      total_abiertos: abiertos,
+      tasa_apertura:
+        c.total_enviados > 0
+          ? Math.round((abiertos / c.total_enviados) * 100)
+          : 0,
+    };
   }
 
   async createCampana(tenantId: string, dto: CreateCampanaDto) {
@@ -153,35 +220,63 @@ export class CampanasService {
 
   async updateCampana(tenantId: string, id: string, dto: UpdateCampanaDto) {
     const c = await this.getCampana(tenantId, id);
-    if (c.estado !== 'BORRADOR') throw new BadRequestException('Solo se pueden editar campañas en estado BORRADOR');
+    if (c.estado !== 'BORRADOR')
+      throw new BadRequestException(
+        'Solo se pueden editar campañas en estado BORRADOR',
+      );
     if (dto.plantilla_id) await this.getPlantilla(tenantId, dto.plantilla_id);
     const data: Record<string, unknown> = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre;
     if (dto.plantilla_id !== undefined) data.plantilla_id = dto.plantilla_id;
     if (dto.filtro_rol !== undefined) data.filtro_rol = dto.filtro_rol;
-    if (dto.variables_data !== undefined) data.variables_data = dto.variables_data;
-    return this.prisma.emailCampana.update({ where: { id }, data, include: { plantilla: { select: { nombre: true } } } });
+    if (dto.variables_data !== undefined)
+      data.variables_data = dto.variables_data;
+    return this.prisma.emailCampana.update({
+      where: { id },
+      data,
+      include: { plantilla: { select: { nombre: true } } },
+    });
   }
 
   async enviarCampana(tenantId: string, id: string) {
     const campana = await this.getCampana(tenantId, id);
-    if (campana.estado !== 'BORRADOR') throw new BadRequestException('La campaña ya fue enviada o está en proceso');
+    if (campana.estado !== 'BORRADOR')
+      throw new BadRequestException(
+        'La campaña ya fue enviada o está en proceso',
+      );
 
-    await this.prisma.emailCampana.update({ where: { id }, data: { estado: 'ENVIANDO' } });
+    await this.prisma.emailCampana.update({
+      where: { id },
+      data: { estado: 'ENVIANDO' },
+    });
 
-    const filtro: Record<string, unknown> = { tenant_id: tenantId, estado: 'ACTIVO' };
+    const filtro: Record<string, unknown> = {
+      tenant_id: tenantId,
+      estado: 'ACTIVO',
+    };
     if (campana.filtro_rol && (campana.filtro_rol as string[]).length > 0) {
       filtro.rol = { in: campana.filtro_rol };
     }
 
-    const usuarios = await this.prisma.user.findMany({ where: filtro as never, select: { id: true, nombre: true, email: true, rol: true } });
+    const usuarios = await this.prisma.user.findMany({
+      where: filtro as never,
+      select: { id: true, nombre: true, email: true, rol: true },
+    });
 
     if (usuarios.length === 0) {
-      await this.prisma.emailCampana.update({ where: { id }, data: { estado: 'BORRADOR' } });
-      throw new BadRequestException('No hay destinatarios para el filtro configurado');
+      await this.prisma.emailCampana.update({
+        where: { id },
+        data: { estado: 'BORRADOR' },
+      });
+      throw new BadRequestException(
+        'No hay destinatarios para el filtro configurado',
+      );
     }
 
-    const campanaVars = (campana.variables_data ?? {}) as Record<string, string>;
+    const campanaVars = (campana.variables_data ?? {}) as Record<
+      string,
+      string
+    >;
     let enviados = 0;
 
     for (const user of usuarios) {
@@ -193,7 +288,10 @@ export class CampanasService {
       };
 
       const asunto = interpolate(campana.plantilla.asunto, recipientVars);
-      const bodyHtml = interpolate(campana.plantilla.cuerpo_html, recipientVars);
+      const bodyHtml = interpolate(
+        campana.plantilla.cuerpo_html,
+        recipientVars,
+      );
 
       try {
         const eventId = randomUUID();
@@ -213,12 +311,16 @@ export class CampanasService {
         if (this.email.isConfigured) {
           await this.email.sendHtml({ to: user.email, subject: asunto, html });
         } else {
-          this.logger.warn(`Email not configured — skipping send to ${user.email}`);
+          this.logger.warn(
+            `Email not configured — skipping send to ${user.email}`,
+          );
         }
 
         enviados++;
       } catch (err) {
-        this.logger.error(`Failed to send campaign email to ${user.email}: ${err}`);
+        this.logger.error(
+          `Failed to send campaign email to ${user.email}: ${err}`,
+        );
       }
     }
 

@@ -23,7 +23,9 @@ export class EmailTrackingController {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
     try {
       this.frontendHost = new URL(this.frontendUrl).host;
     } catch {
@@ -36,35 +38,49 @@ export class EmailTrackingController {
     try {
       const parsed = new URL(url);
       // Only allow http/https schemes
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+        return false;
       // Allow our frontend host or localhost (for development)
-      return parsed.host === this.frontendHost || parsed.hostname === 'localhost';
+      return (
+        parsed.host === this.frontendHost || parsed.hostname === 'localhost'
+      );
     } catch {
       return false;
     }
   }
 
   @Get(':id/open.gif')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async trackOpen(@Param('id') id: string, @Res() res: any) {
     // Fire-and-forget: record first open without blocking response
     this.prisma.emailEvento
-      .updateMany({ where: { id, abierto_at: null }, data: { abierto_at: new Date() } })
+      .updateMany({
+        where: { id, abierto_at: null },
+        data: { abierto_at: new Date() },
+      })
       .catch((err) => this.logger.warn(`Track open failed [${id}]: ${err}`));
 
-    res.set({ 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate' });
+    res.set({
+      'Content-Type': 'image/gif',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    });
     res.send(PIXEL_GIF);
   }
 
   @Get(':id/click')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async trackClick(@Param('id') id: string, @Query('url') url: string, @Res() res: any) {
+  async trackClick(
+    @Param('id') id: string,
+    @Query('url') url: string,
+    @Res() res: any,
+  ) {
     const isSafe = this.isSafeRedirectUrl(url);
     const target = isSafe ? url : this.frontendUrl;
 
     if (isSafe) {
       this.prisma.emailEvento
-        .updateMany({ where: { id, primer_clic_at: null }, data: { primer_clic_at: new Date() } })
+        .updateMany({
+          where: { id, primer_clic_at: null },
+          data: { primer_clic_at: new Date() },
+        })
         .catch((err) => this.logger.warn(`Track click failed [${id}]: ${err}`));
     }
 

@@ -1,10 +1,30 @@
 import {
-  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
-  UseGuards, Req,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PropiedadesService } from './propiedades.service';
-import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
+import {
+  CreatePropiedadDto,
+  UpdatePropiedadDto,
+  CambiarEstadoDto,
+  FiltrosPropiedadDto,
+  PrecioSugeridoQueryDto,
+} from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PlanGuard } from '../../common/guards/plan.guard';
@@ -28,7 +48,11 @@ export class PropiedadesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar propiedades con filtros' })
-  findAll(@CurrentUser() user: any, @Query() filtros: FiltrosPropiedadDto, @Req() req: any) {
+  findAll(
+    @CurrentUser() user: any,
+    @Query() filtros: FiltrosPropiedadDto,
+    @Req() req: any,
+  ) {
     return this.service.findAll(user.tenantId, filtros, req.visibleUserIds);
   }
 
@@ -48,32 +72,50 @@ export class PropiedadesController {
       'Fallback: comparables del mismo departamento. ' +
       'Requiere extensión PostGIS instalada en PostgreSQL.',
   })
-  getPrecioSugerido(@CurrentUser() user: any, @Query() dto: PrecioSugeridoQueryDto) {
+  getPrecioSugerido(
+    @CurrentUser() user: any,
+    @Query() dto: PrecioSugeridoQueryDto,
+  ) {
     return this.service.getPrecioSugerido(user.tenantId, dto);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener propiedad por ID con imágenes y documentos' })
+  @ApiOperation({
+    summary: 'Obtener propiedad por ID con imágenes y documentos',
+  })
   findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.service.findOne(user.tenantId, id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar datos de una propiedad' })
-  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdatePropiedadDto) {
+  update(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdatePropiedadDto,
+  ) {
     return this.service.update(user.tenantId, id, dto);
   }
 
   @Patch(':id/estado')
-  @ApiOperation({ summary: 'Cambiar estado (BORRADOR → DISPONIBLE → VENDIDA…)' })
-  cambiarEstado(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: CambiarEstadoDto) {
+  @ApiOperation({
+    summary: 'Cambiar estado (BORRADOR → DISPONIBLE → VENDIDA…)',
+  })
+  cambiarEstado(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: CambiarEstadoDto,
+  ) {
     return this.service.cambiarEstado(user.tenantId, id, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Eliminar propiedad (solo ADMIN). Requiere estado BORRADOR o SUSPENDIDA sin tramites.' })
+  @ApiOperation({
+    summary:
+      'Eliminar propiedad (solo ADMIN). Requiere estado BORRADOR o SUSPENDIDA sin tramites.',
+  })
   async delete(@CurrentUser() user: any, @Param('id') id: string) {
     await this.service.delete(user.tenantId, id);
     return { message: 'Propiedad eliminada correctamente' };

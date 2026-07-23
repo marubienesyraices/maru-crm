@@ -23,10 +23,37 @@ export interface ImportResult {
 
 // ─── Constants ────────────────────────────────────────────────
 
-const ORIGENES_VALIDOS = ['PORTAL_WEB', 'REFERIDO', 'LLAMADA', 'WHATSAPP', 'REDES_SOCIALES', 'FERIA', 'OTRO'];
-const TIPOS_VALIDOS = ['CASA', 'APARTAMENTO', 'TERRENO', 'LOCAL_COMERCIAL', 'OFICINA', 'BODEGA', 'FINCA', 'EDIFICIO', 'OTRO'];
+const ORIGENES_VALIDOS = [
+  'PORTAL_WEB',
+  'REFERIDO',
+  'LLAMADA',
+  'WHATSAPP',
+  'REDES_SOCIALES',
+  'FERIA',
+  'OTRO',
+];
+const TIPOS_VALIDOS = [
+  'CASA',
+  'APARTAMENTO',
+  'TERRENO',
+  'LOCAL_COMERCIAL',
+  'OFICINA',
+  'BODEGA',
+  'FINCA',
+  'EDIFICIO',
+  'OTRO',
+];
 const GESTIONES_VALIDAS = ['VENTA', 'RENTA', 'AMBAS'];
-const MONEDAS_VALIDAS = ['GTQ', 'USD', 'EUR', 'MXN', 'HNL', 'NIO', 'CRC', 'SVC'];
+const MONEDAS_VALIDAS = [
+  'GTQ',
+  'USD',
+  'EUR',
+  'MXN',
+  'HNL',
+  'NIO',
+  'CRC',
+  'SVC',
+];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_INVALID_RE = /[a-df-wyzA-DF-WYZ]/; // letters that aren't part of any phone format
 const DPI_RE = /^\d{13}$/;
@@ -54,8 +81,11 @@ function decodeCSV(buf: Buffer): string {
 // ─── Column normalization ─────────────────────────────────────
 
 function norm(s: string): string {
-  return String(s || '').trim().toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]/g, '_');
 }
 
@@ -66,85 +96,167 @@ function sanitize(v: any): string {
   return String(v ?? '')
     .normalize('NFC')
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    .replace(/[^\S ]+/g, ' ')   // replace tabs / non-breaking spaces / etc. with regular space
-    .replace(/ {2,}/g, ' ')     // collapse multiple spaces
+    .replace(/[^\S ]+/g, ' ') // replace tabs / non-breaking spaces / etc. with regular space
+    .replace(/ {2,}/g, ' ') // collapse multiple spaces
     .trim();
 }
 
 // Map normalized column names to canonical field names
 const CLIENTE_COLS: Record<string, string> = {
   // nombre
-  nombre: 'nombre', name: 'nombre', nombre_completo: 'nombre',
-  nombre_apellido: 'nombre', nombre_y_apellidos: 'nombre', nombre_apellidos: 'nombre',
-  cliente: 'nombre', contact: 'nombre',
+  nombre: 'nombre',
+  name: 'nombre',
+  nombre_completo: 'nombre',
+  nombre_apellido: 'nombre',
+  nombre_y_apellidos: 'nombre',
+  nombre_apellidos: 'nombre',
+  cliente: 'nombre',
+  contact: 'nombre',
   // email
-  email: 'email', correo: 'email', correo_electronico: 'email', e_mail: 'email',
+  email: 'email',
+  correo: 'email',
+  correo_electronico: 'email',
+  e_mail: 'email',
   // telefono
-  telefono: 'telefono', phone: 'telefono', tel: 'telefono', movil: 'telefono',
-  celular: 'telefono', cel: 'telefono', whatsapp: 'telefono', numero: 'telefono',
+  telefono: 'telefono',
+  phone: 'telefono',
+  tel: 'telefono',
+  movil: 'telefono',
+  celular: 'telefono',
+  cel: 'telefono',
+  whatsapp: 'telefono',
+  numero: 'telefono',
   // dpi
-  dpi: 'dpi', cedula: 'dpi', id: 'dpi', documento: 'dpi', num_dpi: 'dpi',
+  dpi: 'dpi',
+  cedula: 'dpi',
+  id: 'dpi',
+  documento: 'dpi',
+  num_dpi: 'dpi',
   // origen
-  origen: 'origen', fuente: 'origen', source: 'origen', canal: 'origen',
+  origen: 'origen',
+  fuente: 'origen',
+  source: 'origen',
+  canal: 'origen',
   // notas
-  notas: 'notas', notes: 'notas', comentarios: 'notas', observaciones: 'notas',
+  notas: 'notas',
+  notes: 'notas',
+  comentarios: 'notas',
+  observaciones: 'notas',
 };
 
 const PROPIEDAD_COLS: Record<string, string> = {
   // titulo
-  titulo: 'titulo', title: 'titulo', nombre: 'titulo', propiedad: 'titulo',
-  nombre_propiedad: 'titulo', titulo_propiedad: 'titulo',
+  titulo: 'titulo',
+  title: 'titulo',
+  nombre: 'titulo',
+  propiedad: 'titulo',
+  nombre_propiedad: 'titulo',
+  titulo_propiedad: 'titulo',
   // tipo
-  tipo: 'tipo', type: 'tipo', tipo_propiedad: 'tipo', tipo_inmueble: 'tipo',
+  tipo: 'tipo',
+  type: 'tipo',
+  tipo_propiedad: 'tipo',
+  tipo_inmueble: 'tipo',
   // gestion
-  gestion: 'gestion', operacion: 'gestion', tipo_operacion: 'gestion',
-  tipo_gestion: 'gestion', modalidad: 'gestion',
+  gestion: 'gestion',
+  operacion: 'gestion',
+  tipo_operacion: 'gestion',
+  tipo_gestion: 'gestion',
+  modalidad: 'gestion',
   // precio venta
-  precio_venta: 'precio_venta', precio: 'precio_venta', venta: 'precio_venta',
-  sale_price: 'precio_venta', precio_de_venta: 'precio_venta',
-  valor_venta: 'precio_venta', precio_lista: 'precio_venta',
+  precio_venta: 'precio_venta',
+  precio: 'precio_venta',
+  venta: 'precio_venta',
+  sale_price: 'precio_venta',
+  precio_de_venta: 'precio_venta',
+  valor_venta: 'precio_venta',
+  precio_lista: 'precio_venta',
   // precio renta
-  precio_renta: 'precio_renta', renta: 'precio_renta', rent: 'precio_renta',
-  rent_price: 'precio_renta', precio_de_renta: 'precio_renta',
-  alquiler: 'precio_renta', precio_alquiler: 'precio_renta', mensualidad: 'precio_renta',
+  precio_renta: 'precio_renta',
+  renta: 'precio_renta',
+  rent: 'precio_renta',
+  rent_price: 'precio_renta',
+  precio_de_renta: 'precio_renta',
+  alquiler: 'precio_renta',
+  precio_alquiler: 'precio_renta',
+  mensualidad: 'precio_renta',
   // moneda
-  moneda: 'moneda', currency: 'moneda', divisa: 'moneda',
+  moneda: 'moneda',
+  currency: 'moneda',
+  divisa: 'moneda',
   // departamento
-  departamento: 'departamento', department: 'departamento', depto: 'departamento',
-  estado: 'departamento', provincia: 'departamento',
+  departamento: 'departamento',
+  department: 'departamento',
+  depto: 'departamento',
+  estado: 'departamento',
+  provincia: 'departamento',
   // municipio
-  municipio: 'municipio', ciudad: 'municipio', city: 'municipio',
-  ciudad_municipio: 'municipio', localidad: 'municipio',
+  municipio: 'municipio',
+  ciudad: 'municipio',
+  city: 'municipio',
+  ciudad_municipio: 'municipio',
+  localidad: 'municipio',
   // zona
-  zona: 'zona', zone: 'zona', colonia: 'zona', sector: 'zona',
-  barrio: 'zona', urbanizacion: 'zona',
+  zona: 'zona',
+  zone: 'zona',
+  colonia: 'zona',
+  sector: 'zona',
+  barrio: 'zona',
+  urbanizacion: 'zona',
   // habitaciones
-  habitaciones: 'habitaciones', bedrooms: 'habitaciones', cuartos: 'habitaciones',
-  rooms: 'habitaciones', num_habitaciones: 'habitaciones',
-  numero_habitaciones: 'habitaciones', dormitorios: 'habitaciones',
+  habitaciones: 'habitaciones',
+  bedrooms: 'habitaciones',
+  cuartos: 'habitaciones',
+  rooms: 'habitaciones',
+  num_habitaciones: 'habitaciones',
+  numero_habitaciones: 'habitaciones',
+  dormitorios: 'habitaciones',
   // banos
-  banos: 'banos', bathrooms: 'banos', num_banos: 'banos',
-  numero_banos: 'banos', sanitarios: 'banos',
+  banos: 'banos',
+  bathrooms: 'banos',
+  num_banos: 'banos',
+  numero_banos: 'banos',
+  sanitarios: 'banos',
   // area
-  area_construccion_m2: 'area_construccion_m2', area: 'area_construccion_m2',
-  construccion_m2: 'area_construccion_m2', m2: 'area_construccion_m2',
-  area_m2: 'area_construccion_m2', area_total: 'area_construccion_m2',
-  m2_construccion: 'area_construccion_m2', metros_cuadrados: 'area_construccion_m2',
+  area_construccion_m2: 'area_construccion_m2',
+  area: 'area_construccion_m2',
+  construccion_m2: 'area_construccion_m2',
+  m2: 'area_construccion_m2',
+  area_m2: 'area_construccion_m2',
+  area_total: 'area_construccion_m2',
+  m2_construccion: 'area_construccion_m2',
+  metros_cuadrados: 'area_construccion_m2',
   // descripcion
-  descripcion: 'descripcion', description: 'descripcion', detalle: 'descripcion',
-  detalles: 'descripcion', descripcion_propiedad: 'descripcion',
+  descripcion: 'descripcion',
+  description: 'descripcion',
+  detalle: 'descripcion',
+  detalles: 'descripcion',
+  descripcion_propiedad: 'descripcion',
   // parqueos
-  parqueos: 'parqueos', parking: 'parqueos', estacionamiento: 'parqueos',
-  garaje: 'parqueos', garage: 'parqueos',
+  parqueos: 'parqueos',
+  parking: 'parqueos',
+  estacionamiento: 'parqueos',
+  garaje: 'parqueos',
+  garage: 'parqueos',
   // niveles
-  niveles: 'niveles', floors: 'niveles', pisos: 'niveles', plantas: 'niveles',
+  niveles: 'niveles',
+  floors: 'niveles',
+  pisos: 'niveles',
+  plantas: 'niveles',
   // año construccion
-  ano_construccion: 'ano_construccion', ano: 'ano_construccion', year: 'ano_construccion',
-  ano_de_construccion: 'ano_construccion', anio_construccion: 'ano_construccion',
-  year_built: 'ano_construccion', fecha_construccion: 'ano_construccion',
+  ano_construccion: 'ano_construccion',
+  ano: 'ano_construccion',
+  year: 'ano_construccion',
+  ano_de_construccion: 'ano_construccion',
+  anio_construccion: 'ano_construccion',
+  year_built: 'ano_construccion',
+  fecha_construccion: 'ano_construccion',
   // direccion
-  direccion: 'direccion', address: 'direccion', ubicacion: 'direccion',
-  dir: 'direccion', calle: 'direccion',
+  direccion: 'direccion',
+  address: 'direccion',
+  ubicacion: 'direccion',
+  dir: 'direccion',
+  calle: 'direccion',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -181,7 +293,10 @@ function worksheetToRows(ws: ExcelJS.Worksheet): Record<string, any>[] {
   return rows;
 }
 
-async function parseFile(buffer: Buffer, filename = ''): Promise<Record<string, any>[]> {
+async function parseFile(
+  buffer: Buffer,
+  filename = '',
+): Promise<Record<string, any>[]> {
   const wb = new ExcelJS.Workbook();
   let ws: ExcelJS.Worksheet | undefined;
   if (/\.csv$/i.test(filename)) {
@@ -195,7 +310,10 @@ async function parseFile(buffer: Buffer, filename = ''): Promise<Record<string, 
   return worksheetToRows(ws);
 }
 
-function mapRow(raw: Record<string, any>, colMap: Record<string, string>): Record<string, string> {
+function mapRow(
+  raw: Record<string, any>,
+  colMap: Record<string, string>,
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, val] of Object.entries(raw)) {
     const canonical = colMap[norm(key)];
@@ -205,14 +323,19 @@ function mapRow(raw: Record<string, any>, colMap: Record<string, string>): Recor
 }
 
 /** Returns column headers from the file that don't match any known alias. */
-function unknownColumns(rawRows: Record<string, any>[], colMap: Record<string, string>): string[] {
+function unknownColumns(
+  rawRows: Record<string, any>[],
+  colMap: Record<string, string>,
+): string[] {
   if (!rawRows.length) return [];
   return Object.keys(rawRows[0])
     .filter((k) => k.trim() && !colMap[norm(k)])
     .map((k) => k.trim());
 }
 
-function str(v: any): string { return sanitize(v); }
+function str(v: any): string {
+  return sanitize(v);
+}
 function num(v: any): number | undefined {
   const n = parseFloat(String(v ?? '').replace(/,/g, '.'));
   return isNaN(n) ? undefined : n;
@@ -230,11 +353,17 @@ export class ImportService {
 
   // ─── CLIENTES ───────────────────────────────────────────────
 
-  async importClientes(tenantId: string, buffer: Buffer, filename = ''): Promise<ImportResult> {
+  async importClientes(
+    tenantId: string,
+    buffer: Buffer,
+    filename = '',
+  ): Promise<ImportResult> {
     const rawRows = await parseFile(buffer, filename);
     if (!rawRows.length) throw new BadRequestException('El archivo está vacío');
     if (rawRows.length > MAX_CLIENTES) {
-      throw new BadRequestException(`Máximo ${MAX_CLIENTES} filas por importación`);
+      throw new BadRequestException(
+        `Máximo ${MAX_CLIENTES} filas por importación`,
+      );
     }
 
     const warnings: string[] = [];
@@ -242,15 +371,19 @@ export class ImportService {
     // Warn about unrecognized columns
     const ignored = unknownColumns(rawRows, CLIENTE_COLS);
     if (ignored.length) {
-      warnings.push(`Columnas no reconocidas (se ignoraron): ${ignored.join(', ')}`);
+      warnings.push(
+        `Columnas no reconocidas (se ignoraron): ${ignored.join(', ')}`,
+      );
     }
 
     // Prefetch existing emails for this tenant to detect duplicates fast
     const existingEmails = new Set(
-      (await this.prisma.cliente.findMany({
-        where: { tenant_id: tenantId, email: { not: null } },
-        select: { email: true },
-      })).map((c) => c.email!.toLowerCase()),
+      (
+        await this.prisma.cliente.findMany({
+          where: { tenant_id: tenantId, email: { not: null } },
+          select: { email: true },
+        })
+      ).map((c) => c.email!.toLowerCase()),
     );
 
     const errors: ImportError[] = [];
@@ -264,11 +397,19 @@ export class ImportService {
       // ── nombre (required, max 200) ──
       const nombre = str(row.nombre);
       if (!nombre) {
-        errors.push({ row: rowNum, campo: 'nombre', mensaje: 'El nombre es requerido' });
+        errors.push({
+          row: rowNum,
+          campo: 'nombre',
+          mensaje: 'El nombre es requerido',
+        });
         continue;
       }
       if (nombre.length > 200) {
-        errors.push({ row: rowNum, campo: 'nombre', mensaje: `Nombre demasiado largo (${nombre.length} chars, máx 200)` });
+        errors.push({
+          row: rowNum,
+          campo: 'nombre',
+          mensaje: `Nombre demasiado largo (${nombre.length} chars, máx 200)`,
+        });
         continue;
       }
 
@@ -276,11 +417,19 @@ export class ImportService {
       const email = str(row.email).toLowerCase() || undefined;
       if (email) {
         if (!EMAIL_RE.test(email)) {
-          errors.push({ row: rowNum, campo: 'email', mensaje: `Email inválido: ${email}` });
+          errors.push({
+            row: rowNum,
+            campo: 'email',
+            mensaje: `Email inválido: ${email}`,
+          });
           continue;
         }
         if (existingEmails.has(email) || seenEmails.has(email)) {
-          errors.push({ row: rowNum, campo: 'email', mensaje: `Email duplicado: ${email}` });
+          errors.push({
+            row: rowNum,
+            campo: 'email',
+            mensaje: `Email duplicado: ${email}`,
+          });
           continue;
         }
         seenEmails.add(email);
@@ -289,7 +438,11 @@ export class ImportService {
       // ── telefono (optional, warn on bad format) ──
       const telefono = str(row.telefono) || null;
       if (telefono && PHONE_INVALID_RE.test(telefono)) {
-        errors.push({ row: rowNum, campo: 'telefono', mensaje: `Teléfono contiene caracteres inválidos: "${telefono}"` });
+        errors.push({
+          row: rowNum,
+          campo: 'telefono',
+          mensaje: `Teléfono contiene caracteres inválidos: "${telefono}"`,
+        });
         continue;
       }
 
@@ -298,7 +451,11 @@ export class ImportService {
       if (dpi) {
         const dpiDigits = dpi.replace(/[\s\-\.]/g, '');
         if (!DPI_RE.test(dpiDigits)) {
-          errors.push({ row: rowNum, campo: 'dpi', mensaje: `DPI inválido: "${dpi}" (debe tener 13 dígitos)` });
+          errors.push({
+            row: rowNum,
+            campo: 'dpi',
+            mensaje: `DPI inválido: "${dpi}" (debe tener 13 dígitos)`,
+          });
           continue;
         }
       }
@@ -337,19 +494,32 @@ export class ImportService {
 
   // ─── PROPIEDADES ────────────────────────────────────────────
 
-  async importPropiedades(tenantId: string, buffer: Buffer, userId?: string, filename = ''): Promise<ImportResult> {
+  async importPropiedades(
+    tenantId: string,
+    buffer: Buffer,
+    userId?: string,
+    filename = '',
+  ): Promise<ImportResult> {
     const rawRows = await parseFile(buffer, filename);
     if (!rawRows.length) throw new BadRequestException('El archivo está vacío');
     if (rawRows.length > MAX_PROPIEDADES) {
-      throw new BadRequestException(`Máximo ${MAX_PROPIEDADES} filas por importación`);
+      throw new BadRequestException(
+        `Máximo ${MAX_PROPIEDADES} filas por importación`,
+      );
     }
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
     if (!tenant) throw new BadRequestException('Tenant no encontrado');
 
-    const currentCount = await this.prisma.propiedad.count({ where: { tenant_id: tenantId } });
+    const currentCount = await this.prisma.propiedad.count({
+      where: { tenant_id: tenantId },
+    });
     if (currentCount >= tenant.limite_propiedades) {
-      throw new BadRequestException(`Límite de propiedades alcanzado (${tenant.limite_propiedades})`);
+      throw new BadRequestException(
+        `Límite de propiedades alcanzado (${tenant.limite_propiedades})`,
+      );
     }
 
     const warnings: string[] = [];
@@ -357,7 +527,9 @@ export class ImportService {
     // Warn about unrecognized columns
     const ignored = unknownColumns(rawRows, PROPIEDAD_COLS);
     if (ignored.length) {
-      warnings.push(`Columnas no reconocidas (se ignoraron): ${ignored.join(', ')}`);
+      warnings.push(
+        `Columnas no reconocidas (se ignoraron): ${ignored.join(', ')}`,
+      );
     }
 
     const errors: ImportError[] = [];
@@ -372,76 +544,127 @@ export class ImportService {
       // ── titulo (required, max 300) ──
       const titulo = str(row.titulo);
       if (!titulo) {
-        errors.push({ row: rowNum, campo: 'titulo', mensaje: 'El título es requerido' });
+        errors.push({
+          row: rowNum,
+          campo: 'titulo',
+          mensaje: 'El título es requerido',
+        });
         continue;
       }
       if (titulo.length > 300) {
-        errors.push({ row: rowNum, campo: 'titulo', mensaje: `Título demasiado largo (${titulo.length} chars, máx 300)` });
+        errors.push({
+          row: rowNum,
+          campo: 'titulo',
+          mensaje: `Título demasiado largo (${titulo.length} chars, máx 300)`,
+        });
         continue;
       }
 
       // ── tipo (required) ──
       const tipoRaw = str(row.tipo).toUpperCase().replace(/\s+/g, '_');
       if (!TIPOS_VALIDOS.includes(tipoRaw)) {
-        errors.push({ row: rowNum, campo: 'tipo', mensaje: `Tipo inválido: "${row.tipo}". Válidos: ${TIPOS_VALIDOS.join(', ')}` });
+        errors.push({
+          row: rowNum,
+          campo: 'tipo',
+          mensaje: `Tipo inválido: "${row.tipo}". Válidos: ${TIPOS_VALIDOS.join(', ')}`,
+        });
         continue;
       }
 
       // ── gestion (required) ──
       const gestionRaw = str(row.gestion).toUpperCase();
       if (!GESTIONES_VALIDAS.includes(gestionRaw)) {
-        errors.push({ row: rowNum, campo: 'gestion', mensaje: `Gestión inválida: "${row.gestion}". Válidas: ${GESTIONES_VALIDAS.join(', ')}` });
+        errors.push({
+          row: rowNum,
+          campo: 'gestion',
+          mensaje: `Gestión inválida: "${row.gestion}". Válidas: ${GESTIONES_VALIDAS.join(', ')}`,
+        });
         continue;
       }
 
       // ── precios (optional, must be positive) ──
       const precioVenta = num(row.precio_venta) ?? null;
       if (precioVenta !== null && precioVenta <= 0) {
-        errors.push({ row: rowNum, campo: 'precio_venta', mensaje: `Precio de venta debe ser mayor a 0: ${precioVenta}` });
+        errors.push({
+          row: rowNum,
+          campo: 'precio_venta',
+          mensaje: `Precio de venta debe ser mayor a 0: ${precioVenta}`,
+        });
         continue;
       }
       const precioRenta = num(row.precio_renta) ?? null;
       if (precioRenta !== null && precioRenta <= 0) {
-        errors.push({ row: rowNum, campo: 'precio_renta', mensaje: `Precio de renta debe ser mayor a 0: ${precioRenta}` });
+        errors.push({
+          row: rowNum,
+          campo: 'precio_renta',
+          mensaje: `Precio de renta debe ser mayor a 0: ${precioRenta}`,
+        });
         continue;
       }
 
       // ── moneda (optional, validate if present) ──
       const monedaRaw = str(row.moneda).toUpperCase() || tenant.moneda || 'GTQ';
       if (!MONEDAS_VALIDAS.includes(monedaRaw)) {
-        errors.push({ row: rowNum, campo: 'moneda', mensaje: `Moneda no reconocida: "${row.moneda}". Válidas: ${MONEDAS_VALIDAS.join(', ')}` });
+        errors.push({
+          row: rowNum,
+          campo: 'moneda',
+          mensaje: `Moneda no reconocida: "${row.moneda}". Válidas: ${MONEDAS_VALIDAS.join(', ')}`,
+        });
         continue;
       }
 
       // ── area (optional, must be positive) ──
       const areaConstruccion = num(row.area_construccion_m2) ?? null;
       if (areaConstruccion !== null && areaConstruccion <= 0) {
-        errors.push({ row: rowNum, campo: 'area_construccion_m2', mensaje: `Área debe ser mayor a 0: ${areaConstruccion}` });
+        errors.push({
+          row: rowNum,
+          campo: 'area_construccion_m2',
+          mensaje: `Área debe ser mayor a 0: ${areaConstruccion}`,
+        });
         continue;
       }
 
       // ── año construccion (optional, range check) ──
       const anoConstruccion = int(row.ano_construccion) ?? null;
-      if (anoConstruccion !== null && (anoConstruccion < YEAR_MIN || anoConstruccion > currentYear)) {
-        errors.push({ row: rowNum, campo: 'ano_construccion', mensaje: `Año de construcción fuera de rango: ${anoConstruccion} (válido: ${YEAR_MIN}–${currentYear})` });
+      if (
+        anoConstruccion !== null &&
+        (anoConstruccion < YEAR_MIN || anoConstruccion > currentYear)
+      ) {
+        errors.push({
+          row: rowNum,
+          campo: 'ano_construccion',
+          mensaje: `Año de construcción fuera de rango: ${anoConstruccion} (válido: ${YEAR_MIN}–${currentYear})`,
+        });
         continue;
       }
 
       // ── habitaciones/banos/parqueos/niveles (optional, non-negative) ──
       const habitaciones = int(row.habitaciones) ?? null;
       if (habitaciones !== null && habitaciones < 0) {
-        errors.push({ row: rowNum, campo: 'habitaciones', mensaje: `Habitaciones no puede ser negativo: ${habitaciones}` });
+        errors.push({
+          row: rowNum,
+          campo: 'habitaciones',
+          mensaje: `Habitaciones no puede ser negativo: ${habitaciones}`,
+        });
         continue;
       }
       const banos = int(row.banos) ?? null;
       if (banos !== null && banos < 0) {
-        errors.push({ row: rowNum, campo: 'banos', mensaje: `Baños no puede ser negativo: ${banos}` });
+        errors.push({
+          row: rowNum,
+          campo: 'banos',
+          mensaje: `Baños no puede ser negativo: ${banos}`,
+        });
         continue;
       }
 
       // ── Limit check ──
       if (currentCount + created >= tenant.limite_propiedades) {
-        errors.push({ row: rowNum, campo: 'limite', mensaje: 'Límite de propiedades del tenant alcanzado' });
+        errors.push({
+          row: rowNum,
+          campo: 'limite',
+          mensaje: 'Límite de propiedades del tenant alcanzado',
+        });
         continue;
       }
 
@@ -479,25 +702,35 @@ export class ImportService {
         created++;
       } catch {
         propOffset--;
-        errors.push({ row: rowNum, campo: 'codigo', mensaje: `Error al crear la propiedad (código ${codigo} duplicado, reintenta)` });
+        errors.push({
+          row: rowNum,
+          campo: 'codigo',
+          mensaje: `Error al crear la propiedad (código ${codigo} duplicado, reintenta)`,
+        });
       }
     }
 
     // P-16: Log import action in audit_logs with origin metadata
     if (created > 0 && userId) {
-      this.prisma.auditLog.create({
-        data: {
-          tenant_id: tenantId,
-          user_id: userId,
-          nombre_usuario: 'Importación masiva',
-          accion: 'CREATE' as any,
-          modulo: 'Import',
-          entidad: 'Propiedad',
-          entidad_id: null,
-          ip_address: IMPORT_IP,
-          payload_cambio: { origen: 'Importación masiva', archivo: filename ?? 'CSV/Excel', cantidad: created },
-        },
-      }).catch(() => {});
+      this.prisma.auditLog
+        .create({
+          data: {
+            tenant_id: tenantId,
+            user_id: userId,
+            nombre_usuario: 'Importación masiva',
+            accion: 'CREATE' as any,
+            modulo: 'Import',
+            entidad: 'Propiedad',
+            entidad_id: null,
+            ip_address: IMPORT_IP,
+            payload_cambio: {
+              origen: 'Importación masiva',
+              archivo: filename ?? 'CSV/Excel',
+              cantidad: created,
+            },
+          },
+        })
+        .catch(() => {});
     }
 
     return {
@@ -512,13 +745,16 @@ export class ImportService {
 
   clientesTemplateCsv(): string {
     const headers = 'nombre,email,telefono,dpi,origen,notas';
-    const example = 'María García,maria@email.com,5555-1234,2345678901234,REFERIDO,Cliente interesada en zona 15';
+    const example =
+      'María García,maria@email.com,5555-1234,2345678901234,REFERIDO,Cliente interesada en zona 15';
     return `${headers}\n${example}\n`;
   }
 
   propiedadesTemplateCsv(): string {
-    const headers = 'titulo,tipo,gestion,precio_venta,precio_renta,moneda,departamento,municipio,zona,habitaciones,banos,area_construccion_m2,descripcion,direccion,parqueos,niveles,ano_construccion';
-    const example = 'Casa en Zona 15,CASA,VENTA,850000,,GTQ,Guatemala,Guatemala,15,3,2,150,Casa familiar con jardín amplio,6a Avenida 10-50 Zona 15,2,2,2005';
+    const headers =
+      'titulo,tipo,gestion,precio_venta,precio_renta,moneda,departamento,municipio,zona,habitaciones,banos,area_construccion_m2,descripcion,direccion,parqueos,niveles,ano_construccion';
+    const example =
+      'Casa en Zona 15,CASA,VENTA,850000,,GTQ,Guatemala,Guatemala,15,3,2,150,Casa familiar con jardín amplio,6a Avenida 10-50 Zona 15,2,2,2005';
     return `${headers}\n${example}\n`;
   }
 }

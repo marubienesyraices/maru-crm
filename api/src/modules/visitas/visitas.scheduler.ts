@@ -9,8 +9,12 @@ const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 function fmtFecha(d: Date): string {
   return d.toLocaleString('es-GT', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
     timeZone: 'America/Guatemala',
   });
 }
@@ -26,7 +30,9 @@ export class VisitasScheduler {
     private readonly email: EmailService,
     config: ConfigService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
   }
 
   // Runs every 30 minutes — finds completed visits with no report filed
@@ -87,8 +93,22 @@ export class VisitasScheduler {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayStart = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0, 0, 0);
-    const dayEnd   = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59);
+    const dayStart = new Date(
+      tomorrow.getFullYear(),
+      tomorrow.getMonth(),
+      tomorrow.getDate(),
+      0,
+      0,
+      0,
+    );
+    const dayEnd = new Date(
+      tomorrow.getFullYear(),
+      tomorrow.getMonth(),
+      tomorrow.getDate(),
+      23,
+      59,
+      59,
+    );
 
     const visitas = await this.prisma.visita.findMany({
       where: {
@@ -98,8 +118,10 @@ export class VisitasScheduler {
       include: {
         interes: {
           include: {
-            cliente:   { select: { nombre: true, email: true } },
-            propiedad: { select: { id: true, titulo: true, codigo: true, tenant_id: true } },
+            cliente: { select: { nombre: true, email: true } },
+            propiedad: {
+              select: { id: true, titulo: true, codigo: true, tenant_id: true },
+            },
           },
         },
         agente: { select: { nombre: true } },
@@ -110,25 +132,31 @@ export class VisitasScheduler {
       const clienteEmail = visita.interes.cliente.email;
       if (!clienteEmail) continue;
 
-      const tenantId  = visita.interes.propiedad.tenant_id;
-      const fechaStr  = fmtFecha(visita.fecha_inicio);
+      const tenantId = visita.interes.propiedad.tenant_id;
+      const fechaStr = fmtFecha(visita.fecha_inicio);
       const propTitulo = visita.interes.propiedad.titulo;
       const propCodigo = visita.interes.propiedad.codigo;
       const rescheduleUrl = `${this.frontendUrl}/portal/reprogramar/${visita.reschedule_token}`;
 
-      this.email.sendClientEmail({
-        to: clienteEmail,
-        subject: `Recordatorio: Tu visita mañana — ${propTitulo}`,
-        heading: `⏰ Recordatorio de visita`,
-        body: `Tienes una visita programada para mañana:<br/><br/>
+      this.email
+        .sendClientEmail({
+          to: clienteEmail,
+          subject: `Recordatorio: Tu visita mañana — ${propTitulo}`,
+          heading: `⏰ Recordatorio de visita`,
+          body: `Tienes una visita programada para mañana:<br/><br/>
                🏠 <strong>${propTitulo}</strong> (${propCodigo})<br/>
                📅 ${fechaStr}<br/>
                👤 Agente: ${visita.agente.nombre}`,
-        cta: { label: 'Confirmar o reprogramar', url: rescheduleUrl },
-        tenantId,
-      }).catch((err) => this.logger.warn(`Reminder email failed visita ${visita.id}: ${err}`));
+          cta: { label: 'Confirmar o reprogramar', url: rescheduleUrl },
+          tenantId,
+        })
+        .catch((err) =>
+          this.logger.warn(`Reminder email failed visita ${visita.id}: ${err}`),
+        );
 
-      this.logger.log(`📅 Recordatorio 24h enviado a ${clienteEmail} (visita ${visita.id})`);
+      this.logger.log(
+        `📅 Recordatorio 24h enviado a ${clienteEmail} (visita ${visita.id})`,
+      );
     }
   }
 }

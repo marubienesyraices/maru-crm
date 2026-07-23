@@ -4,8 +4,8 @@ import { FirmaDigitalController } from './firma-digital.controller';
 import { ConfigIntegracionesModule } from '../config-integraciones/config-integraciones.module';
 
 @Module({
-  imports:     [ConfigIntegracionesModule],
+  imports: [ConfigIntegracionesModule],
   controllers: [FirmaDigitalController],
-  providers:   [FirmaDigitalService],
+  providers: [FirmaDigitalService],
 })
 export class FirmaDigitalModule {}

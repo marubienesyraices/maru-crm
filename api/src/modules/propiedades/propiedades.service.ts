@@ -1,8 +1,25 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma, TipoPropiedad, TipoGestion, EstadoPropiedad } from '@prisma/client';
-import { CreatePropiedadDto, UpdatePropiedadDto, CambiarEstadoDto, FiltrosPropiedadDto, PrecioSugeridoQueryDto } from './dto';
+import {
+  Prisma,
+  TipoPropiedad,
+  TipoGestion,
+  EstadoPropiedad,
+} from '@prisma/client';
+import {
+  CreatePropiedadDto,
+  UpdatePropiedadDto,
+  CambiarEstadoDto,
+  FiltrosPropiedadDto,
+  PrecioSugeridoQueryDto,
+} from './dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { EmailService } from '../email/email.service';
 import { StorageService } from '../storage/storage.service';
@@ -19,7 +36,7 @@ interface PrecioComparable {
 
 // Roles válidos para ser asignado como agente de una propiedad según el plan
 const ROLES_AGENTE_NO_FREE = ['SENIOR'];
-const ROLES_AGENTE_FREE    = ['SENIOR', 'ADMIN'];
+const ROLES_AGENTE_FREE = ['SENIOR', 'ADMIN'];
 
 // ─── State Machine ────────────────────────────────────────────
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
@@ -44,19 +61,29 @@ export class PropiedadesService {
     private storageService: StorageService,
     @Optional() private readonly emailService?: EmailService,
   ) {
-    this.frontendUrl = (config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    this.frontendUrl = (
+      config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
   }
 
   // ─── VALIDACIÓN DE AGENTE ────────────────────────────────────
 
-  private async validateAgenteParaPropiedad(tenantId: string, agenteId: string, plan: string): Promise<void> {
+  private async validateAgenteParaPropiedad(
+    tenantId: string,
+    agenteId: string,
+    plan: string,
+  ): Promise<void> {
     const agente = await this.prisma.user.findFirst({
       where: { id: agenteId, tenant_id: tenantId },
       select: { id: true, nombre: true, rol: true },
     });
-    if (!agente) throw new BadRequestException('El agente indicado no pertenece a esta empresa');
+    if (!agente)
+      throw new BadRequestException(
+        'El agente indicado no pertenece a esta empresa',
+      );
 
-    const rolesPermitidos = plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
+    const rolesPermitidos =
+      plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
 
     if (!rolesPermitidos.includes(agente.rol)) {
       if (plan === 'FREE') {
@@ -87,8 +114,16 @@ export class PropiedadesService {
   async create(tenantId: string, dto: CreatePropiedadDto, userId: string) {
     const [tenant, planFeatures] = await Promise.all([
       this.prisma.tenant.findUnique({ where: { id: tenantId } }),
-      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } })
-        .then((t) => t ? this.prisma.catalogoPlan.findUnique({ where: { plan: t.plan }, select: { tiene_mapas: true } }) : null),
+      this.prisma.tenant
+        .findUnique({ where: { id: tenantId }, select: { plan: true } })
+        .then((t) =>
+          t
+            ? this.prisma.catalogoPlan.findUnique({
+                where: { plan: t.plan },
+                select: { tiene_mapas: true },
+              })
+            : null,
+        ),
     ]);
     if (!tenant) throw new NotFoundException('Tenant no encontrado');
 
@@ -102,18 +137,27 @@ export class PropiedadesService {
         where: { id: userId, tenant_id: tenantId },
         select: { rol: true },
       });
-      const rolesPermitidos = tenant.plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
+      const rolesPermitidos =
+        tenant.plan === 'FREE' ? ROLES_AGENTE_FREE : ROLES_AGENTE_NO_FREE;
       if (creador && rolesPermitidos.includes(creador.rol)) {
         agenteIdFinal = userId;
       }
     }
     if (agenteIdFinal) {
-      await this.validateAgenteParaPropiedad(tenantId, agenteIdFinal, tenant.plan);
+      await this.validateAgenteParaPropiedad(
+        tenantId,
+        agenteIdFinal,
+        tenant.plan,
+      );
     }
 
-    const count = await this.prisma.propiedad.count({ where: { tenant_id: tenantId } });
+    const count = await this.prisma.propiedad.count({
+      where: { tenant_id: tenantId },
+    });
     if (count >= tenant.limite_propiedades) {
-      throw new BadRequestException(`Límite de propiedades alcanzado (${tenant.limite_propiedades})`);
+      throw new BadRequestException(
+        `Límite de propiedades alcanzado (${tenant.limite_propiedades})`,
+      );
     }
 
     const prefix = dto.tipo.substring(0, 4).toUpperCase();
@@ -125,7 +169,10 @@ export class PropiedadesService {
     if (!latitud || !longitud) {
       if (planFeatures?.tiene_mapas) {
         const coords = await this.geocodeFromDto(dto);
-        if (coords) { latitud = coords.lat; longitud = coords.lng; }
+        if (coords) {
+          latitud = coords.lat;
+          longitud = coords.lng;
+        }
       }
     }
 
@@ -162,13 +209,18 @@ export class PropiedadesService {
           propietario_id: dto.propietarioId,
           agente_id: agenteIdFinal,
         },
-        include: { propietario: true, agente: { select: { id: true, nombre: true, email: true } } },
+        include: {
+          propietario: true,
+          agente: { select: { id: true, nombre: true, email: true } },
+        },
       }),
       ...(dto.propietarioId
-        ? [this.prisma.cliente.update({
-            where: { id: dto.propietarioId },
-            data: { es_propietario: true },
-          })]
+        ? [
+            this.prisma.cliente.update({
+              where: { id: dto.propietarioId },
+              data: { es_propietario: true },
+            }),
+          ]
         : []),
     ]);
     return propiedad;
@@ -176,7 +228,11 @@ export class PropiedadesService {
 
   // ─── FIND ALL (with filters) ────────────────────────────────
 
-  async findAll(tenantId: string, filtros: FiltrosPropiedadDto, visibleUserIds?: string[] | null) {
+  async findAll(
+    tenantId: string,
+    filtros: FiltrosPropiedadDto,
+    visibleUserIds?: string[] | null,
+  ) {
     const page = filtros.page || 1;
     const limit = filtros.limit || 20;
     const skip = (page - 1) * limit;
@@ -193,7 +249,8 @@ export class PropiedadesService {
     if (filtros.pais) where.pais = filtros.pais;
     if (filtros.departamento) where.departamento = filtros.departamento;
     if (filtros.municipio) where.municipio = filtros.municipio;
-    if (filtros.habitacionesMin) where.habitaciones = { gte: filtros.habitacionesMin };
+    if (filtros.habitacionesMin)
+      where.habitaciones = { gte: filtros.habitacionesMin };
 
     if (filtros.precioMin || filtros.precioMax) {
       where.OR = [];
@@ -255,22 +312,39 @@ export class PropiedadesService {
   async update(tenantId: string, id: string, dto: UpdatePropiedadDto) {
     const [existing, tenant, planFeatures] = await Promise.all([
       this.findOne(tenantId, id),
-      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } }),
-      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } })
-        .then((t) => t ? this.prisma.catalogoPlan.findUnique({ where: { plan: t.plan }, select: { tiene_mapas: true } }) : null),
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { plan: true },
+      }),
+      this.prisma.tenant
+        .findUnique({ where: { id: tenantId }, select: { plan: true } })
+        .then((t) =>
+          t
+            ? this.prisma.catalogoPlan.findUnique({
+                where: { plan: t.plan },
+                select: { tiene_mapas: true },
+              })
+            : null,
+        ),
     ]);
 
     // Validar rol del nuevo agente solo si se está cambiando
     if (dto.agenteId && dto.agenteId !== existing.agente_id && tenant) {
-      await this.validateAgenteParaPropiedad(tenantId, dto.agenteId, tenant.plan);
+      await this.validateAgenteParaPropiedad(
+        tenantId,
+        dto.agenteId,
+        tenant.plan,
+      );
     }
 
     let latitud = dto.latitud;
     let longitud = dto.longitud;
 
     const addressChanged =
-      dto.direccion !== undefined || dto.municipio !== undefined ||
-      dto.departamento !== undefined || dto.zona !== undefined;
+      dto.direccion !== undefined ||
+      dto.municipio !== undefined ||
+      dto.departamento !== undefined ||
+      dto.zona !== undefined;
 
     if (addressChanged && !latitud && !longitud && planFeatures?.tiene_mapas) {
       const merged = {
@@ -280,8 +354,11 @@ export class PropiedadesService {
         departamento: dto.departamento ?? existing.departamento ?? undefined,
         pais: dto.pais ?? existing.pais ?? undefined,
       };
-      const coords = await this.geocodeFromDto(merged as any);
-      if (coords) { latitud = coords.lat; longitud = coords.lng; }
+      const coords = await this.geocodeFromDto(merged);
+      if (coords) {
+        latitud = coords.lat;
+        longitud = coords.lng;
+      }
     }
 
     const ops: any[] = [
@@ -349,7 +426,7 @@ export class PropiedadesService {
     if (!transicionesPermitidas.includes(nuevoEstado)) {
       throw new BadRequestException(
         `Transición inválida: ${estadoActual} → ${nuevoEstado}. ` +
-        `Transiciones permitidas: ${transicionesPermitidas.join(', ') || 'ninguna (estado terminal)'}`,
+          `Transiciones permitidas: ${transicionesPermitidas.join(', ') || 'ninguna (estado terminal)'}`,
       );
     }
 
@@ -382,8 +459,14 @@ export class PropiedadesService {
 
     return {
       total,
-      porEstado: porEstadoRaw.map((r) => ({ estado: r.estado, _count: (r._count as any)._all ?? r._count })),
-      porTipo: porTipoRaw.map((r) => ({ tipo: r.tipo, _count: (r._count as any)._all ?? r._count })),
+      porEstado: porEstadoRaw.map((r) => ({
+        estado: r.estado,
+        _count: (r._count as any)._all ?? r._count,
+      })),
+      porTipo: porTipoRaw.map((r) => ({
+        tipo: r.tipo,
+        _count: (r._count as any)._all ?? r._count,
+      })),
     };
   }
 
@@ -400,9 +483,11 @@ export class PropiedadesService {
     }
 
     const filtered = comparables.filter((c) =>
-      dto.gestion === 'VENTA' ? c.precio_venta != null
-      : dto.gestion === 'RENTA' ? c.precio_renta != null
-      : c.precio_venta != null || c.precio_renta != null,
+      dto.gestion === 'VENTA'
+        ? c.precio_venta != null
+        : dto.gestion === 'RENTA'
+          ? c.precio_renta != null
+          : c.precio_venta != null || c.precio_renta != null,
     );
 
     if (!filtered.length) {
@@ -420,25 +505,42 @@ export class PropiedadesService {
 
     // Promedio ponderado por distancia inversa: peso = 1 / (distancia_m + 100)
     // Propiedades sin coordenadas usan distancia ficticia de 2 500 m
-    let sumWV = 0, sumPV = 0, sumWR = 0, sumPR = 0, sumWM = 0, sumPM = 0;
+    let sumWV = 0,
+      sumPV = 0,
+      sumWR = 0,
+      sumPR = 0,
+      sumWM = 0,
+      sumPM = 0;
     for (const c of filtered) {
       const d = c.distancia_m ?? 2500;
       const w = 1 / (d + 100);
       if (c.precio_venta) {
-        sumWV += w; sumPV += c.precio_venta * w;
-        if (c.area_construccion_m2) { sumWM += w; sumPM += (c.precio_venta / c.area_construccion_m2) * w; }
+        sumWV += w;
+        sumPV += c.precio_venta * w;
+        if (c.area_construccion_m2) {
+          sumWM += w;
+          sumPM += (c.precio_venta / c.area_construccion_m2) * w;
+        }
       }
-      if (c.precio_renta) { sumWR += w; sumPR += c.precio_renta * w; }
+      if (c.precio_renta) {
+        sumWR += w;
+        sumPR += c.precio_renta * w;
+      }
     }
 
     const n = filtered.length;
     return {
       precio_sugerido_venta: sumWV > 0 ? Math.round(sumPV / sumWV) : null,
       precio_sugerido_renta: sumWR > 0 ? Math.round(sumPR / sumWR) : null,
-      precio_m2_sugerido:    sumWM > 0 ? Math.round(sumPM / sumWM) : null,
+      precio_m2_sugerido: sumWM > 0 ? Math.round(sumPM / sumWM) : null,
       comparable_count: n,
       radio_km: dto.radioKm ?? 5,
-      confianza: n >= 5 ? 'ALTA' as const : n >= 2 ? 'MEDIA' as const : 'BAJA' as const,
+      confianza:
+        n >= 5
+          ? ('ALTA' as const)
+          : n >= 2
+            ? ('MEDIA' as const)
+            : ('BAJA' as const),
       usa_geo: dto.lat != null && dto.lng != null,
       comparables: filtered.slice(0, 5).map((c) => ({
         id: c.id,
@@ -453,7 +555,12 @@ export class PropiedadesService {
   }
 
   /** Haversine distance in metres — no PostGIS required. */
-  private haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  private haversineM(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number {
     const R = 6_371_000;
     const toRad = (x: number) => (x * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
@@ -471,38 +578,57 @@ export class PropiedadesService {
   ): Promise<PrecioComparable[]> {
     const gestWhere =
       dto.gestion !== 'AMBAS'
-        ? { OR: [{ gestion: dto.gestion as TipoGestion }, { gestion: 'AMBAS' as TipoGestion }] }
+        ? {
+            OR: [
+              { gestion: dto.gestion as TipoGestion },
+              { gestion: 'AMBAS' as TipoGestion },
+            ],
+          }
         : {};
 
     const rows = await this.prisma.propiedad.findMany({
       where: {
         tenant_id: tenantId,
-        tipo:   dto.tipo as TipoPropiedad,
-        estado: { in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[] },
-        latitud:  { not: null },
+        tipo: dto.tipo as TipoPropiedad,
+        estado: {
+          in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[],
+        },
+        latitud: { not: null },
         longitud: { not: null },
         ...(dto.excludeId ? { id: { not: dto.excludeId } } : {}),
         ...gestWhere,
       },
       select: {
-        id: true, codigo: true, titulo: true,
-        precio_venta: true, precio_renta: true,
-        area_construccion_m2: true, latitud: true, longitud: true,
+        id: true,
+        codigo: true,
+        titulo: true,
+        precio_venta: true,
+        precio_renta: true,
+        area_construccion_m2: true,
+        latitud: true,
+        longitud: true,
       },
     });
 
     return rows
       .map((r) => ({
-        id:                  r.id,
-        codigo:              r.codigo,
-        titulo:              r.titulo,
-        precio_venta:        r.precio_venta        ? Number(r.precio_venta)        : null,
-        precio_renta:        r.precio_renta        ? Number(r.precio_renta)        : null,
-        area_construccion_m2:r.area_construccion_m2? Number(r.area_construccion_m2): null,
-        distancia_m: this.haversineM(dto.lat!, dto.lng!, Number(r.latitud), Number(r.longitud)),
+        id: r.id,
+        codigo: r.codigo,
+        titulo: r.titulo,
+        precio_venta: r.precio_venta ? Number(r.precio_venta) : null,
+        precio_renta: r.precio_renta ? Number(r.precio_renta) : null,
+        area_construccion_m2: r.area_construccion_m2
+          ? Number(r.area_construccion_m2)
+          : null,
+        distancia_m: this.haversineM(
+          dto.lat!,
+          dto.lng!,
+          Number(r.latitud),
+          Number(r.longitud),
+        ),
       }))
       .filter((r) => r.distancia_m <= radioM)
-      .sort((a, b) => a.distancia_m! - b.distancia_m!)
+      .sort((a, b) => a.distancia_m - b.distancia_m)
       .slice(0, 20);
   }
 
@@ -512,33 +638,46 @@ export class PropiedadesService {
   ): Promise<PrecioComparable[]> {
     const gestWhere =
       dto.gestion !== 'AMBAS'
-        ? { OR: [{ gestion: dto.gestion as TipoGestion }, { gestion: 'AMBAS' as TipoGestion }] }
+        ? {
+            OR: [
+              { gestion: dto.gestion as TipoGestion },
+              { gestion: 'AMBAS' as TipoGestion },
+            ],
+          }
         : {};
 
     const rows = await this.prisma.propiedad.findMany({
       where: {
         tenant_id: tenantId,
-        tipo:   dto.tipo as TipoPropiedad,
-        estado: { in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[] },
+        tipo: dto.tipo as TipoPropiedad,
+        estado: {
+          in: ['DISPONIBLE', 'VENDIDA', 'RENTADA'] as EstadoPropiedad[],
+        },
         ...(dto.departamento ? { departamento: dto.departamento } : {}),
-        ...(dto.excludeId    ? { id: { not: dto.excludeId } }    : {}),
+        ...(dto.excludeId ? { id: { not: dto.excludeId } } : {}),
         ...gestWhere,
       },
       select: {
-        id: true, codigo: true, titulo: true,
-        precio_venta: true, precio_renta: true, area_construccion_m2: true,
+        id: true,
+        codigo: true,
+        titulo: true,
+        precio_venta: true,
+        precio_renta: true,
+        area_construccion_m2: true,
       },
       take: 20,
     });
 
     return rows.map((r) => ({
-      id:                  r.id,
-      codigo:              r.codigo,
-      titulo:              r.titulo,
-      precio_venta:        r.precio_venta        ? Number(r.precio_venta)        : null,
-      precio_renta:        r.precio_renta        ? Number(r.precio_renta)        : null,
-      area_construccion_m2:r.area_construccion_m2? Number(r.area_construccion_m2): null,
-      distancia_m:         null,
+      id: r.id,
+      codigo: r.codigo,
+      titulo: r.titulo,
+      precio_venta: r.precio_venta ? Number(r.precio_venta) : null,
+      precio_renta: r.precio_renta ? Number(r.precio_renta) : null,
+      area_construccion_m2: r.area_construccion_m2
+        ? Number(r.area_construccion_m2)
+        : null,
+      distancia_m: null,
     }));
   }
 
@@ -548,7 +687,9 @@ export class PropiedadesService {
     const propiedad = await this.prisma.propiedad.findFirst({
       where: { id, tenant_id: tenantId },
       include: {
-        imagenes:  { select: { url: true, thumbnail_url: true, original_url: true } },
+        imagenes: {
+          select: { url: true, thumbnail_url: true, original_url: true },
+        },
         documentos: { select: { url: true } },
         _count: { select: { interesados: true, firma_solicitudes: true } },
       },
@@ -602,13 +743,18 @@ export class PropiedadesService {
     });
 
     // Best-effort: remove files from storage after DB commit
-    await Promise.allSettled(urlsToDelete.map((url) => this.storageService.remove(url)));
+    await Promise.allSettled(
+      urlsToDelete.map((url) => this.storageService.remove(url)),
+    );
   }
 
   // ─── PRIVATE: geocoding ─────────────────────────────────────
 
   private async geocodeFromDto(
-    dto: Pick<CreatePropiedadDto, 'direccion' | 'zona' | 'municipio' | 'departamento' | 'pais'>,
+    dto: Pick<
+      CreatePropiedadDto,
+      'direccion' | 'zona' | 'municipio' | 'departamento' | 'pais'
+    >,
   ): Promise<{ lat: number; lng: number } | null> {
     const token = this.config.get<string>('MAPBOX_TOKEN');
     if (!token) return null;
@@ -652,14 +798,21 @@ export class PropiedadesService {
     // gestion_interes must match or be unset
     if (propiedad.gestion !== 'AMBAS') {
       andConditions.push({
-        OR: [{ gestion_interes: null }, { gestion_interes: propiedad.gestion }, { gestion_interes: 'AMBAS' }],
+        OR: [
+          { gestion_interes: null },
+          { gestion_interes: propiedad.gestion },
+          { gestion_interes: 'AMBAS' },
+        ],
       });
     }
 
     // habitaciones_min must be <= property's habitaciones
     if (propiedad.habitaciones != null) {
       andConditions.push({
-        OR: [{ habitaciones_min: null }, { habitaciones_min: { lte: propiedad.habitaciones } }],
+        OR: [
+          { habitaciones_min: null },
+          { habitaciones_min: { lte: propiedad.habitaciones } },
+        ],
       });
     } else {
       andConditions.push({ habitaciones_min: null });
@@ -734,8 +887,8 @@ export class PropiedadesService {
       propiedad.precio_venta != null
         ? `${propiedad.moneda} ${Number(propiedad.precio_venta).toLocaleString('es-GT')} (venta)`
         : propiedad.precio_renta != null
-        ? `${propiedad.moneda} ${Number(propiedad.precio_renta).toLocaleString('es-GT')}/mes (renta)`
-        : '';
+          ? `${propiedad.moneda} ${Number(propiedad.precio_renta).toLocaleString('es-GT')}/mes (renta)`
+          : '';
 
     const ubicacion = [
       propiedad.zona ? `Zona ${propiedad.zona}` : '',

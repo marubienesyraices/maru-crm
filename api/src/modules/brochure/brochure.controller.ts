@@ -1,6 +1,12 @@
 import {
-  Controller, Post, Get, Param, UseGuards,
-  NotFoundException, BadRequestException, Req,
+  Controller,
+  Post,
+  Get,
+  Param,
+  UseGuards,
+  NotFoundException,
+  BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -38,11 +44,16 @@ export class BrochureController {
     if (!propiedad) throw new NotFoundException('Propiedad no encontrada');
 
     const docExistente = await this.prisma.propiedadDocumento.findFirst({
-      where: { propiedad_id: propiedadId, nombre: { startsWith: 'Brochure PDF -' } },
+      where: {
+        propiedad_id: propiedadId,
+        nombre: { startsWith: 'Brochure PDF -' },
+      },
       select: { id: true },
     });
     if (docExistente) {
-      throw new BadRequestException('Ya existe un brochure generado para esta propiedad. Elimínalo del expediente antes de generar uno nuevo.');
+      throw new BadRequestException(
+        'Ya existe un brochure generado para esta propiedad. Elimínalo del expediente antes de generar uno nuevo.',
+      );
     }
 
     const jobDbId = randomUUID();
@@ -77,7 +88,9 @@ export class BrochureController {
   // ─── Job status ───────────────────────────────────────────────
   @SkipAudit()
   @Get('jobs/:jobId')
-  @ApiOperation({ summary: 'Consultar estado del job de generación de brochure' })
+  @ApiOperation({
+    summary: 'Consultar estado del job de generación de brochure',
+  })
   async status(
     @Param('propiedadId') propiedadId: string,
     @Param('jobId') jobId: string,
@@ -109,24 +122,29 @@ export class BrochureController {
     if (!job) throw new NotFoundException('Job no encontrado');
     if (job.status !== 'LISTO' || !job.url) {
       throw new BadRequestException(
-        job.status === 'ERROR' ? 'La generación del brochure falló' : 'El brochure aún está en proceso',
+        job.status === 'ERROR'
+          ? 'La generación del brochure falló'
+          : 'El brochure aún está en proceso',
       );
     }
 
     // Record download (fire-and-forget)
-    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-      || req.socket?.remoteAddress
-      || null;
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      null;
 
-    this.prisma.brochureDescarga.create({
-      data: {
-        id: randomUUID(),
-        job_id: jobId,
-        tenant_id: user.tenantId,
-        user_id: user.sub,
-        ip,
-      },
-    }).catch(() => {});
+    this.prisma.brochureDescarga
+      .create({
+        data: {
+          id: randomUUID(),
+          job_id: jobId,
+          tenant_id: user.tenantId,
+          user_id: user.sub,
+          ip,
+        },
+      })
+      .catch(() => {});
 
     // Serve from local disk or redirect to R2 public URL
     const localPath = this.storage.localPath(job.url);
@@ -139,7 +157,9 @@ export class BrochureController {
   // ─── Download history for a property ────────────────────────
   @SkipAudit()
   @Get('descargas')
-  @ApiOperation({ summary: 'Historial de descargas de brochures de la propiedad' })
+  @ApiOperation({
+    summary: 'Historial de descargas de brochures de la propiedad',
+  })
   async descargas(
     @Param('propiedadId') propiedadId: string,
     @CurrentUser() user: any,

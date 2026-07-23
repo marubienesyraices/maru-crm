@@ -57,7 +57,8 @@ import { BusquedasModule } from './modules/busquedas/busquedas.module';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+        const redisUrl =
+          config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
         const parsed = new URL(redisUrl);
         return {
           connection: {

@@ -8,7 +8,8 @@ export class RedisService implements OnModuleDestroy {
   readonly client: Redis;
 
   constructor(config: ConfigService) {
-    const redisUrl = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    const redisUrl =
+      config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
     this.client = new Redis(redisUrl, {
       lazyConnect: true,
       enableOfflineQueue: false,
@@ -17,20 +18,28 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async get(key: string): Promise<string | null> {
-    try { return await this.client.get(key); }
-    catch { return null; }
+    try {
+      return await this.client.get(key);
+    } catch {
+      return null;
+    }
   }
 
   async set(key: string, value: string, ttlSeconds: number): Promise<void> {
-    try { await this.client.setex(key, ttlSeconds, value); }
-    catch { /* cache miss on next call */ }
+    try {
+      await this.client.setex(key, ttlSeconds, value);
+    } catch {
+      /* cache miss on next call */
+    }
   }
 
   async deleteByPattern(pattern: string): Promise<void> {
     try {
       const keys = await this.client.keys(pattern);
       if (keys.length) await this.client.del(...keys);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }
 
   onModuleDestroy() {

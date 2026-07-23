@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
@@ -24,14 +32,29 @@ export class BusquedasController {
   create(
     @CurrentUser() user: any,
     @Param('clienteId') clienteId: string,
-    @Body() body: { nombre: string; filtros: Record<string, unknown>; alertas?: boolean },
+    @Body()
+    body: {
+      nombre: string;
+      filtros: Record<string, unknown>;
+      alertas?: boolean;
+    },
   ) {
-    return this.svc.create(user.tenantId, clienteId, body.nombre, body.filtros, body.alertas);
+    return this.svc.create(
+      user.tenantId,
+      clienteId,
+      body.nombre,
+      body.filtros,
+      body.alertas,
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar búsqueda guardada' })
-  delete(@CurrentUser() user: any, @Param('clienteId') clienteId: string, @Param('id') id: string) {
+  delete(
+    @CurrentUser() user: any,
+    @Param('clienteId') clienteId: string,
+    @Param('id') id: string,
+  ) {
     return this.svc.delete(user.tenantId, clienteId, id);
   }
 }

@@ -16,23 +16,31 @@ export class SearchService {
     if (visibleUserIds) clienteFilter.agente_id = { in: visibleUserIds };
 
     const [propiedades, clientes, pipeline] = await Promise.all([
-
       // ─── Propiedades ─────────────────────────────────────────
       this.prisma.propiedad.findMany({
         where: {
           tenant_id: tenantId,
           OR: [
-            { codigo:      { contains: term, mode: MODE } },
-            { titulo:      { contains: term, mode: MODE } },
-            { zona:        { contains: term, mode: MODE } },
-            { municipio:   { contains: term, mode: MODE } },
+            { codigo: { contains: term, mode: MODE } },
+            { titulo: { contains: term, mode: MODE } },
+            { zona: { contains: term, mode: MODE } },
+            { municipio: { contains: term, mode: MODE } },
             { descripcion: { contains: term, mode: MODE } },
           ],
         },
         select: {
-          id: true, codigo: true, titulo: true, tipo: true, estado: true,
-          zona: true, municipio: true,
-          imagenes: { where: { tipo: 'portada' }, take: 1, select: { url: true } },
+          id: true,
+          codigo: true,
+          titulo: true,
+          tipo: true,
+          estado: true,
+          zona: true,
+          municipio: true,
+          imagenes: {
+            where: { tipo: 'portada' },
+            take: 1,
+            select: { url: true },
+          },
         },
         orderBy: { updated_at: 'desc' },
         take: TAKE,
@@ -43,14 +51,18 @@ export class SearchService {
         where: {
           ...clienteFilter,
           OR: [
-            { nombre:   { contains: term, mode: MODE } },
-            { email:    { contains: term, mode: MODE } },
+            { nombre: { contains: term, mode: MODE } },
+            { email: { contains: term, mode: MODE } },
             { telefono: { contains: term } },
-            { dpi:      { contains: term } },
+            { dpi: { contains: term } },
           ],
         },
         select: {
-          id: true, nombre: true, email: true, telefono: true, origen: true,
+          id: true,
+          nombre: true,
+          email: true,
+          telefono: true,
+          origen: true,
         },
         orderBy: { updated_at: 'desc' },
         take: TAKE,
@@ -61,20 +73,20 @@ export class SearchService {
         where: {
           cliente: clienteFilter,
           OR: [
-            { cliente:   { nombre:  { contains: term, mode: MODE } } },
-            { propiedad: { codigo:  { contains: term, mode: MODE } } },
-            { propiedad: { titulo:  { contains: term, mode: MODE } } },
+            { cliente: { nombre: { contains: term, mode: MODE } } },
+            { propiedad: { codigo: { contains: term, mode: MODE } } },
+            { propiedad: { titulo: { contains: term, mode: MODE } } },
           ],
         },
         select: {
-          id: true, estado: true,
-          cliente:   { select: { id: true, nombre: true } },
+          id: true,
+          estado: true,
+          cliente: { select: { id: true, nombre: true } },
           propiedad: { select: { id: true, codigo: true, titulo: true } },
         },
         orderBy: { updated_at: 'desc' },
         take: TAKE,
       }),
-
     ]);
 
     return { propiedades, clientes, pipeline };

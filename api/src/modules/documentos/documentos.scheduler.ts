@@ -51,7 +51,10 @@ export class DocumentosScheduler {
     ]);
 
     // Resolve target users per tenant: agente + all admins of that tenant
-    const tenantAdmins = await this.resolveTenantAdmins([...expiring, ...expired]);
+    const tenantAdmins = await this.resolveTenantAdmins([
+      ...expiring,
+      ...expired,
+    ]);
 
     for (const doc of expiring) {
       const daysLeft = Math.ceil(
@@ -63,7 +66,15 @@ export class DocumentosScheduler {
       this.logger.warn(`⚠️ ${titulo} — ${doc.propiedad.codigo}`);
 
       const targets = this.resolveTargets(doc.propiedad, tenantAdmins);
-      await this.createForTargets(targets, doc.propiedad.tenant_id, 'DOCUMENTO_POR_VENCER', titulo, mensaje, 'PropiedadDocumento', doc.id);
+      await this.createForTargets(
+        targets,
+        doc.propiedad.tenant_id,
+        'DOCUMENTO_POR_VENCER',
+        titulo,
+        mensaje,
+        'PropiedadDocumento',
+        doc.id,
+      );
     }
 
     for (const doc of expired) {
@@ -73,20 +84,36 @@ export class DocumentosScheduler {
       this.logger.error(`🚨 ${titulo} — ${doc.propiedad.codigo}`);
 
       const targets = this.resolveTargets(doc.propiedad, tenantAdmins);
-      await this.createForTargets(targets, doc.propiedad.tenant_id, 'DOCUMENTO_VENCIDO', titulo, mensaje, 'PropiedadDocumento', doc.id);
+      await this.createForTargets(
+        targets,
+        doc.propiedad.tenant_id,
+        'DOCUMENTO_VENCIDO',
+        titulo,
+        mensaje,
+        'PropiedadDocumento',
+        doc.id,
+      );
     }
 
     if (expiring.length > 0 || expired.length > 0) {
-      this.logger.log(`📬 Notificaciones enviadas: ${expiring.length} por vencer, ${expired.length} vencidos`);
+      this.logger.log(
+        `📬 Notificaciones enviadas: ${expiring.length} por vencer, ${expired.length} vencidos`,
+      );
     }
   }
 
   // ─── Helpers ────────────────────────────────────────────────
 
-  private async resolveTenantAdmins(docs: { propiedad: { tenant_id: string } }[]) {
+  private async resolveTenantAdmins(
+    docs: { propiedad: { tenant_id: string } }[],
+  ) {
     const tenantIds = [...new Set(docs.map((d) => d.propiedad.tenant_id))];
     const admins = await this.prisma.user.findMany({
-      where: { tenant_id: { in: tenantIds }, rol: { in: ['ADMIN', 'SUPER_ADMIN'] }, estado: 'ACTIVO' },
+      where: {
+        tenant_id: { in: tenantIds },
+        rol: { in: ['ADMIN', 'SUPER_ADMIN'] },
+        estado: 'ACTIVO',
+      },
       select: { id: true, tenant_id: true },
     });
     // Map: tenantId → adminIds[]
@@ -130,7 +157,15 @@ export class DocumentosScheduler {
       });
 
       if (!alreadyExists) {
-        await this.notificaciones.create({ tenantId, userId, tipo, titulo, mensaje, entidad, entidadId });
+        await this.notificaciones.create({
+          tenantId,
+          userId,
+          tipo,
+          titulo,
+          mensaje,
+          entidad,
+          entidadId,
+        });
       }
     }
   }

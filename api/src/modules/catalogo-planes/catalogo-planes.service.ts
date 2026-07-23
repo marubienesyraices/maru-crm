@@ -17,7 +17,10 @@ export class CatalogoPlanesService {
     const config = await this.prisma.catalogoPlan.findUnique({
       where: { plan: plan as Plan },
     });
-    if (!config) throw new NotFoundException(`Plan "${plan}" no encontrado en el catálogo`);
+    if (!config)
+      throw new NotFoundException(
+        `Plan "${plan}" no encontrado en el catálogo`,
+      );
     return config;
   }
 

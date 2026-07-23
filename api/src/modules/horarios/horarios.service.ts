@@ -13,7 +13,11 @@ export class HorariosService {
     });
   }
 
-  async bulkUpsert(tenantId: string, userId: string, horarios: UpsertHorarioDto[]) {
+  async bulkUpsert(
+    tenantId: string,
+    userId: string,
+    horarios: UpsertHorarioDto[],
+  ) {
     const ops = horarios.map((h) =>
       this.prisma.horarioLaboral.upsert({
         where: {
@@ -43,12 +47,21 @@ export class HorariosService {
   }
 
   /** Returns true if the given ISO datetime falls within the user's working hours */
-  async isWithinSchedule(tenantId: string, userId: string, fecha: Date): Promise<boolean> {
+  async isWithinSchedule(
+    tenantId: string,
+    userId: string,
+    fecha: Date,
+  ): Promise<boolean> {
     const diaSemana = fecha.getDay(); // 0=Sun … 6=Sat
     const hhmm = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
 
     const horario = await this.prisma.horarioLaboral.findFirst({
-      where: { tenant_id: tenantId, user_id: userId, dia_semana: diaSemana, activo: true },
+      where: {
+        tenant_id: tenantId,
+        user_id: userId,
+        dia_semana: diaSemana,
+        activo: true,
+      },
     });
 
     if (!horario) return false; // no schedule for this day → outside hours

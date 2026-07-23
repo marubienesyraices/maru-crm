@@ -30,7 +30,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (payload.rol !== 'SUPER_ADMIN' && payload.tenantId) {
       const estado = await this.getTenantStatus(payload.tenantId);
       if (estado && estado !== 'ACTIVA' && estado !== 'TRIAL') {
-        throw new UnauthorizedException('La empresa se encuentra suspendida o cancelada');
+        throw new UnauthorizedException(
+          'La empresa se encuentra suspendida o cancelada',
+        );
       }
     }
 

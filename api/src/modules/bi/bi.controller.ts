@@ -26,33 +26,48 @@ export class BiController {
   @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('resumen')
-  @ApiOperation({ summary: 'KPIs del período: nuevos leads, cierres, tasa de conversión, comisiones' })
+  @ApiOperation({
+    summary:
+      'KPIs del período: nuevos leads, cierres, tasa de conversión, comisiones',
+  })
   getResumen(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getResumen(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getResumen(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('agentes')
-  @ApiOperation({ summary: 'Desempeño por agente: cierres, comisiones, conversión, visitas' })
+  @ApiOperation({
+    summary: 'Desempeño por agente: cierres, comisiones, conversión, visitas',
+  })
   getAgentes(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getAgentes(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getAgentes(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('propiedades/top')
-  @ApiOperation({ summary: 'Top propiedades por número de interacciones en el período' })
+  @ApiOperation({
+    summary: 'Top propiedades por número de interacciones en el período',
+  })
   getTopPropiedades(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
@@ -60,41 +75,62 @@ export class BiController {
     @Query('limit') limitStr?: string,
   ) {
     const limit = limitStr ? parseInt(limitStr, 10) : 10;
-    return this.bi.getTopPropiedades(user.tenantId, parseDate(desdeStr), parseDate(hastaStr), limit);
+    return this.bi.getTopPropiedades(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+      limit,
+    );
   }
 
   @SkipAudit()
   @Get('ranking')
   @UseGuards(PlanGuard)
   @PlanFeature('tiene_ranking')
-  @ApiOperation({ summary: 'Ranking de agentes con badges (nombres anónimos para no-admin)' })
+  @ApiOperation({
+    summary: 'Ranking de agentes con badges (nombres anónimos para no-admin)',
+  })
   getRanking(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
     const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user.rol);
-    return this.bi.getRanking(user.tenantId, user.sub, isAdmin, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getRanking(
+      user.tenantId,
+      user.sub,
+      isAdmin,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SENIOR', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('productividad')
-  @ApiOperation({ summary: 'Contador de llamadas/emails/mensajes por agente en el período' })
+  @ApiOperation({
+    summary: 'Contador de llamadas/emails/mensajes por agente en el período',
+  })
   getProductividad(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getProductividad(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getProductividad(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('heatmap')
-  @ApiOperation({ summary: 'Coordenadas + actividad de propiedades para mapa de calor' })
+  @ApiOperation({
+    summary: 'Coordenadas + actividad de propiedades para mapa de calor',
+  })
   getHeatmap(@CurrentUser() user: any) {
     return this.bi.getHeatmap(user.tenantId);
   }
@@ -103,20 +139,30 @@ export class BiController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   @SkipAudit()
   @Get('comisiones')
-  @ApiOperation({ summary: 'Comisiones realizadas (GANADO) vs proyectadas (EN_NEGOCIACION + CIERRE)' })
+  @ApiOperation({
+    summary:
+      'Comisiones realizadas (GANADO) vs proyectadas (EN_NEGOCIACION + CIERRE)',
+  })
   getComisiones(
     @CurrentUser() user: any,
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    return this.bi.getComisiones(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+    return this.bi.getComisiones(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
   }
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @SkipAudit()
   @Post('cache/flush')
-  @ApiOperation({ summary: 'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)' })
+  @ApiOperation({
+    summary:
+      'Invalidar caché BI del tenant (forzar recálculo en siguiente consulta)',
+  })
   async flushCache(@CurrentUser() user: any) {
     await this.bi.flushTenantCache(user.tenantId);
     return { ok: true };
@@ -132,9 +178,16 @@ export class BiController {
     @Query('desde') desdeStr?: string,
     @Query('hasta') hastaStr?: string,
   ) {
-    const buffer = await this.bi.exportAgentesXlsx(user.tenantId, parseDate(desdeStr), parseDate(hastaStr));
+    const buffer = await this.bi.exportAgentesXlsx(
+      user.tenantId,
+      parseDate(desdeStr),
+      parseDate(hastaStr),
+    );
     const filename = `agentes_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.end(buffer);
   }

@@ -1,38 +1,55 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum, IsIn, IsUUID } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsIn,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   rol: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   idSupervisor?: string;
 }
 
 export class UpdateUserDto {
-  @IsOptional() @IsEmail()
+  @IsOptional()
+  @IsEmail()
   email?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   nombre?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   rol?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   estado?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   idSupervisor?: string;
 }
 
 export class UpdateTemaDto {
-  @IsString() @IsIn(['oscuro', 'claro'])
+  @IsString()
+  @IsIn(['oscuro', 'claro'])
   tema: 'oscuro' | 'claro';
 }
 
@@ -40,7 +57,8 @@ export class CreateAdminDto {
   @IsEmail()
   email: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
 
   @IsUUID('all')
@@ -48,15 +66,19 @@ export class CreateAdminDto {
 }
 
 export class UpdateAdminDto {
-  @IsOptional() @IsEmail()
+  @IsOptional()
+  @IsEmail()
   email?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   nombre?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   estado?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   tenantId?: string;
 }

@@ -1,10 +1,28 @@
-import { Controller, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
-  LoginDto, Verify2FADto, ForgotPasswordDto,
-  ResetPasswordDto, OnboardingDto, RefreshTokenDto, ChangePasswordDto,
+  LoginDto,
+  Verify2FADto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  OnboardingDto,
+  RefreshTokenDto,
+  ChangePasswordDto,
 } from './dto';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -12,7 +30,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
 function getClientIp(req: any): string {
-  const forwarded = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
+  const forwarded =
+    req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
   if (forwarded) return (forwarded as string).split(',')[0].trim();
   return req.ip || '127.0.0.1';
 }
@@ -26,9 +45,17 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: process.env.NODE_ENV === 'production' ? 20 : 200, ttl: 900000 } })
+  @Throttle({
+    default: {
+      limit: process.env.NODE_ENV === 'production' ? 20 : 200,
+      ttl: 900000,
+    },
+  })
   @ApiOperation({ summary: 'Paso 1 de login: email + contraseña' })
-  @ApiResponse({ status: 200, description: 'Token de acceso o solicitud de 2FA' })
+  @ApiResponse({
+    status: 200,
+    description: 'Token de acceso o solicitud de 2FA',
+  })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(@Body() dto: LoginDto, @Req() req: any) {
     const ip = getClientIp(req);
@@ -39,7 +66,12 @@ export class AuthController {
   @Post('verify-2fa')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: process.env.NODE_ENV === 'production' ? 20 : 200, ttl: 900000 } })
+  @Throttle({
+    default: {
+      limit: process.env.NODE_ENV === 'production' ? 20 : 200,
+      ttl: 900000,
+    },
+  })
   @ApiOperation({ summary: 'Paso 2 de login: verificar código TOTP' })
   @ApiResponse({ status: 200, description: 'Token de acceso completo' })
   async verify2FA(@Body() dto: Verify2FADto, @Req() req: any) {
@@ -61,7 +93,10 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar y activar 2FA con código TOTP' })
-  async confirm2FA(@CurrentUser() user: any, @Body('totpCode') totpCode: string) {
+  async confirm2FA(
+    @CurrentUser() user: any,
+    @Body('totpCode') totpCode: string,
+  ) {
     return this.authService.confirm2FA(user.sub, totpCode);
   }
 
@@ -70,8 +105,15 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cambiar contraseña del usuario autenticado' })
-  async changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(user.sub, dto.currentPassword, dto.newPassword);
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      user.sub,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Post('disable-2fa')
@@ -79,7 +121,10 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Desactivar 2FA con código TOTP actual' })
-  async disable2FA(@CurrentUser() user: any, @Body('totpCode') totpCode: string) {
+  async disable2FA(
+    @CurrentUser() user: any,
+    @Body('totpCode') totpCode: string,
+  ) {
     return this.authService.disable2FA(user.sub, totpCode);
   }
 
@@ -102,7 +147,13 @@ export class AuthController {
   ) {
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
-    return this.authService.logout(refreshToken, user.sub, user.tenantId, ip, userAgent);
+    return this.authService.logout(
+      refreshToken,
+      user.sub,
+      user.tenantId,
+      ip,
+      userAgent,
+    );
   }
 
   @Post('forgot-password')
@@ -116,14 +167,18 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Establecer nueva contraseña con token de recuperación' })
+  @ApiOperation({
+    summary: 'Establecer nueva contraseña con token de recuperación',
+  })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
 
   @Post('onboarding')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Activar cuenta de usuario desde el enlace de bienvenida' })
+  @ApiOperation({
+    summary: 'Activar cuenta de usuario desde el enlace de bienvenida',
+  })
   async onboarding(@Body() dto: OnboardingDto) {
     return this.authService.onboarding(dto);
   }

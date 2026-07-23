@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -8,7 +17,11 @@ import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { MetaService } from './meta.service';
-import { CreateMetaPublicacionDto, ProgramarMetaDto, UpdateMetaPublicacionDto } from './dto';
+import {
+  CreateMetaPublicacionDto,
+  ProgramarMetaDto,
+  UpdateMetaPublicacionDto,
+} from './dto';
 
 @ApiTags('Meta (Facebook / Instagram)')
 @ApiBearerAuth('JWT')
@@ -21,7 +34,9 @@ export class MetaController {
 
   @SkipAudit()
   @Get('status')
-  @ApiOperation({ summary: 'Verifica si las credenciales de Meta están configuradas' })
+  @ApiOperation({
+    summary: 'Verifica si las credenciales de Meta están configuradas',
+  })
   getStatus(@CurrentUser() user: any) {
     return this.svc.getStatus(user.tenantId);
   }
@@ -48,7 +63,11 @@ export class MetaController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar borrador (solo en estado BORRADOR)' })
-  update(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateMetaPublicacionDto) {
+  update(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateMetaPublicacionDto,
+  ) {
     return this.svc.update(user.tenantId, id, dto);
   }
 
@@ -60,8 +79,13 @@ export class MetaController {
 
   @SkipAudit()
   @Post('preview-texto/:propiedadId')
-  @ApiOperation({ summary: 'Generar texto sugerido de publicación a partir de una propiedad' })
-  previewTexto(@CurrentUser() user: any, @Param('propiedadId') propiedadId: string) {
+  @ApiOperation({
+    summary: 'Generar texto sugerido de publicación a partir de una propiedad',
+  })
+  previewTexto(
+    @CurrentUser() user: any,
+    @Param('propiedadId') propiedadId: string,
+  ) {
     return this.svc.previewTexto(user.tenantId, propiedadId);
   }
 
@@ -73,7 +97,11 @@ export class MetaController {
 
   @Post(':id/programar')
   @ApiOperation({ summary: 'Programar publicación futura (mín. 10 min)' })
-  programar(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: ProgramarMetaDto) {
+  programar(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: ProgramarMetaDto,
+  ) {
     return this.svc.programar(user.tenantId, id, new Date(dto.programado_para));
   }
 }

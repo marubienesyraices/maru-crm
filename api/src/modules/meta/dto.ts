@@ -1,7 +1,18 @@
-import { IsEnum, IsOptional, IsString, MaxLength, IsUrl, IsDateString } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  IsUrl,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export enum MetaPlataformaDto { FACEBOOK = 'FACEBOOK', INSTAGRAM = 'INSTAGRAM', AMBAS = 'AMBAS' }
+export enum MetaPlataformaDto {
+  FACEBOOK = 'FACEBOOK',
+  INSTAGRAM = 'INSTAGRAM',
+  AMBAS = 'AMBAS',
+}
 
 export class CreateMetaPublicacionDto {
   @ApiProperty({ enum: MetaPlataformaDto })

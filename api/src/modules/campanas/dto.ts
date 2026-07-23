@@ -1,51 +1,77 @@
-import { IsArray, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreatePlantillaDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   asunto: string;
 
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   cuerpo_html: string;
 }
 
 export class UpdatePlantillaDto {
-  @IsOptional() @IsString() @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   nombre?: string;
 
-  @IsOptional() @IsString() @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   asunto?: string;
 
-  @IsOptional() @IsString() @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   cuerpo_html?: string;
 }
 
 export class CreateCampanaDto {
-  @IsString() @IsNotEmpty()
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
 
   @IsUUID()
   plantilla_id: string;
 
-  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   filtro_rol?: string[];
 
-  @IsOptional() @IsObject()
+  @IsOptional()
+  @IsObject()
   variables_data?: Record<string, string>;
 }
 
 export class UpdateCampanaDto {
-  @IsOptional() @IsString() @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   nombre?: string;
 
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   plantilla_id?: string;
 
-  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   filtro_rol?: string[];
 
-  @IsOptional() @IsObject()
+  @IsOptional()
+  @IsObject()
   variables_data?: Record<string, string>;
 }

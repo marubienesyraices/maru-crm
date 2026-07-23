@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ClientesService } from '../clientes.service';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+import {
+  createMockPrismaService,
+  MockPrismaService,
+} from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
 const USER_ID = 'user-001';
@@ -28,7 +31,10 @@ describe('ClientesService', () => {
   beforeEach(async () => {
     prisma = createMockPrismaService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ClientesService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ClientesService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
     service = module.get<ClientesService>(ClientesService);
   });
@@ -38,14 +44,23 @@ describe('ClientesService', () => {
       prisma.cliente.findFirst.mockResolvedValue(null);
       prisma.cliente.create.mockResolvedValue(mockCliente);
 
-      const result = await service.create(TENANT_ID, {
-        nombre: 'Carlos López', email: 'carlos@example.com', origen: 'REFERIDO',
-      }, USER_ID);
+      const result = await service.create(
+        TENANT_ID,
+        {
+          nombre: 'Carlos López',
+          email: 'carlos@example.com',
+          origen: 'REFERIDO',
+        },
+        USER_ID,
+      );
 
       expect(result.nombre).toBe('Carlos López');
       expect(prisma.cliente.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ tenant_id: TENANT_ID, agente_id: USER_ID }),
+          data: expect.objectContaining({
+            tenant_id: TENANT_ID,
+            agente_id: USER_ID,
+          }),
         }),
       );
     });
@@ -54,14 +69,22 @@ describe('ClientesService', () => {
       prisma.cliente.findFirst.mockResolvedValue(mockCliente);
 
       await expect(
-        service.create(TENANT_ID, { nombre: 'Otro', email: 'carlos@example.com' }, USER_ID),
+        service.create(
+          TENANT_ID,
+          { nombre: 'Otro', email: 'carlos@example.com' },
+          USER_ID,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
     it('debe crear sin email (sin validación de duplicados)', async () => {
       prisma.cliente.create.mockResolvedValue({ ...mockCliente, email: null });
 
-      const result = await service.create(TENANT_ID, { nombre: 'Sin email' }, USER_ID);
+      const result = await service.create(
+        TENANT_ID,
+        { nombre: 'Sin email' },
+        USER_ID,
+      );
 
       expect(result).toBeDefined();
       expect(prisma.cliente.findFirst).not.toHaveBeenCalled();
@@ -112,7 +135,10 @@ describe('ClientesService', () => {
 
   describe('findOne', () => {
     it('debe retornar cliente con intereses', async () => {
-      prisma.cliente.findFirst.mockResolvedValue({ ...mockCliente, intereses: [] });
+      prisma.cliente.findFirst.mockResolvedValue({
+        ...mockCliente,
+        intereses: [],
+      });
 
       const result = await service.findOne(TENANT_ID, 'cli-001');
 
@@ -122,7 +148,9 @@ describe('ClientesService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       prisma.cliente.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne(TENANT_ID, 'no')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(TENANT_ID, 'no')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -131,9 +159,15 @@ describe('ClientesService', () => {
       prisma.cliente.findFirst
         .mockResolvedValueOnce({ ...mockCliente, intereses: [] })
         .mockResolvedValueOnce(null);
-      prisma.cliente.update.mockResolvedValue({ ...mockCliente, telefono: '99999999' });
+      prisma.cliente.update.mockResolvedValue({
+        ...mockCliente,
+        telefono: '99999999',
+      });
 
-      const result = await service.update(TENANT_ID, 'cli-001', { telefono: '99999999', email: 'carlos@example.com' });
+      const result = await service.update(TENANT_ID, 'cli-001', {
+        telefono: '99999999',
+        email: 'carlos@example.com',
+      });
 
       expect(result.telefono).toBe('99999999');
     });

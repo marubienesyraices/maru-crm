@@ -1,8 +1,21 @@
 import {
-  Controller, Post, Delete, Param, UseGuards, UseInterceptors,
-  UploadedFiles, BadRequestException, Body,
+  Controller,
+  Post,
+  Delete,
+  Param,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+  Body,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { randomUUID } from 'crypto';
@@ -12,13 +25,18 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ImageService } from './image.service';
 
-const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+const ALLOWED_IMAGE_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+];
 const ALLOWED_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const MAX_IMAGE_SIZE  = 10  * 1024 * 1024;  // 10 MB
-const MAX_VIDEO_SIZE  = 200 * 1024 * 1024;  // 200 MB
-const MAX_FILE_SIZE   = MAX_IMAGE_SIZE;       // legacy alias used by FilesInterceptor below
-const MAX_IMAGENES    = 30;
-const MAX_VIDEOS      = 3;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB
+const MAX_FILE_SIZE = MAX_IMAGE_SIZE; // legacy alias used by FilesInterceptor below
+const MAX_IMAGENES = 30;
+const MAX_VIDEOS = 3;
 
 @ApiTags('Imágenes')
 @ApiBearerAuth('JWT')
@@ -34,7 +52,9 @@ export class UploadController {
   // ─── helpers ──────────────────────────────────────────────
 
   private async assertPropiedad(propiedadId: string, tenantId: string) {
-    const p = await this.prisma.propiedad.findFirst({ where: { id: propiedadId, tenant_id: tenantId } });
+    const p = await this.prisma.propiedad.findFirst({
+      where: { id: propiedadId, tenant_id: tenantId },
+    });
     if (!p) throw new BadRequestException('Propiedad no encontrada');
     return p;
   }
@@ -42,16 +62,30 @@ export class UploadController {
   // ─── Images ───────────────────────────────────────────────
 
   @Post()
-  @ApiOperation({ summary: `Subir imágenes a una propiedad (máx. ${MAX_IMAGENES} en total, 10 por petición)` })
+  @ApiOperation({
+    summary: `Subir imágenes a una propiedad (máx. ${MAX_IMAGENES} en total, 10 por petición)`,
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: memoryStorage(),
       limits: { fileSize: MAX_IMAGE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_IMAGE_MIMES.includes(file.mimetype)) {
-          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_IMAGE_MIMES.join(', ')}`), false);
+          cb(
+            new BadRequestException(
+              `Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_IMAGE_MIMES.join(', ')}`,
+            ),
+            false,
+          );
         } else {
           cb(null, true);
         }
@@ -63,12 +97,16 @@ export class UploadController {
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    if (!files?.length) throw new BadRequestException('No se enviaron archivos');
+    if (!files?.length)
+      throw new BadRequestException('No se enviaron archivos');
 
     await this.assertPropiedad(propiedadId, user.tenantId);
 
     const existingCount = await this.prisma.propiedadImagen.count({
-      where: { propiedad_id: propiedadId, tipo: { in: ['portada', 'galeria'] } },
+      where: {
+        propiedad_id: propiedadId,
+        tipo: { in: ['portada', 'galeria'] },
+      },
     });
     if (existingCount + files.length > MAX_IMAGENES) {
       throw new BadRequestException(
@@ -98,12 +136,21 @@ export class UploadController {
     const created = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const { processed, thumbnail, original } = await this.imageService.processImageFull(file.buffer, tenantName, tenantLogoBuffer);
+      const { processed, thumbnail, original } =
+        await this.imageService.processImageFull(
+          file.buffer,
+          tenantName,
+          tenantLogoBuffer,
+        );
       const base = randomUUID();
       const [url, thumbnailUrl, originalUrl] = await Promise.all([
         this.storage.upload(processed, `${base}.jpg`, 'image/jpeg'),
         this.storage.upload(thumbnail, `${base}_thumb.jpg`, 'image/jpeg'),
-        this.storage.upload(original, `${base}_original${this.ext(file.mimetype)}`, file.mimetype),
+        this.storage.upload(
+          original,
+          `${base}_original${this.ext(file.mimetype)}`,
+          file.mimetype,
+        ),
       ]);
       const isPortada = !hasCover && i === 0;
 
@@ -122,27 +169,50 @@ export class UploadController {
       created.push(img);
     }
 
-    return { uploaded: created.length, total: existingCount + created.length, limite: MAX_IMAGENES, images: created };
+    return {
+      uploaded: created.length,
+      total: existingCount + created.length,
+      limite: MAX_IMAGENES,
+      images: created,
+    };
   }
 
   private ext(mime: string): string {
-    const map: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+    const map: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+    };
     return map[mime] ?? '.bin';
   }
 
   // ─── Videos ───────────────────────────────────────────────
 
   @Post('videos')
-  @ApiOperation({ summary: `Subir videos a una propiedad (máx. ${MAX_VIDEOS} en total, 1 por petición)` })
+  @ApiOperation({
+    summary: `Subir videos a una propiedad (máx. ${MAX_VIDEOS} en total, 1 por petición)`,
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
   @UseInterceptors(
     FilesInterceptor('files', 3, {
       storage: memoryStorage(),
       limits: { fileSize: MAX_VIDEO_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_VIDEO_MIMES.includes(file.mimetype)) {
-          cb(new BadRequestException(`Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_VIDEO_MIMES.join(', ')}`), false);
+          cb(
+            new BadRequestException(
+              `Tipo no permitido: ${file.mimetype}. Use: ${ALLOWED_VIDEO_MIMES.join(', ')}`,
+            ),
+            false,
+          );
         } else {
           cb(null, true);
         }
@@ -154,7 +224,8 @@ export class UploadController {
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    if (!files?.length) throw new BadRequestException('No se enviaron archivos');
+    if (!files?.length)
+      throw new BadRequestException('No se enviaron archivos');
 
     await this.assertPropiedad(propiedadId, user.tenantId);
 
@@ -182,7 +253,11 @@ export class UploadController {
     const created = [];
     for (const file of files) {
       const filename = `${randomUUID()}.${ext[file.mimetype] ?? 'mp4'}`;
-      const url = await this.storage.upload(file.buffer, filename, file.mimetype);
+      const url = await this.storage.upload(
+        file.buffer,
+        filename,
+        file.mimetype,
+      );
 
       const vid = await this.prisma.propiedadImagen.create({
         data: {
@@ -197,7 +272,12 @@ export class UploadController {
       created.push(vid);
     }
 
-    return { uploaded: created.length, total: existingCount + created.length, limite: MAX_VIDEOS, videos: created };
+    return {
+      uploaded: created.length,
+      total: existingCount + created.length,
+      limite: MAX_VIDEOS,
+      videos: created,
+    };
   }
 
   @Post(':imagenId/portada')
@@ -236,7 +316,10 @@ export class UploadController {
     if (!propiedad) throw new BadRequestException('Propiedad no encontrada');
 
     const updates = imageIds.map((id, index) =>
-      this.prisma.propiedadImagen.update({ where: { id }, data: { orden: index } }),
+      this.prisma.propiedadImagen.update({
+        where: { id },
+        data: { orden: index },
+      }),
     );
     await this.prisma.$transaction(updates);
 

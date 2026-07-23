@@ -14,7 +14,13 @@ export class BusquedasService {
     });
   }
 
-  async create(tenantId: string, clienteId: string, nombre: string, filtros: Record<string, unknown>, alertas = true) {
+  async create(
+    tenantId: string,
+    clienteId: string,
+    nombre: string,
+    filtros: Record<string, unknown>,
+    alertas = true,
+  ) {
     return this.prisma.busquedaGuardada.create({
       data: {
         id: randomUUID(),

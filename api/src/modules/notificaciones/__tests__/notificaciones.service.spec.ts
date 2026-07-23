@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificacionesService } from '../notificaciones.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { EmailService } from '../../email/email.service';
-import { createMockPrismaService, MockPrismaService } from '../../../../test/mocks/prisma.mock';
+import {
+  createMockPrismaService,
+  MockPrismaService,
+} from '../../../../test/mocks/prisma.mock';
 
 const TENANT_ID = 'tenant-001';
 const USER_ID = 'user-001';
@@ -91,7 +94,11 @@ describe('NotificacionesService', () => {
       prisma.user.findUnique.mockResolvedValue({ email: null });
 
       await service.create({
-        tenantId: TENANT_ID, userId: USER_ID, tipo: 'SISTEMA', titulo: 'T', mensaje: 'M',
+        tenantId: TENANT_ID,
+        userId: USER_ID,
+        tipo: 'SISTEMA',
+        titulo: 'T',
+        mensaje: 'M',
       });
 
       await new Promise((r) => setImmediate(r));
@@ -104,15 +111,24 @@ describe('NotificacionesService', () => {
         providers: [
           NotificacionesService,
           { provide: PrismaService, useValue: prisma },
-          { provide: EmailService, useValue: { isConfigured: false, send: emailSend } },
+          {
+            provide: EmailService,
+            useValue: { isConfigured: false, send: emailSend },
+          },
         ],
       }).compile();
 
-      const svcNoEmail = moduleNoEmail.get<NotificacionesService>(NotificacionesService);
+      const svcNoEmail = moduleNoEmail.get<NotificacionesService>(
+        NotificacionesService,
+      );
       prisma.notificacion.create.mockResolvedValue(mockNotificacion);
 
       await svcNoEmail.create({
-        tenantId: TENANT_ID, userId: USER_ID, tipo: 'SISTEMA', titulo: 'T', mensaje: 'M',
+        tenantId: TENANT_ID,
+        userId: USER_ID,
+        tipo: 'SISTEMA',
+        titulo: 'T',
+        mensaje: 'M',
       });
 
       await new Promise((r) => setImmediate(r));

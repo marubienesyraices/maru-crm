@@ -44,10 +44,10 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     // Skip if decorated with @SkipAudit()
-    const skipAudit = this.reflector.getAllAndOverride<boolean>(SKIP_AUDIT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const skipAudit = this.reflector.getAllAndOverride<boolean>(
+      SKIP_AUDIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (skipAudit) {
       return next.handle();
     }
@@ -61,7 +61,10 @@ export class AuditInterceptor implements NestInterceptor {
     // Derive audit metadata from the request
     const accion = this.mapMethodToAction(method);
     const { modulo, entidad } = this.extractModuleEntity(context, request);
-    const ip = (request.headers?.['x-forwarded-for'] as string) || request.ip || '127.0.0.1';
+    const ip =
+      (request.headers?.['x-forwarded-for'] as string) ||
+      request.ip ||
+      '127.0.0.1';
     const userAgent = request.headers?.['user-agent'] || '';
 
     // Capture request body for the audit payload
@@ -86,7 +89,10 @@ export class AuditInterceptor implements NestInterceptor {
               response: this.summarizeResponse(responseData),
             },
           }).catch((err) => {
-            console.error('[AuditInterceptor] Failed to write log:', err.message);
+            console.error(
+              '[AuditInterceptor] Failed to write log:',
+              err.message,
+            );
           });
         },
         error: (err) => {
@@ -157,8 +163,15 @@ export class AuditInterceptor implements NestInterceptor {
     const sanitized = { ...body };
     // Remove sensitive fields
     const sensitiveKeys = [
-      'password', 'password_hash', 'newPassword', 'currentPassword',
-      'totpCode', 'tempToken', 'refreshToken', 'totp_secret', 'secret',
+      'password',
+      'password_hash',
+      'newPassword',
+      'currentPassword',
+      'totpCode',
+      'tempToken',
+      'refreshToken',
+      'totp_secret',
+      'secret',
     ];
     for (const key of sensitiveKeys) {
       if (key in sanitized) {

@@ -14,9 +14,13 @@ export class ConfigPortalService {
   ) {}
 
   async findOrCreate(tenantId: string) {
-    let row = await this.prisma.configPortal.findUnique({ where: { tenant_id: tenantId } });
+    let row = await this.prisma.configPortal.findUnique({
+      where: { tenant_id: tenantId },
+    });
     if (!row) {
-      row = await this.prisma.configPortal.create({ data: { tenant_id: tenantId } });
+      row = await this.prisma.configPortal.create({
+        data: { tenant_id: tenantId },
+      });
     }
     return row;
   }
@@ -39,11 +43,15 @@ export class ConfigPortalService {
     }
 
     const row = await this.prisma.configPortal.upsert({
-      where:  { tenant_id: tenantId },
+      where: { tenant_id: tenantId },
       create: { tenant_id: tenantId, ...dto },
       update: dto,
     });
-    await this.invalidateCache(tenantId, row.dominio_personalizado, row.subdominio);
+    await this.invalidateCache(
+      tenantId,
+      row.dominio_personalizado,
+      row.subdominio,
+    );
     return row;
   }
 
@@ -115,12 +123,17 @@ export class ConfigPortalService {
    * configurado (único dominio efectivamente ruteado por nginx hoy); si no,
    * cae al `fallback` (típicamente el PORTAL_URL global).
    */
-  async resolvePortalBaseUrl(tenantId: string, fallback: string): Promise<string> {
+  async resolvePortalBaseUrl(
+    tenantId: string,
+    fallback: string,
+  ): Promise<string> {
     const row = await this.prisma.configPortal.findUnique({
       where: { tenant_id: tenantId },
       select: { dominio_personalizado: true },
     });
-    return row?.dominio_personalizado ? `https://${row.dominio_personalizado}` : fallback;
+    return row?.dominio_personalizado
+      ? `https://${row.dominio_personalizado}`
+      : fallback;
   }
 
   /** Called when tenant has no domain config — returns first active tenant. */
@@ -155,9 +168,9 @@ export class ConfigPortalService {
     subdominio: string | null,
   ) {
     const keys = [`portal:domain:__default__`];
-    if (dominio)   keys.push(`portal:domain:${dominio}`);
+    if (dominio) keys.push(`portal:domain:${dominio}`);
     if (subdominio) keys.push(`portal:domain:${subdominio}`);
-    await Promise.all(keys.map(k => this.redis.set(k, '', 0)));
+    await Promise.all(keys.map((k) => this.redis.set(k, '', 0)));
     await this.redis.deleteByPattern('portal:domain:*');
   }
 }

@@ -15,7 +15,10 @@ export class AuditController {
   constructor(private auditService: AuditService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar audit logs (inmutables) con filtros de fecha, módulo, usuario y acción' })
+  @ApiOperation({
+    summary:
+      'Listar audit logs (inmutables) con filtros de fecha, módulo, usuario y acción',
+  })
   findAll(
     @CurrentUser('tenantId') tenantId: string,
     @Query('userId') userId?: string,
@@ -28,7 +31,12 @@ export class AuditController {
     @Query('limit') limit?: string,
   ) {
     return this.auditService.findAll(tenantId, {
-      userId, modulo, accion, entidad, fechaDesde, fechaHasta,
+      userId,
+      modulo,
+      accion,
+      entidad,
+      fechaDesde,
+      fechaHasta,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 50,
     });
