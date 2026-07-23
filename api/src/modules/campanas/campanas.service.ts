@@ -25,7 +25,7 @@ function extractVariables(html: string): string[] {
 function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(
     /\{\{(\w+)\}\}/g,
-    (_, key) => vars[key] ?? `{{${key}}}`,
+    (_match: string, key: string) => vars[key] ?? `{{${key}}}`,
   );
 }
 
@@ -102,9 +102,11 @@ export class CampanasService {
     if (dto.asunto !== undefined) data.asunto = dto.asunto;
     if (dto.cuerpo_html !== undefined) {
       // P-11: Save current version to historial before overwriting, including authorship
-      const historial: any[] = (current as any).historial ?? [];
+      const historial = Array.isArray(current.historial)
+        ? current.historial
+        : [];
       historial.push({
-        version: (current as any).version ?? 1,
+        version: current.version,
         asunto: current.asunto,
         cuerpo_html: current.cuerpo_html,
         guardado_at: new Date().toISOString(),
@@ -114,7 +116,7 @@ export class CampanasService {
       data.variables = extractVariables(
         (dto.asunto ?? '') + ' ' + dto.cuerpo_html,
       );
-      data.version = ((current as any).version ?? 1) + 1;
+      data.version = current.version + 1;
       data.historial = historial.slice(-10); // keep last 10 versions
     }
     return this.prisma.emailPlantilla.update({ where: { id }, data });
@@ -157,6 +159,8 @@ export class CampanasService {
       include: { plantilla: { select: { nombre: true } } },
     });
     const ids = campanas.map((c) => c.id);
+    // Cuenta real de emailEvento (más confiable que el contador total_enviados
+    // de la campaña, que solo se fija una vez al terminar el envío).
     const stats = await this.prisma.emailEvento.groupBy({
       by: ['campana_id'],
       where: { campana_id: { in: ids } },
@@ -174,14 +178,17 @@ export class CampanasService {
       abiertos.map((s) => [s.campana_id!, s._count.id]),
     );
 
-    return campanas.map((c) => ({
-      ...c,
-      total_abiertos: abiertosMap[c.id] ?? 0,
-      tasa_apertura:
-        c.total_enviados > 0
-          ? Math.round(((abiertosMap[c.id] ?? 0) / c.total_enviados) * 100)
-          : 0,
-    }));
+    return campanas.map((c) => {
+      const totalEnviados = statsMap[c.id] ?? c.total_enviados;
+      return {
+        ...c,
+        total_abiertos: abiertosMap[c.id] ?? 0,
+        tasa_apertura:
+          totalEnviados > 0
+            ? Math.round(((abiertosMap[c.id] ?? 0) / totalEnviados) * 100)
+            : 0,
+      };
+    });
   }
 
   async getCampana(tenantId: string, id: string) {
