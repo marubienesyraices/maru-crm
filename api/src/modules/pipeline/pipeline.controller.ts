@@ -7,7 +7,6 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -20,6 +19,7 @@ import {
 } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
+import type { VisibilityRequest } from '../../common/guards/visibility.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
@@ -32,7 +32,10 @@ export class PipelineController {
 
   @Post()
   @ApiOperation({ summary: 'Crear interés (vincular cliente con propiedad)' })
-  crearInteres(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateInteresDto) {
+  crearInteres(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateInteresDto,
+  ) {
     return this.service.crearInteres(user.tenantId, dto, user.sub);
   }
 
@@ -40,13 +43,19 @@ export class PipelineController {
   @ApiOperation({
     summary: 'Obtener todos los intereses del pipeline (vista Kanban)',
   })
-  getPipeline(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
+  getPipeline(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: VisibilityRequest,
+  ) {
     return this.service.getPipeline(user.tenantId, req.visibleUserIds);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas del embudo de ventas' })
-  getStats(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
+  getStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: VisibilityRequest,
+  ) {
     return this.service.getStats(user.tenantId, req.visibleUserIds);
   }
 
@@ -65,7 +74,7 @@ export class PipelineController {
   })
   cambiarEstado(
     @CurrentUser() user: AuthenticatedUser,
-    @Req() req: any,
+    @Req() req: VisibilityRequest,
     @Param('id') id: string,
     @Body() dto: CambiarEstadoInteresDto,
   ) {
@@ -75,7 +84,7 @@ export class PipelineController {
       dto,
       user.rol,
       user.sub,
-      req.visibleUserIds,
+      req.visibleUserIds ?? null,
     );
   }
 
@@ -91,7 +100,10 @@ export class PipelineController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar interés del pipeline' })
-  deleteInteres(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  deleteInteres(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.service.deleteInteres(user.tenantId, id);
   }
 }
