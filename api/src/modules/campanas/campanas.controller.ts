@@ -46,7 +46,10 @@ export class CampanasController {
   @SkipAudit()
   @Get('plantillas/:id')
   @ApiOperation({ summary: 'Obtener plantilla por ID' })
-  getPlantilla(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  getPlantilla(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.svc.getPlantilla(user.tenantId, id);
   }
 
@@ -54,7 +57,10 @@ export class CampanasController {
   @ApiOperation({
     summary: 'Crear plantilla con soporte de variables {{nombre}}',
   })
-  createPlantilla(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePlantillaDto) {
+  createPlantilla(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePlantillaDto,
+  ) {
     return this.svc.createPlantilla(user.tenantId, dto);
   }
 
@@ -70,7 +76,10 @@ export class CampanasController {
 
   @Delete('plantillas/:id')
   @ApiOperation({ summary: 'Eliminar plantilla (solo si no está en uso)' })
-  deletePlantilla(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  deletePlantilla(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.svc.deletePlantilla(user.tenantId, id);
   }
 
@@ -106,7 +115,10 @@ export class CampanasController {
 
   @Post()
   @ApiOperation({ summary: 'Crear campaña en estado BORRADOR' })
-  createCampana(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCampanaDto) {
+  createCampana(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCampanaDto,
+  ) {
     return this.svc.createCampana(user.tenantId, dto);
   }
 
@@ -124,7 +136,10 @@ export class CampanasController {
   @ApiOperation({
     summary: 'Enviar campaña a todos los destinatarios del filtro de rol',
   })
-  enviarCampana(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  enviarCampana(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.svc.enviarCampana(user.tenantId, id);
   }
 }

@@ -11,12 +11,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PropiedadesService } from './propiedades.service';
 import {
   CreatePropiedadDto,
@@ -29,6 +24,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PlanGuard } from '../../common/guards/plan.guard';
 import { VisibilityGuard } from '../../common/guards/visibility.guard';
+import type { VisibilityRequest } from '../../common/guards/visibility.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -43,7 +39,10 @@ export class PropiedadesController {
 
   @Post()
   @ApiOperation({ summary: 'Crear nueva propiedad' })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePropiedadDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePropiedadDto,
+  ) {
     return this.service.create(user.tenantId, dto, user.sub);
   }
 
@@ -52,14 +51,17 @@ export class PropiedadesController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() filtros: FiltrosPropiedadDto,
-    @Req() req: any,
+    @Req() req: VisibilityRequest,
   ) {
     return this.service.findAll(user.tenantId, filtros, req.visibleUserIds);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas de propiedades por estado y tipo' })
-  getStats(@CurrentUser() user: AuthenticatedUser, @Req() req: any) {
+  getStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: VisibilityRequest,
+  ) {
     return this.service.getStats(user.tenantId, req.visibleUserIds);
   }
 
@@ -117,7 +119,10 @@ export class PropiedadesController {
     summary:
       'Eliminar propiedad (solo ADMIN). Requiere estado BORRADOR o SUSPENDIDA sin tramites.',
   })
-  async delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async delete(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     await this.service.delete(user.tenantId, id);
     return { message: 'Propiedad eliminada correctamente' };
   }
