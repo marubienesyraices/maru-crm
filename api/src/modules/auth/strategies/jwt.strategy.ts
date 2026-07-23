@@ -4,8 +4,16 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { RedisService } from '../../../redis/redis.service';
+import type { AuthenticatedUser } from '../../../common/decorators/current-user.decorator';
 
 const TENANT_STATUS_TTL = 60; // seconds
+
+interface JwtPayload {
+  sub: string;
+  tenantId: string;
+  email: string;
+  rol: AuthenticatedUser['rol'];
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -25,7 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     // SUPER_ADMIN manages all tenants — exempt from tenant status check
     if (payload.rol !== 'SUPER_ADMIN' && payload.tenantId) {
       const estado = await this.getTenantStatus(payload.tenantId);

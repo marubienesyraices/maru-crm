@@ -30,10 +30,13 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 
-function getClientIp(req: any): string {
+function getClientIp(req: Request): string {
   const forwarded =
     req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'];
-  if (forwarded) return (forwarded as string).split(',')[0].trim();
+  if (forwarded) {
+    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    return value.split(',')[0].trim();
+  }
   return req.ip || '127.0.0.1';
 }
 
@@ -58,7 +61,7 @@ export class AuthController {
     description: 'Token de acceso o solicitud de 2FA',
   })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
-  async login(@Body() dto: LoginDto, @Req() req: any) {
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     return this.authService.login(dto, ip, userAgent);
@@ -75,7 +78,7 @@ export class AuthController {
   })
   @ApiOperation({ summary: 'Paso 2 de login: verificar código TOTP' })
   @ApiResponse({ status: 200, description: 'Token de acceso completo' })
-  async verify2FA(@Body() dto: Verify2FADto, @Req() req: any) {
+  async verify2FA(@Body() dto: Verify2FADto, @Req() req: Request) {
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     return this.authService.verify2FA(dto, ip, userAgent);
@@ -144,7 +147,7 @@ export class AuthController {
   async logout(
     @Body('refreshToken') refreshToken: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';

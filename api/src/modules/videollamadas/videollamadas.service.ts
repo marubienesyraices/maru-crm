@@ -12,6 +12,22 @@ interface ZoomToken {
   expiry: number;
 }
 
+interface ZoomApiError {
+  message?: string;
+}
+interface ZoomMeetingResult {
+  id: number | string;
+  join_url: string;
+}
+interface ZoomOAuthResult {
+  access_token: string;
+  expires_in: number;
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 @Injectable()
 export class VideollamadasService {
   private readonly logger = new Logger(VideollamadasService.name);
@@ -85,11 +101,11 @@ export class VideollamadasService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as ZoomApiError;
       throw new BadRequestException(`Zoom error: ${err.message ?? res.status}`);
     }
 
-    const meeting: any = await res.json();
+    const meeting = (await res.json()) as ZoomMeetingResult;
 
     return this.prisma.visita.update({
       where: { id: visitaId },
@@ -128,9 +144,9 @@ export class VideollamadasService {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch (err: any) {
+    } catch (err) {
       this.logger.warn(
-        `No se pudo eliminar meeting Zoom ${visita.zoom_meeting_id}: ${err?.message}`,
+        `No se pudo eliminar meeting Zoom ${visita.zoom_meeting_id}: ${toErrorMessage(err)}`,
       );
     }
 
@@ -160,7 +176,7 @@ export class VideollamadasService {
 
     if (!res.ok) throw new Error(`Zoom OAuth error: ${res.status}`);
 
-    const data: any = await res.json();
+    const data = (await res.json()) as ZoomOAuthResult;
     this.tokenCache.set(tenantId, {
       token: data.access_token,
       expiry: Date.now() + data.expires_in * 1000,
