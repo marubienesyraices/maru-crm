@@ -5,18 +5,7 @@ import {
   IsDateString,
   MaxLength,
 } from 'class-validator';
-
-export enum EstadoTarea {
-  PENDIENTE = 'PENDIENTE',
-  EN_PROGRESO = 'EN_PROGRESO',
-  COMPLETADA = 'COMPLETADA',
-}
-
-export enum PrioridadTarea {
-  BAJA = 'BAJA',
-  MEDIA = 'MEDIA',
-  ALTA = 'ALTA',
-}
+import { EstadoTarea, PrioridadTarea } from '@prisma/client';
 
 export class CreateTareaDto {
   @IsString()

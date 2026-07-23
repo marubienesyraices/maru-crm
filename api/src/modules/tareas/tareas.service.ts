@@ -29,7 +29,7 @@ export class TareasService {
         user_id: userId,
         titulo: dto.titulo,
         descripcion: dto.descripcion,
-        prioridad: dto.prioridad as any,
+        prioridad: dto.prioridad,
         fecha_limite: dto.fechaLimite ? new Date(dto.fechaLimite) : undefined,
       },
     });
@@ -65,8 +65,8 @@ export class TareasService {
       data: {
         titulo: dto.titulo,
         descripcion: dto.descripcion,
-        estado: dto.estado as any,
-        prioridad: dto.prioridad as any,
+        estado: dto.estado,
+        prioridad: dto.prioridad,
         fecha_limite:
           dto.fechaLimite !== undefined
             ? dto.fechaLimite
