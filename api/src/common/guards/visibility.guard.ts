@@ -4,7 +4,7 @@ import type { Request } from 'express';
 import { UsersService } from '../../modules/users/users.service';
 import type { AuthenticatedUser } from '../decorators/current-user.decorator';
 
-type VisibilityRequest = Request & {
+export type VisibilityRequest = Request & {
   user?: AuthenticatedUser;
   visibleUserIds?: string[] | null;
 };

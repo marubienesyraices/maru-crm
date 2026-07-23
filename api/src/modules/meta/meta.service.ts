@@ -11,7 +11,6 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMetaPublicacionDto, UpdateMetaPublicacionDto } from './dto';
 import { META_QUEUE, MetaJobData } from './meta.constants';
-import { MetaPlataforma } from '@prisma/client';
 import { ConfigIntegracionesService } from '../config-integraciones/config-integraciones.service';
 
 const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
@@ -20,6 +19,15 @@ interface MetaCreds {
   pageToken: string | null;
   pageId: string | null;
   igUserId: string | null;
+}
+
+interface GraphApiResult {
+  id?: string;
+  error?: { message?: string };
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 @Injectable()
@@ -272,8 +280,8 @@ export class MetaService {
           error_msg: null,
         },
       });
-    } catch (err: any) {
-      error = String(err?.message ?? err);
+    } catch (err) {
+      error = toErrorMessage(err);
       this.logger.error(`Meta publish ${id} failed: ${error}`);
       await this.prisma.metaPublicacion.update({
         where: { id },
@@ -313,7 +321,7 @@ export class MetaService {
         body: JSON.stringify({ url: imagenUrl, caption: mensaje }),
         signal: AbortSignal.timeout(20_000),
       });
-      const json: any = await res.json();
+      const json = (await res.json()) as GraphApiResult;
       if (!res.ok || !json.id)
         throw new Error(
           json.error?.message ?? `Facebook photos HTTP ${res.status}`,
@@ -330,7 +338,7 @@ export class MetaService {
       body: JSON.stringify({ message: mensaje }),
       signal: AbortSignal.timeout(15_000),
     });
-    const json: any = await res.json();
+    const json = (await res.json()) as GraphApiResult;
     if (!res.ok || !json.id)
       throw new Error(
         json.error?.message ?? `Facebook feed HTTP ${res.status}`,
@@ -354,7 +362,7 @@ export class MetaService {
       body: JSON.stringify({ image_url: imagenUrl, caption }),
       signal: AbortSignal.timeout(20_000),
     });
-    const container: any = await step1.json();
+    const container = (await step1.json()) as GraphApiResult;
     if (!step1.ok || !container.id)
       throw new Error(
         container.error?.message ?? `IG container HTTP ${step1.status}`,
@@ -369,7 +377,7 @@ export class MetaService {
       body: JSON.stringify({ creation_id: container.id }),
       signal: AbortSignal.timeout(15_000),
     });
-    const pub: any = await step2.json();
+    const pub = (await step2.json()) as GraphApiResult;
     if (!step2.ok || !pub.id)
       throw new Error(pub.error?.message ?? `IG publish HTTP ${step2.status}`);
     return pub.id;
