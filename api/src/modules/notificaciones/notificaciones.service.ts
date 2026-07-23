@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TipoNotificacion } from '@prisma/client';
+import { Prisma, TipoNotificacion } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 
 export interface CreateNotificacionDto {
@@ -40,7 +40,10 @@ export class NotificacionesService {
   }
 
   async findAll(userId: string, tenantId: string, soloNoLeidas = false) {
-    const where: any = { user_id: userId, tenant_id: tenantId };
+    const where: Prisma.NotificacionWhereInput = {
+      user_id: userId,
+      tenant_id: tenantId,
+    };
     if (soloNoLeidas) where.leida = false;
 
     const [items, totalNoLeidas] = await Promise.all([

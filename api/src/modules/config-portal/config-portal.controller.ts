@@ -5,7 +5,6 @@ import {
   Headers,
   Patch,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigPortalService } from './config-portal.service';
@@ -15,6 +14,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { PlanGuard } from '../../common/guards/plan.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PlanFeature } from '../../common/decorators/plan-feature.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 // ── Rutas privadas (ADMIN) ─────────────────────────────────────────────────
 
@@ -26,13 +27,16 @@ export class ConfigPortalController {
   constructor(private readonly svc: ConfigPortalService) {}
 
   @Get()
-  find(@Req() req: any) {
-    return this.svc.findOrCreate(req.user.tenantId);
+  find(@CurrentUser() user: AuthenticatedUser) {
+    return this.svc.findOrCreate(user.tenantId);
   }
 
   @Patch()
-  update(@Req() req: any, @Body() dto: UpdateConfigPortalDto) {
-    return this.svc.update(req.user.tenantId, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateConfigPortalDto,
+  ) {
+    return this.svc.update(user.tenantId, dto);
   }
 }
 

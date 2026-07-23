@@ -14,13 +14,19 @@ export class VideollamadasController {
 
   @Post('visitas/:visitaId')
   @ApiOperation({ summary: 'Crear reunión Zoom para una visita' })
-  crearMeeting(@CurrentUser() user: AuthenticatedUser, @Param('visitaId') id: string) {
+  crearMeeting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('visitaId') id: string,
+  ) {
     return this.svc.crearMeeting(user.tenantId, id);
   }
 
   @Delete('visitas/:visitaId')
   @ApiOperation({ summary: 'Eliminar reunión Zoom asociada a una visita' })
-  eliminarMeeting(@CurrentUser() user: AuthenticatedUser, @Param('visitaId') id: string) {
+  eliminarMeeting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('visitaId') id: string,
+  ) {
     return this.svc.eliminarMeeting(user.tenantId, id);
   }
 }

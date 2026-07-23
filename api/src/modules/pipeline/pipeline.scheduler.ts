@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { EstadoInteres, Rol } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 const DEDUP_WINDOW_DAYS = 7;
-const ACTIVE_STATES = [
+const ACTIVE_STATES: EstadoInteres[] = [
   'NUEVO',
   'CONTACTADO',
   'INTERESADO',
@@ -28,7 +29,7 @@ export class PipelineScheduler {
 
     // 1. All active pipeline entries with latest activity signals
     const entries = await this.prisma.clientePropiedad.findMany({
-      where: { estado: { in: ACTIVE_STATES as any } },
+      where: { estado: { in: ACTIVE_STATES } },
       select: {
         id: true,
         estado: true,
@@ -106,7 +107,6 @@ export class PipelineScheduler {
       if (!entry.cliente.agente_id) continue;
 
       const threshold = thresholdMap[entry.cliente.tenant_id] ?? 21;
-      const cutoff = new Date(now.getTime() - threshold * 86_400_000);
 
       const lastActivity = [
         entry.interacciones[0]?.fecha,
@@ -156,7 +156,7 @@ export class PipelineScheduler {
     // Find EN_NEGOCIACION or CIERRE items that entered that state 30+ days ago
     const entries = await this.prisma.clientePropiedad.findMany({
       where: {
-        estado: { in: ['EN_NEGOCIACION', 'CIERRE'] as any[] },
+        estado: { in: ['EN_NEGOCIACION', 'CIERRE'] as EstadoInteres[] },
         updated_at: { lte: cutoff },
       },
       select: {
@@ -188,7 +188,7 @@ export class PipelineScheduler {
     const admins = await this.prisma.user.findMany({
       where: {
         tenant_id: { in: tenantIds },
-        rol: { in: ['ADMIN', 'SUPER_ADMIN'] as any[] },
+        rol: { in: ['ADMIN', 'SUPER_ADMIN'] as Rol[] },
       },
       select: { id: true, tenant_id: true },
     });

@@ -53,7 +53,7 @@ export class CreateTenantDto {
   estado?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value || undefined)
+  @Transform(({ value }: { value: string | undefined }) => value || undefined)
   @IsDateString()
   trialHasta?: string;
 }
@@ -104,7 +104,7 @@ export class UpdateTenantDto {
   estado?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value || undefined)
+  @Transform(({ value }: { value: string | undefined }) => value || undefined)
   @IsDateString()
   trialHasta?: string;
 }

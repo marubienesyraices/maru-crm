@@ -14,6 +14,10 @@ export interface BrochureJobData {
   userId: string;
 }
 
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 @Processor(BROCHURE_QUEUE)
 export class BrochureProcessor extends WorkerHost {
   private readonly logger = new Logger(BrochureProcessor.name);
@@ -62,11 +66,12 @@ export class BrochureProcessor extends WorkerHost {
       });
 
       this.logger.log(`Brochure ready: ${url}`);
-    } catch (err: any) {
-      this.logger.error(`Brochure job ${jobDbId} failed: ${err?.message}`);
+    } catch (err) {
+      const message = toErrorMessage(err);
+      this.logger.error(`Brochure job ${jobDbId} failed: ${message}`);
       await this.prisma.brochureJob.update({
         where: { id: jobDbId },
-        data: { status: 'ERROR', error: String(err?.message ?? err) },
+        data: { status: 'ERROR', error: message },
       });
       throw err;
     }

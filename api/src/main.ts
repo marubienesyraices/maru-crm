@@ -10,7 +10,10 @@ import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  const httpInstance = app.getHttpAdapter().getInstance() as {
+    disable: (name: string) => void;
+  };
+  httpInstance.disable('x-powered-by');
 
   // Sentry: captura excepciones no manejadas como eventos
   const { httpAdapter } = app.get(HttpAdapterHost);
@@ -107,4 +110,4 @@ async function bootstrap() {
   console.log(`🚀 API running on http://localhost:${port}`);
   console.log(`📚 Swagger UI:  http://localhost:${port}/api/docs`);
 }
-bootstrap();
+void bootstrap();
