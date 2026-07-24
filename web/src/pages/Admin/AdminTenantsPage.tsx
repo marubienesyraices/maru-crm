@@ -66,12 +66,16 @@ export default function AdminTenantsPage() {
     }
   }, [accessToken]);
 
-  useEffect(() => { fetchTenants(); }, [fetchTenants]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchTenants(); });
+  }, [fetchTenants]);
 
   useEffect(() => {
-    apiRequest<CatalogoPlan[]>('/api/catalogo-planes', { token: accessToken! })
-      .then(setCatalogoPlanes)
-      .catch(() => {});
+    queueMicrotask(() => {
+      apiRequest<CatalogoPlan[]>('/api/catalogo-planes', { token: accessToken! })
+        .then(setCatalogoPlanes)
+        .catch(() => {});
+    });
   }, [accessToken]);
 
   const openCreate = () => {
@@ -107,7 +111,7 @@ export default function AdminTenantsPage() {
     setSaving(true);
     setError('');
     try {
-      const cleanBody = (obj: Record<string, any>) => {
+      const cleanBody = (obj: Record<string, unknown>) => {
         const copy = { ...obj };
         if (!copy.trialHasta) delete copy.trialHasta;
         return copy;
@@ -135,8 +139,8 @@ export default function AdminTenantsPage() {
       }
       setShowModal(false);
       fetchTenants();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -148,8 +152,8 @@ export default function AdminTenantsPage() {
     try {
       await apiRequest(`/api/tenants/${t.id}/cancelar`, { method: 'PATCH', token: accessToken! });
       fetchTenants();
-    } catch (err: any) {
-      alert(err.message ?? 'Error al cancelar empresa');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al cancelar empresa');
     } finally {
       setActionLoading(null);
     }
@@ -168,14 +172,14 @@ export default function AdminTenantsPage() {
     try {
       await apiRequest(`/api/tenants/${t.id}`, { method: 'DELETE', token: accessToken! });
       fetchTenants();
-    } catch (err: any) {
-      alert(err.message ?? 'Error al eliminar empresa');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar empresa');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
