@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { usePipeline, useMovePipeline } from '../../hooks/usePipeline';
+import type { PipelineItem } from '../../hooks/usePipeline';
 import { useToast } from '../../components/Toast';
 import Modal from '../../components/Modal';
 import {
@@ -43,9 +44,9 @@ const NEXT_ESTADO_JUNIOR: Record<string, string[]> = {
 function DraggableCard({
   item, onMove, onTimeline, nextEstados,
 }: {
-  item: any;
+  item: PipelineItem;
   onMove: (id: string, estado: string) => void;
-  onTimeline: (item: any) => void;
+  onTimeline: (item: PipelineItem) => void;
   nextEstados: Record<string, string[]>;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -87,7 +88,7 @@ function DraggableCard({
             onClick={() => onTimeline(item)}
             title="Ver historial de interacciones"
           >
-            📋{item._count?.interacciones > 0 && (
+            📋{!!item._count?.interacciones && item._count.interacciones > 0 && (
               <span className="pipeline-timeline-count">{item._count.interacciones}</span>
             )}
           </button>
@@ -127,7 +128,7 @@ function DraggableCard({
 
 // ─── Card Overlay (shown while dragging) ─────────────────────
 
-function CardOverlay({ item }: { item: any }) {
+function CardOverlay({ item }: { item: PipelineItem }) {
   return (
     <div className="pipeline-card pipeline-card-dragging" style={{ cursor: 'grabbing', boxShadow: '0 12px 40px rgba(0,0,0,0.4)' }}>
       <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 4 }}>{item.cliente?.nombre}</div>
@@ -144,11 +145,11 @@ function DroppableColumn({
   col, items, isActive, isValid, onMove, onTimeline, nextEstados, isJuniorLocked,
 }: {
   col: typeof COLUMNS[0];
-  items: any[];
+  items: PipelineItem[];
   isActive: boolean;
   isValid: boolean;
   onMove: (id: string, estado: string) => void;
-  onTimeline: (item: any) => void;
+  onTimeline: (item: PipelineItem) => void;
   nextEstados: Record<string, string[]>;
   isJuniorLocked?: boolean;
 }) {
@@ -288,7 +289,7 @@ function labelCBR(meses: number): string {
 // ─── GANADO Modal ─────────────────────────────────────────────
 
 function GanadoModal({ item, onConfirm, onCancel }: {
-  item: any;
+  item: PipelineItem;
   onConfirm: (args: { precioAcordado: number; tipoOperacionCierre?: string; duracionContratoMeses?: number; comisionAcordada?: number }) => void;
   onCancel: () => void;
 }) {
@@ -460,11 +461,11 @@ export default function PipelinePage() {
   const { data: pipeline = {}, isLoading: loading, isError } = usePipeline();
   const moveMutation = useMovePipeline();
 
-  const [activeItem, setActiveItem] = useState<any>(null);
+  const [activeItem, setActiveItem] = useState<PipelineItem | null>(null);
   const [pendingMove, setPendingMove] = useState<{ id: string; target: string } | null>(null);
   const [pendingCierre, setPendingCierre] = useState<{ id: string } | null>(null);
-  const [pendingGanado, setPendingGanado] = useState<{ id: string; item: any } | null>(null);
-  const [timelineItem, setTimelineItem] = useState<any>(null);
+  const [pendingGanado, setPendingGanado] = useState<{ id: string; item?: PipelineItem } | null>(null);
+  const [timelineItem, setTimelineItem] = useState<PipelineItem | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -475,7 +476,7 @@ export default function PipelinePage() {
       { id, nuevoEstado, motivoPerdida, precioAcordado, cierreDocumentos, tipoOperacionCierre, duracionContratoMeses, comisionAcordada },
       {
         onSuccess: () => toast.success('Lead actualizado'),
-        onError: (err: any) => toast.error(err.message ?? 'Error al mover el lead'),
+        onError: (err: Error) => toast.error(err.message ?? 'Error al mover el lead'),
       },
     );
   };
@@ -585,7 +586,7 @@ export default function PipelinePage() {
         />
       )}
 
-      {pendingGanado && (
+      {pendingGanado?.item && (
         <GanadoModal
           item={pendingGanado.item}
           onConfirm={({ precioAcordado, tipoOperacionCierre, duracionContratoMeses, comisionAcordada }) => {

@@ -3,6 +3,22 @@ import { useAuthStore } from '../../stores/authStore';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../components/Toast';
 import { useConfirm } from '../../components/ConfirmDialog';
+import type { PipelineItem } from '../../hooks/usePipeline';
+import type { Visita } from '../../hooks/useVisitas';
+
+interface Interaccion {
+  id: string;
+  tipo: string;
+  resultado: string;
+  notas?: string | null;
+  duracion_min?: number | null;
+  fecha: string;
+  usuario?: { nombre: string } | null;
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -82,7 +98,7 @@ function AgendarVisitaForm({
         },
       });
       onSaved();
-    } catch (err: any) { setError(err.message); setSaving(false); }
+    } catch (err) { setError(toErrorMessage(err)); setSaving(false); }
   };
 
   return (
@@ -127,7 +143,7 @@ function AgendarVisitaForm({
 
 // ─── Visit Card ────────────────────────────────────────────────
 
-function VisitaItem({ visita, accessToken, onDelete }: { visita: any; accessToken: string; onDelete: () => void }) {
+function VisitaItem({ visita, accessToken, onDelete }: { visita: Visita; accessToken: string; onDelete: () => void }) {
   const color = ESTADO_VISITA_COLORS[visita.estado] ?? '#94a3b8';
 
   const handleIcs = async () => {
@@ -182,7 +198,7 @@ function VisitaItem({ visita, accessToken, onDelete }: { visita: any; accessToke
 
 // ─── Timeline Modal ────────────────────────────────────────────
 
-interface Props { item: any; onClose: () => void; }
+interface Props { item: PipelineItem; onClose: () => void; }
 
 export default function TimelineModal({ item, onClose }: Props) {
   const { accessToken } = useAuthStore();
@@ -191,31 +207,35 @@ export default function TimelineModal({ item, onClose }: Props) {
   const [tab, setTab] = useState<'interacciones' | 'visitas'>('interacciones');
 
   // Interacciones state
-  const [interacciones, setInteracciones] = useState<any[]>([]);
+  const [interacciones, setInteracciones] = useState<Interaccion[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [form, setForm] = useState({ tipo: 'LLAMADA', resultado: 'NEUTRO', notas: '', duracionMin: '', fecha: '' });
 
   // Visitas state
-  const [visitas,         setVisitas]         = useState<any[]>([]);
+  const [visitas,         setVisitas]         = useState<Visita[]>([]);
   const [loadingVisitas,  setLoadingVisitas]  = useState(false);
   const [showVisitaForm,  setShowVisitaForm]  = useState(false);
 
   const fetchTimeline = useCallback(async () => {
     try {
-      setInteracciones(await apiRequest<any[]>(`/api/interacciones?interesId=${item.id}`, { token: accessToken! }));
-    } catch { } finally { setLoading(false); }
+      setInteracciones(await apiRequest<Interaccion[]>(`/api/interacciones?interesId=${item.id}`, { token: accessToken! }));
+    } catch { /* keep previous interacciones on error */ } finally { setLoading(false); }
   }, [item.id, accessToken]);
 
   const fetchVisitas = useCallback(async () => {
     setLoadingVisitas(true);
     try {
-      setVisitas(await apiRequest<any[]>(`/api/visitas?interesId=${item.id}`, { token: accessToken! }));
-    } catch { } finally { setLoadingVisitas(false); }
+      setVisitas(await apiRequest<Visita[]>(`/api/visitas?interesId=${item.id}`, { token: accessToken! }));
+    } catch { /* keep previous visitas on error */ } finally { setLoadingVisitas(false); }
   }, [item.id, accessToken]);
 
-  useEffect(() => { fetchTimeline(); }, [fetchTimeline]);
-  useEffect(() => { fetchVisitas();  }, [fetchVisitas]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchTimeline(); });
+  }, [fetchTimeline]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchVisitas(); });
+  }, [fetchVisitas]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
@@ -234,7 +254,7 @@ export default function TimelineModal({ item, onClose }: Props) {
       setForm({ tipo: 'LLAMADA', resultado: 'NEUTRO', notas: '', duracionMin: '', fecha: '' });
       await fetchTimeline();
       toast.success('Interacción registrada');
-    } catch (err: any) { toast.error(err.message ?? 'Error al guardar'); }
+    } catch (err) { toast.error(toErrorMessage(err) || 'Error al guardar'); }
     finally { setSaving(false); }
   };
 
@@ -245,7 +265,7 @@ export default function TimelineModal({ item, onClose }: Props) {
       await apiRequest(`/api/interacciones/${id}`, { method: 'DELETE', token: accessToken! });
       setInteracciones((prev) => prev.filter((i) => i.id !== id));
       toast.success('Interacción eliminada');
-    } catch (err: any) { toast.error(err.message ?? 'Error al eliminar'); }
+    } catch (err) { toast.error(toErrorMessage(err) || 'Error al eliminar'); }
   };
 
   const handleDeleteVisita = async (id: string) => {
@@ -255,7 +275,7 @@ export default function TimelineModal({ item, onClose }: Props) {
       await apiRequest(`/api/visitas/${id}`, { method: 'DELETE', token: accessToken! });
       setVisitas((prev) => prev.filter((v) => v.id !== id));
       toast.success('Visita eliminada');
-    } catch (err: any) { toast.error(err.message ?? 'Error al eliminar'); }
+    } catch (err) { toast.error(toErrorMessage(err) || 'Error al eliminar'); }
   };
 
   const estadoColor: Record<string, string> = {
