@@ -11,11 +11,50 @@ const ESTADO_COLORS: Record<string, string> = {
   EN_NEGOCIACION: '#8b5cf6', GANADO: '#22c55e', PERDIDO: '#ef4444',
 };
 
-function formatPrice(v: any, currency = 'GTQ') {
+function formatPrice(v: string | number | null | undefined, currency = 'GTQ') {
   if (!v) return '—';
   try {
-    return new Intl.NumberFormat('es-GT', { style: 'currency', currency, maximumFractionDigits: 0 }).format(parseFloat(v));
-  } catch { return `${currency} ${parseFloat(v).toLocaleString('es-GT')}`; }
+    return new Intl.NumberFormat('es-GT', { style: 'currency', currency, maximumFractionDigits: 0 }).format(parseFloat(String(v)));
+  } catch { return `${currency} ${parseFloat(String(v)).toLocaleString('es-GT')}`; }
+}
+
+interface PropiedadListItem {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  gestion: string;
+  estado: string;
+  moneda?: string;
+  precio_venta?: string | number | null;
+  precio_renta?: string | number | null;
+  imagenes?: { url: string }[];
+}
+
+interface Cliente {
+  id: string;
+  nombre: string;
+  email?: string | null;
+  telefono?: string | null;
+  origen: string;
+  dpi?: string | null;
+  nit?: string | null;
+  direccion?: string | null;
+  notas?: string | null;
+  es_propietario?: boolean;
+  agente?: { nombre: string } | null;
+  tipo_interes?: string | null;
+  gestion_interes?: string | null;
+  presupuesto_max?: string | number | null;
+  zona_interes?: string | null;
+  habitaciones_min?: number | null;
+  propiedades?: PropiedadListItem[];
+  intereses?: {
+    id: string;
+    nivel_interes: string;
+    estado: string;
+    propiedad: { id: string; codigo: string; titulo: string };
+  }[];
 }
 
 // ─── Nuevo Trámite Modal ──────────────────────────────────────
@@ -31,7 +70,7 @@ function NuevoTramiteModal({
   onSaved: () => void;
   onClose: () => void;
 }) {
-  const [propiedades, setPropiedades] = useState<any[]>([]);
+  const [propiedades, setPropiedades] = useState<PropiedadListItem[]>([]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState('');
   const [nivelInteres, setNivelInteres] = useState('MEDIO');
@@ -41,10 +80,12 @@ function NuevoTramiteModal({
   const [loadingProps, setLoadingProps] = useState(true);
 
   useEffect(() => {
-    apiRequest<any>('/api/propiedades?limit=100', { token: accessToken })
-      .then((res) => setPropiedades(res.data ?? res))
-      .catch(() => {})
-      .finally(() => setLoadingProps(false));
+    queueMicrotask(() => {
+      apiRequest<{ data: PropiedadListItem[] } | PropiedadListItem[]>('/api/propiedades?limit=100', { token: accessToken })
+        .then((res) => setPropiedades('data' in res ? res.data : res))
+        .catch(() => {})
+        .finally(() => setLoadingProps(false));
+    });
   }, [accessToken]);
 
   const filtered = search
@@ -65,8 +106,8 @@ function NuevoTramiteModal({
       });
       onSaved();
       onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally { setSaving(false); }
   };
 
@@ -207,34 +248,38 @@ export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { accessToken } = useAuthStore();
-  const [cliente, setCliente] = useState<any>(null);
-  const [matching, setMatching] = useState<any[]>([]);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [matching, setMatching] = useState<PropiedadListItem[]>([]);
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showNuevoTramite, setShowNuevoTramite] = useState(false);
 
   const fetch_ = useCallback(async () => {
-    try { setCliente(await apiRequest(`/api/clientes/${id}`, { token: accessToken! })); }
-    catch { } finally { setLoading(false); }
+    try { setCliente(await apiRequest<Cliente>(`/api/clientes/${id}`, { token: accessToken! })); }
+    catch { /* keep previous cliente on error */ } finally { setLoading(false); }
   }, [id, accessToken]);
 
   const fetchMatching = useCallback(async () => {
     setLoadingMatch(true);
     try {
-      const data = await apiRequest<any[]>(`/api/clientes/${id}/matching`, { token: accessToken! });
+      const data = await apiRequest<PropiedadListItem[]>(`/api/clientes/${id}/matching`, { token: accessToken! });
       setMatching(data);
-    } catch { } finally { setLoadingMatch(false); }
+    } catch { /* keep previous matching on error */ } finally { setLoadingMatch(false); }
   }, [id, accessToken]);
 
-  useEffect(() => { fetch_(); }, [fetch_]);
+  useEffect(() => {
+    queueMicrotask(() => { fetch_(); });
+  }, [fetch_]);
 
-  const hasPreferences = cliente && (
+  const hasPreferences = !!cliente && !!(
     cliente.tipo_interes || cliente.gestion_interes ||
     cliente.presupuesto_max || cliente.zona_interes || cliente.habitaciones_min
   );
 
   useEffect(() => {
-    if (hasPreferences) fetchMatching();
+    if (hasPreferences) {
+      queueMicrotask(() => { fetchMatching(); });
+    }
   }, [hasPreferences, fetchMatching]);
 
   if (loading) return <div className="clients-loading"><div className="spinner" /><span>Cargando...</span></div>;
@@ -306,9 +351,9 @@ export default function ClientDetailPage() {
               + Nueva propiedad
             </button>
           </div>
-          {cliente.propiedades?.length > 0 ? (
+          {(cliente.propiedades?.length ?? 0) > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {cliente.propiedades.map((p: any) => (
+              {cliente.propiedades!.map((p) => (
                 <div key={p.id} className="pipeline-card" onClick={() => navigate(`/propiedades/${p.id}`)}>
                   <div className="pipeline-card-client">{p.codigo} — {p.titulo}</div>
                   <div className="pipeline-card-footer">
@@ -336,9 +381,9 @@ export default function ClientDetailPage() {
             Ver pipeline →
           </button>
         </div>
-        {cliente.intereses?.length > 0 ? (
+        {(cliente.intereses?.length ?? 0) > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {cliente.intereses.map((i: any) => (
+            {cliente.intereses!.map((i) => (
               <div key={i.id} className="pipeline-card" onClick={() => navigate(`/propiedades/${i.propiedad.id}`)}>
                 <div className="pipeline-card-client">{i.propiedad.codigo} — {i.propiedad.titulo}</div>
                 <div className="pipeline-card-footer">
@@ -375,7 +420,7 @@ export default function ClientDetailPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No hay propiedades disponibles que coincidan con las preferencias</p>
           ) : (
             <div className="client-matching-grid">
-              {matching.map((p: any) => (
+              {matching.map((p) => (
                 <div key={p.id} className="client-matching-card" onClick={() => navigate(`/propiedades/${p.id}`)}>
                   {p.imagenes?.[0] && (
                     <div className="client-matching-img">
