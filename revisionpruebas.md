@@ -21,8 +21,11 @@
 | Schedulers sin cobertura real (pipeline/propiedades/visitas) | ✅ **Corregido** (P2, ver abajo) — 17-36%→100% stmt |
 | `config-sistema.service.ts` sin ningún test | ✅ **Corregido** (P2, ver abajo) |
 | `GET /api/clientes` sin RBAC por agente | ✅ **Corregido** — ver Hallazgo #4 |
-| Unit tests en `web/` (componentes/hooks) | **0** |
-| Tests automatizados en `portal/` y `mobile/` | **0** |
+| Unit tests en `web/` (componentes/hooks) | ✅ **Corregido** (P3.10) — Vitest + Testing Library, 11 tests |
+| Tests automatizados en `portal/` | ✅ **Corregido** (P3.11) — Vitest + Testing Library, 6 tests |
+| Tests automatizados en `mobile/` | **0** (fuera de alcance de P3, no priorizado) |
+| `api/test/app.e2e-spec.ts` (boilerplate muerto) | ✅ **Corregido** (P3.12) — smoke test real de `/api/health` |
+| Pruebas de carga k6 en CI | ✅ **Corregido** (P3.13) — job manual `workflow_dispatch` |
 
 **El hallazgo más importante de esta revisión no está en la cobertura, está en que el pipeline de CI real (GitHub Actions) lleva rato en rojo por una sola causa raíz que nadie había notado porque el job de Lint fallaba primero y ocultaba todo lo que venía después.** Ver Hallazgo #1.
 
@@ -286,7 +289,7 @@ No es necesariamente un problema — 29 smoke tests que corren en cada push tien
 
 ## Deuda menor de pruebas (housekeeping)
 
-- **`api/test/app.e2e-spec.ts`** es el boilerplate por defecto que genera `nest new` (prueba que `GET /` devuelva `"Hello World!"`). Esta ruta no existe en la app real (todo vive bajo `/api/*`), así que si alguien corriera `npm run test:e2e` hoy, fallaría. No se ejecuta en CI ni en ningún script de desarrollo — es código muerto que puede eliminarse o actualizarse.
+- ~~**`api/test/app.e2e-spec.ts`** es el boilerplate por defecto que genera `nest new`...~~ ✅ **Corregido (P3.12)** — ver detalle en P3 más abajo.
 - Advertencias de lint pendientes (no bloquean CI, 4 en total): `no-unsafe-argument` en `import.service.ts:336,353` y `sindicacion.service.ts:449,450` — parámetros `any` pasados a funciones tipadas. Bajo riesgo, cosmético.
 
 ---
@@ -316,8 +319,31 @@ Validado: suite completa del API con todos los specs nuevos, en una DB Postgres 
 
 **Actualización tras corregir el Hallazgo #4**: se agregaron 5 tests más a `clientes.service.spec.ts` y la suite `08-rbac-clientes.cy.ts`. Suite completa del API: **594/594 tests, 43 suites**, en una DB Postgres aislada y recién sembrada. `08-rbac-clientes.cy.ts` tampoco se pudo ejecutar localmente (mismo problema de Cypress) — el comportamiento se validó primero en vivo contra una instancia real de la API (ver Hallazgo #4), y **luego confirmado en la corrida real de CI** (run `30100776427`, commit `2a1a559`): Lint & Build ✓, **E2E Tests ✓ 2m44s (8/8 specs, incluyendo `08-rbac-clientes.cy.ts`)**, Unit Tests ✓ 1m48s.
 
-### P3 — Inversión estructural (a más largo plazo)
-10. Introducir Vitest + Testing Library en `web/` para los hooks de datos y componentes con lógica no trivial.
-11. Smoke tests mínimos en `portal/` (registro de cliente, verificación de email) dado que es superficie pública.
-12. Eliminar `api/test/app.e2e-spec.ts` (código muerto) o convertirlo en un smoke test real de `/api/health`.
-13. Automatizar k6 como job manual (`workflow_dispatch`) en CI una vez corregidas las credenciales.
+### P3 — Inversión estructural (a más largo plazo) ✅ Aplicado
+
+12. ~~Eliminar `api/test/app.e2e-spec.ts` (código muerto) o convertirlo en un smoke test real de `/api/health`~~ — Hecho. Se reemplazó la prueba de `GET /` → `"Hello World!"` (ruta inexistente en la app real) por un smoke test que arranca la `AppModule` completa (mismo patrón que `owasp.security.spec.ts`: `Test.createTestingModule({ imports: [AppModule] }).compile()`) y verifica `GET /api/health` → `200` con `{ status: 'ok', ts: <ISO string> }`. Se agregó un paso nuevo `Run API E2E smoke test` (`npm run test:e2e`) al job `test` de `ci.yml`, con las mismas variables de entorno que el resto del job — antes este script existía en `package.json` pero nada lo invocaba.
+
+13. ~~Automatizar k6 como job manual (`workflow_dispatch`) en CI una vez corregidas las credenciales~~ — Hecho. Nuevo job `k6` en `ci.yml`, gateado por `if: github.event_name == 'workflow_dispatch'` (no corre en cada push/PR — son pruebas de varios minutos, no un gate de merge). Se dispara desde Actions → "Run workflow" eligiendo un input `script` (`all` / `auth` / `pipeline` / `portal-publico`). Levanta Postgres+Redis igual que los otros jobs, arranca la API (y el portal solo si el script elegido lo necesita), y usa las acciones oficiales `grafana/setup-k6-action@v1` + `grafana/run-k6-action@v1` (verificadas vía `gh api repos/grafana/{setup,run}-k6-action` — ambas existen, ambas tienen un tag móvil `v1`) para instalar y correr cada script de `infra/k6/`.
+
+10. ~~Introducir Vitest + Testing Library en `web/` para los hooks de datos y componentes con lógica no trivial~~ — Hecho. Se agregó `vitest` + `@testing-library/react`/`jest-dom`/`user-event` + `jsdom` a `web/`, con `vite.config.ts` extendido (`test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'], globals: true }`) y scripts `npm run test` / `test:watch`. Tests nuevos (11 casos, 3 archivos), elegidos por ser la lógica no trivial más citada en `CLAUDE.md`:
+    - `lib/__tests__/api.spec.ts` — el interceptor de refresh de `apiRequest()` (`web/src/lib/api.ts`): reintento tras 401 con el token nuevo, exclusión de los endpoints de auth (un 401 de `/api/auth/login` es una credencial inválida real, no una sesión expirada), logout si el refresh falla, y deduplicación de refreshes concurrentes (dos 401 simultáneos disparan un solo refresh, no dos).
+    - `hooks/__tests__/usePipeline.spec.tsx` — `useMovePipeline()`, el hook que `CLAUDE.md` señala explícitamente como "optimistic update con rollback": verifica que la tarjeta se mueve de columna *antes* de que el servidor responda, y que se revierte al estado previo si el servidor rechaza la transición.
+    - `components/__tests__/ProtectedRoute.spec.tsx` — el único guard de rutas de la app: redirige a `/login` sin sesión (o con token sin usuario, caso de token corrupto) y renderiza los children con sesión válida.
+
+    Se agregó un paso `Test Web (Vitest)` al job `lint-build` de `ci.yml`, antes de `Build Web`. Se ampliaron los `types` de `tsconfig.app.json` (`vitest/globals`, `@testing-library/jest-dom`) para que `tsc -b` (parte de `npm run build -w web`) siga tipando limpio con los archivos de test incluidos.
+
+11. ~~Smoke tests mínimos en `portal/` (registro de cliente, verificación de email) dado que es superficie pública~~ — Hecho. Mismo stack que `web/` (`vitest.config.ts` propio, ya que `portal/` es Next.js sin `vite.config.ts` existente), con `next/navigation` y `next/link` mockeados donde hacía falta. Tests nuevos (6 casos, 2 archivos):
+    - `components/__tests__/RegistroInteresForm.spec.tsx` — el formulario público de registro de interés (`POST /api/public/registro`): estado inicial cerrado → se abre al hacer clic, envío exitoso con el body correcto (`nombre`/`email`/`propiedad_id`) y muestra la confirmación, y muestra el mensaje de error real del backend si la petición falla.
+    - `app/verificar/__tests__/VerificarClient.spec.tsx` — la página de verificación de email (`POST /api/public/verificar-email`): sin token en la URL no llama al API, con token válido confirma y muestra el nombre del cliente, con token inválido/expirado muestra el mensaje de error del backend.
+
+    Se agregaron pasos `Test Portal (Vitest)` y `Build Portal` a `ci.yml` (job `lint-build`) — antes `portal/` no se compilaba ni se probaba en CI en absoluto.
+
+**Validación de P3** (metodología idéntica a los hallazgos anteriores — DB Postgres aislada `gestprop_test`/`gestprop_crm_test`, recién sembrada, eliminada después):
+- `npx jest --ci` (suite completa del API): **594/594 tests, 43 suites, 0 fallos**.
+- `npm run test:e2e` (nuevo smoke test de `/api/health`): 1/1 passed.
+- `npx vitest run` en `web/`: **11/11 passed**. `npx vitest run` en `portal/`: **6/6 passed**.
+- `npm run build -w web` y `npm run build -w portal`: ambos compilan limpio (`tsc -b` / `next build` con TypeScript check incluido).
+- `npm run lint -w web`: limpio. `npm run lint -w portal` (`next lint`) **falla de forma preexistente** en este entorno Windows (`Invalid project directory provided, no such directory: ...\portal\lint`) — confirmado con `git stash` que ocurre igual en `master` sin ninguno de estos cambios; es un problema de la actualización a Next.js 16 en este entorno local, no introducido por P3, y no se intentó arreglar (fuera de alcance).
+- Sintaxis de `ci.yml` validada parseándola con `js-yaml` tras cada cambio (workflow_dispatch inputs, job `k6`, pasos nuevos en `lint-build`).
+
+**Nota metodológica importante descubierta durante esta validación**: `PrismaService` usa `DATABASE_APP_URL` (con fallback a `DATABASE_URL`) — sobreescribir solo `DATABASE_URL` en el shell no aísla una prueba que arranca la `AppModule` real (como `owasp.security.spec.ts` o el nuevo `app.e2e-spec.ts`) de la base de datos de desarrollo real, porque `.env` define `DATABASE_APP_URL` apuntando a `gestprop_crm`. Esto causó que una corrida de validación local bloqueara accidentalmente la cuenta real `pedro.junior@gestprop.net` en la DB de desarrollo (no en la de prueba) — se detectó, se restauró manualmente (`intentos_login=0`, `bloqueado_hasta=NULL`) y se confirmó que ninguna otra cuenta quedó afectada. Las corridas de validación reportadas arriba ya se hicieron sobreescribiendo ambas variables.
