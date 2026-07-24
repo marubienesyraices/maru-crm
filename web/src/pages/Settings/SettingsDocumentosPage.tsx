@@ -185,11 +185,13 @@ function TabCarta() {
 
   useEffect(() => {
     if (cartaConfig) {
-      setConfig({
-        carta_color_primario: cartaConfig.carta_color_primario ?? '',
-        carta_tagline: cartaConfig.carta_tagline ?? '',
-        carta_logo_url: cartaConfig.carta_logo_url ?? '',
-        carta_clausulas_custom: cartaConfig.carta_clausulas_custom ?? '',
+      queueMicrotask(() => {
+        setConfig({
+          carta_color_primario: cartaConfig.carta_color_primario ?? '',
+          carta_tagline: cartaConfig.carta_tagline ?? '',
+          carta_logo_url: cartaConfig.carta_logo_url ?? '',
+          carta_clausulas_custom: cartaConfig.carta_clausulas_custom ?? '',
+        });
       });
     }
   }, [cartaConfig]);
@@ -204,8 +206,8 @@ function TabCarta() {
       });
       setMsgConfig('Guardado');
       setTimeout(() => setMsgConfig(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     }
   };
 
@@ -217,7 +219,9 @@ function TabCarta() {
   const [msgPlantilla, setMsgPlantilla] = useState('');
 
   useEffect(() => {
-    if (plantillaData) setHtml(plantillaData.plantilla_html);
+    if (plantillaData) {
+      queueMicrotask(() => { setHtml(plantillaData.plantilla_html); });
+    }
   }, [plantillaData]);
 
   const savePlantilla = async () => {
@@ -225,8 +229,8 @@ function TabCarta() {
       await updatePlantilla.mutateAsync(html);
       setMsgPlantilla('Guardado');
       setTimeout(() => setMsgPlantilla(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     }
   };
 
@@ -234,11 +238,11 @@ function TabCarta() {
     if (!confirm('¿Restaurar la plantilla al diseño por defecto? Se perderán los cambios personalizados.')) return;
     try {
       const data = await resetPlantilla.mutateAsync();
-      setHtml((data as any).plantilla_html ?? '');
+      setHtml(data.plantilla_html ?? '');
       setMsgPlantilla('Restaurada al diseño original');
       setTimeout(() => setMsgPlantilla(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al restaurar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al restaurar');
     }
   };
 
@@ -395,9 +399,11 @@ function TabBrochure() {
 
   useEffect(() => {
     if (data) {
-      setSecciones([...data.secciones].sort((a, b) => a.order - b.order));
-      setFooterTexto(data.footer_texto ?? '');
-      setWatermarkTexto(data.watermark_texto ?? '');
+      queueMicrotask(() => {
+        setSecciones([...data.secciones].sort((a, b) => a.order - b.order));
+        setFooterTexto(data.footer_texto ?? '');
+        setWatermarkTexto(data.watermark_texto ?? '');
+      });
     }
   }, [data]);
 
@@ -430,11 +436,11 @@ function TabBrochure() {
         secciones,
         footer_texto: footerTexto || null,
         watermark_texto: watermarkTexto || null,
-      } as any);
+      });
       setMsg('Guardado');
       setTimeout(() => setMsg(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     }
   };
 
@@ -444,8 +450,8 @@ function TabBrochure() {
       await reset.mutateAsync();
       setMsg('Restaurado');
       setTimeout(() => setMsg(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al restaurar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al restaurar');
     }
   };
 

@@ -58,7 +58,7 @@ export function useResetCartaPlantilla() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiRequest('/api/tenants/mi-tenant/carta-plantilla', { method: 'DELETE', token: accessToken! }),
+      apiRequest<CartaPlantilla>('/api/tenants/mi-tenant/carta-plantilla', { method: 'DELETE', token: accessToken! }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['carta-plantilla'] }),
   });
 }
