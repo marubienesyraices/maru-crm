@@ -91,14 +91,14 @@ export default function AdminSistemaPage() {
     finally { setLoading(false); }
   }, [accessToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload: Partial<SistemaConfig> = {};
-      if (!isMasked(cfg.resend_api_key)) payload.resend_api_key = cfg.resend_api_key || undefined as any;
-      if (cfg.email_from !== MASKED)     payload.email_from     = cfg.email_from     || undefined as any;
+      if (!isMasked(cfg.resend_api_key)) payload.resend_api_key = cfg.resend_api_key || undefined;
+      if (cfg.email_from !== MASKED)     payload.email_from     = cfg.email_from     || undefined;
 
       const updated = await apiRequest<Partial<SistemaConfig>>(
         '/api/superadmin/config-sistema',
@@ -107,8 +107,8 @@ export default function AdminSistemaPage() {
       setCfg({ ...emptyConfig, ...updated });
       setSavedMsg('Guardado');
       setTimeout(() => setSavedMsg(''), 3000);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setSaving(false);
     }

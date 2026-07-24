@@ -81,9 +81,11 @@ function CommandPalette({ open, onClose }: Props) {
   // Focus input when opened
   useEffect(() => {
     if (open) {
-      setQuery('');
-      setResults({ propiedades: [], clientes: [], pipeline: [] });
-      setCursor(0);
+      queueMicrotask(() => {
+        setQuery('');
+        setResults({ propiedades: [], clientes: [], pipeline: [] });
+        setCursor(0);
+      });
       setTimeout(() => inputRef.current?.focus(), 30);
     }
   }, [open]);
@@ -91,7 +93,7 @@ function CommandPalette({ open, onClose }: Props) {
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 2) {
-      setResults({ propiedades: [], clientes: [], pipeline: [] });
+      queueMicrotask(() => { setResults({ propiedades: [], clientes: [], pipeline: [] }); });
       return;
     }
     const t = setTimeout(async () => {
@@ -103,7 +105,7 @@ function CommandPalette({ open, onClose }: Props) {
         );
         setResults(data);
         setCursor(0);
-      } catch { }
+      } catch { /* noop */ }
       finally { setLoading(false); }
     }, 250);
     return () => clearTimeout(t);
@@ -336,6 +338,7 @@ function CommandPalette({ open, onClose }: Props) {
 
 // ─── Exported hook + trigger ───────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with the palette it controls
 export function useGlobalSearch() {
   const [open, setOpen] = useState(false);
 
