@@ -240,7 +240,7 @@ No es necesariamente un problema — 29 smoke tests que corren en cada push tien
 ## Recomendaciones priorizadas
 
 ### P0 — Desbloquear CI ✅ Aplicado
-1. ~~Agregar `MASTER_ENCRYPTION_KEY`...~~ — Hecho. Además se agregaron los *services* `postgres`/`redis`, migración y seed al job `test` (no los tenía). Validado localmente (ver Hallazgo #1). Pendiente: confirmar en la corrida real de GitHub Actions tras el push.
+1. ~~Agregar `MASTER_ENCRYPTION_KEY`...~~ — Hecho. Además se agregaron los *services* `postgres`/`redis`, migración y seed al job `test` (no los tenía). Validado localmente y **confirmado en la corrida real de GitHub Actions** (run `30061947586`, commit `9390512`): `Lint & Build` ✓ 1m39s, `E2E Tests (Cypress)` ✓ 2m19s, `Unit Tests` ✓ 1m37s — los tres jobs en verde por primera vez desde al menos el 18-jul-2026.
 
 ### P1 — Cerrar huecos de falsa confianza en seguridad
 2. Corregir credenciales en `owasp.security.spec.ts` (`admin@demo.com` → usuario real del seed o uno dedicado a tests).
