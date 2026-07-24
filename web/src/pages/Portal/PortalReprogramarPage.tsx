@@ -37,6 +37,25 @@ function toLocalInput(iso?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="portal-root" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div className="portal-verify-card" style={{ maxWidth: 520 }}>
+        <div className="portal-brand" style={{ justifyContent: 'center', marginBottom: 28 }}>
+          <div className="portal-brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </div>
+          GestProp
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function PortalReprogramarPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
@@ -54,26 +73,28 @@ export default function PortalReprogramarPage() {
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    if (!token) { setLoadState('error'); setErrorMsg('Enlace inválido.'); return; }
+    queueMicrotask(() => {
+      if (!token) { setLoadState('error'); setErrorMsg('Enlace inválido.'); return; }
 
-    fetch(`${API}/api/public/reprogramar/${token}`)
-      .then(async (res) => {
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.message || 'Enlace no válido');
-        setVisita(json);
-        setLoadState('ready');
-      })
-      .catch((err: any) => {
-        const msg: string = err.message || '';
-        if (msg.includes('expirado') || msg.includes('cancelada') || msg.includes('realizada')) {
-          setErrorMsg(msg);
-          setLoadState('expired');
-        } else {
-          setErrorMsg(msg || 'Error al cargar la visita.');
-          setLoadState('error');
-        }
-      });
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+      fetch(`${API}/api/public/reprogramar/${token}`)
+        .then(async (res) => {
+          const json = (await res.json().catch(() => ({}))) as VisitaInfo & { message?: string };
+          if (!res.ok) throw new Error(json.message || 'Enlace no válido');
+          setVisita(json);
+          setLoadState('ready');
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('expirado') || msg.includes('cancelada') || msg.includes('realizada')) {
+            setErrorMsg(msg);
+            setLoadState('expired');
+          } else {
+            setErrorMsg(msg || 'Error al cargar la visita.');
+            setLoadState('error');
+          }
+        });
+    });
+  }, [token]);
 
   const enviarAccion = async (accion: Accion) => {
     setFormError('');
@@ -96,7 +117,7 @@ export default function PortalReprogramarPage() {
     setActionState('submitting');
 
     try {
-      const body: any = { accion };
+      const body: Record<string, unknown> = { accion };
       if (accion === 'REPROGRAMAR') {
         body.fecha_inicio = new Date(repForm.fecha_inicio).toISOString();
         body.fecha_fin = new Date(repForm.fecha_fin).toISOString();
@@ -109,35 +130,16 @@ export default function PortalReprogramarPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json().catch(() => ({}));
+      const json = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) throw new Error(json.message || 'Error al procesar la acción');
 
       setActionResult(accion);
       setActionState('done');
-    } catch (err: any) {
-      setFormError(err.message || 'Error de conexión');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Error de conexión');
       setActionState('idle');
     }
   };
-
-  // ─── Layouts ─────────────────────────────────────────────────
-
-  const Card = ({ children }: { children: React.ReactNode }) => (
-    <div className="portal-root" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="portal-verify-card" style={{ maxWidth: 520 }}>
-        <div className="portal-brand" style={{ justifyContent: 'center', marginBottom: 28 }}>
-          <div className="portal-brand-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          GestProp
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 
   if (loadState === 'loading') {
     return (
