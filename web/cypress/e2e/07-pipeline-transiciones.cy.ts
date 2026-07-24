@@ -37,11 +37,21 @@ describe('Pipeline — transición completa de estados', () => {
               direccion: prop.direccion,
             },
           }).then(({ body: propiedad }) => {
+            // Las propiedades nacen en BORRADOR — pasar a EN_NEGOCIACION
+            // exige DISPONIBLE (ver pipeline.service.ts), así que hay que
+            // publicarla antes de crear el trámite.
             cy.request({
-              method: 'POST',
-              url: `${Cypress.env('apiUrl')}/api/pipeline`,
+              method: 'PATCH',
+              url: `${Cypress.env('apiUrl')}/api/propiedades/${propiedad.id}/estado`,
               headers,
-              body: { clienteId: cliente.id, propiedadId: propiedad.id },
+              body: { nuevoEstado: 'DISPONIBLE' },
+            }).then(() => {
+              cy.request({
+                method: 'POST',
+                url: `${Cypress.env('apiUrl')}/api/pipeline`,
+                headers,
+                body: { clienteId: cliente.id, propiedadId: propiedad.id },
+              });
             });
           });
         });
