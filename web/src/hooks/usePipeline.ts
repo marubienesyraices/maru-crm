@@ -5,7 +5,29 @@ import { useAuthStore } from '../stores/authStore';
 export interface PipelineItem {
   id: string;
   estado: string;
-  [key: string]: unknown;
+  nivel_interes?: string | null;
+  notas?: string | null;
+  motivo_perdida?: string | null;
+  fecha_contacto?: string | null;
+  fecha_cierre?: string | null;
+  precio_cierre?: number | string | null;
+  tipo_operacion_cierre?: string | null;
+  duracion_contrato_meses?: number | null;
+  comision_calculada?: number | string | null;
+  comision_sugerida_venta?: number | string | null;
+  comision_sugerida_renta?: number | string | null;
+  cliente?: { id: string; nombre: string } | null;
+  propiedad?: {
+    id: string;
+    codigo: string;
+    titulo: string;
+    moneda?: string | null;
+    gestion?: string | null;
+    precio_venta?: number | string | null;
+    precio_renta?: number | string | null;
+    comision_porcentaje?: number | string | null;
+  } | null;
+  _count?: { interacciones: number } | null;
 }
 
 export function usePipeline() {

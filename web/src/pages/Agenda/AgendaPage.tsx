@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useVisitas, useVisitasConfig, useCreateVisita, useUpdateVisita, useDeleteVisita, useReporteVisita, useCrearMeeting, useEliminarMeeting } from '../../hooks/useVisitas';
+import type { Visita } from '../../hooks/useVisitas';
 import { usePipeline } from '../../hooks/usePipeline';
+import type { PipelineItem } from '../../hooks/usePipeline';
 import { useToast } from '../../components/Toast';
 import { useConfirm } from '../../components/ConfirmDialog';
 import './Agenda.css';
@@ -60,9 +62,9 @@ const ESTADOS_VISITA = ['PENDIENTE', 'CONFIRMADA', 'CANCELADA', 'REALIZADA'];
 // ─── Visita Form Modal ────────────────────────────────────────
 
 interface VisitaFormProps {
-  pipeline: any[];
-  existingVisitas: any[];
-  initial?: any;
+  pipeline: PipelineItem[];
+  existingVisitas: Visita[];
+  initial?: Visita;
   defaultDate?: Date;
   onSaved: () => void;
   onClose: () => void;
@@ -71,7 +73,7 @@ interface VisitaFormProps {
 function useConflictCheck(
   fechaInicio: string,
   fechaFin: string,
-  existingVisitas: any[],
+  existingVisitas: Visita[],
   bufferMin: number,
   excludeId?: string,
 ) {
@@ -132,9 +134,9 @@ function VisitaFormModal({ pipeline, existingVisitas, initial, defaultDate, onSa
     if (!form.interesId) { setError('Selecciona un trámite'); return; }
     setError('');
     const onSuccess = () => { onSaved(); onClose(); };
-    const onError = (err: any) => setError(err.message);
+    const onError = (err: Error) => setError(err.message);
 
-    if (isEdit) {
+    if (isEdit && initial) {
       updateVisita.mutate({
         id: initial.id,
         fechaInicio: new Date(form.fechaInicio).toISOString(),
@@ -292,7 +294,7 @@ function VisitaFormModal({ pipeline, existingVisitas, initial, defaultDate, onSa
 // ─── Reporte Modal ────────────────────────────────────────────
 
 interface ReporteModalProps {
-  visita: any;
+  visita: Visita;
   onSaved: () => void;
   onClose: () => void;
 }
@@ -311,7 +313,7 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
     siguientePaso: visita.reporte_siguiente_paso ?? '',
     fotosInput: '',
   });
-  const [fotosList, setFotosList] = useState<string[]>((visita as any).fotos_visita ?? []);
+  const [fotosList, setFotosList] = useState<string[]>(visita.fotos_visita ?? []);
   const [error, setError] = useState('');
 
   const handleEnviarPropietario = async () => {
@@ -322,8 +324,8 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
         method: 'POST', token: accessToken!,
       });
       setPropietarioMsg(res.sent ? '✓ Resumen enviado al propietario' : `Sin envío: ${res.reason}`);
-    } catch (err: any) {
-      setPropietarioMsg(`Error: ${err.message}`);
+    } catch (err) {
+      setPropietarioMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setEnviandoPropietario(false);
     }
@@ -343,7 +345,7 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
       },
       {
         onSuccess: () => { onSaved(); onClose(); },
-        onError: (err: any) => setError(err.message),
+        onError: (err: Error) => setError(err.message),
       },
     );
   };
@@ -489,7 +491,7 @@ function ReporteModal({ visita, onSaved, onClose }: ReporteModalProps) {
 // ─── Visita Card ──────────────────────────────────────────────
 
 function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, onEliminarZoom, isZoomLoading, tieneIntegraciones }: {
-  visita: any;
+  visita: Visita;
   onEdit: () => void;
   onDelete: () => void;
   onIcs: () => void;
@@ -518,7 +520,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
       </div>
       {tieneIntegraciones && hasZoom && (
         <a
-          href={visita.zoom_join_url}
+          href={visita.zoom_join_url ?? undefined}
           target="_blank"
           rel="noreferrer"
           style={{ fontSize: '0.625rem', color: '#3b82f6', fontWeight: 600 }}
@@ -544,7 +546,7 @@ function VisitaCard({ visita, onEdit, onDelete, onIcs, onReporte, onCrearZoom, o
         {tieneIntegraciones && (hasZoom ? (
           <>
             <a
-              href={visita.zoom_join_url}
+              href={visita.zoom_join_url ?? undefined}
               target="_blank"
               rel="noreferrer"
               className="agenda-event-actions-btn"
@@ -586,8 +588,8 @@ export default function AgendaPage() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [modalState, setModalState] = useState<
     | { mode: 'create'; defaultDate?: Date }
-    | { mode: 'edit'; visita: any }
-    | { mode: 'reporte'; visita: any }
+    | { mode: 'edit'; visita: Visita }
+    | { mode: 'reporte'; visita: Visita }
     | null
   >(null);
 
@@ -607,14 +609,14 @@ export default function AgendaPage() {
     if (!ok) return;
     deleteMutation.mutate(id, {
       onSuccess: () => toast.success('Visita eliminada'),
-      onError: (err: any) => toast.error(err.message ?? 'Error al eliminar la visita'),
+      onError: (err: Error) => toast.error(err.message ?? 'Error al eliminar la visita'),
     });
   };
 
   const handleCrearZoom = (id: string) => {
     crearMeetingMutation.mutate(id, {
       onSuccess: () => toast.success('Reunión Zoom creada'),
-      onError: (err: any) => toast.error(`Error al crear reunión Zoom: ${err.message}`),
+      onError: (err: Error) => toast.error(`Error al crear reunión Zoom: ${err.message}`),
     });
   };
 
@@ -623,7 +625,7 @@ export default function AgendaPage() {
     if (!ok) return;
     eliminarMeetingMutation.mutate(id, {
       onSuccess: () => toast.success('Reunión Zoom eliminada'),
-      onError: (err: any) => toast.error(`Error al eliminar reunión Zoom: ${err.message}`),
+      onError: (err: Error) => toast.error(`Error al eliminar reunión Zoom: ${err.message}`),
     });
   };
 

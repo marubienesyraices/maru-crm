@@ -5,10 +5,13 @@ import { useAuthStore } from '../stores/authStore';
 export interface Visita {
   id: string;
   estado: string;
+  interes_id?: string;
   fecha_inicio: string;
   fecha_fin: string;
   ubicacion?: string | null;
+  notas?: string | null;
   zoom_join_url?: string | null;
+  fotos_visita?: string[] | null;
   reporte_fecha?: string | null;
   reporte_notas?: string | null;
   reporte_nivel_interes?: string | null;
