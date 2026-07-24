@@ -23,6 +23,7 @@ export type MockPrismaService = {
   brochureDescarga: { [key: string]: jest.Mock };
   sindicacionPublicacion: { [key: string]: jest.Mock };
   $executeRawUnsafe: jest.Mock;
+  $executeRaw: jest.Mock;
   $queryRaw: jest.Mock;
   $transaction: jest.Mock;
 };
@@ -37,6 +38,7 @@ export function createMockPrismaService(): MockPrismaService {
       update: jest.fn(),
       upsert: jest.fn(),
       count: jest.fn(),
+      delete: jest.fn(),
     },
     user: {
       create: jest.fn(),
@@ -174,6 +176,7 @@ export function createMockPrismaService(): MockPrismaService {
       delete: jest.fn(),
     },
     $executeRawUnsafe: jest.fn(),
+    $executeRaw: jest.fn(),
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
     onModuleInit: jest.fn(),

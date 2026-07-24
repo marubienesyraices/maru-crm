@@ -65,4 +65,100 @@ describe('TenantsService', () => {
     const r = await service.update('tenant-1', { nombre: 'Updated' });
     expect(r.nombre).toBe('Updated');
   });
+
+  describe('cancelTenant', () => {
+    it('debe cancelar el tenant, matar sesiones activas e invalidar el cache de Redis', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.tenant.update.mockResolvedValue({
+        ...mockTenant,
+        estado: 'CANCELADA',
+      });
+
+      const result = await service.cancelTenant('tenant-1');
+
+      expect(prisma.session.deleteMany).toHaveBeenCalledWith({
+        where: { tenant_id: 'tenant-1' },
+      });
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'tenant:status:tenant-1',
+        'CANCELADA',
+        60,
+      );
+      expect(result.estado).toBe('CANCELADA');
+    });
+
+    it('debe lanzar NotFoundException si el tenant no existe', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(null);
+
+      await expect(service.cancelTenant('no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.session.deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateConfigSeguridad', () => {
+    it('debe hacer upsert con los valores por defecto en create', async () => {
+      prisma.configSeguridad.upsert.mockResolvedValue({
+        tenant_id: 'tenant-1',
+        dias_inactividad_lead: 21,
+      });
+
+      await service.updateConfigSeguridad('tenant-1', {});
+
+      expect(prisma.configSeguridad.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenant_id: 'tenant-1' },
+          create: expect.objectContaining({
+            tenant_id: 'tenant-1',
+            dias_inactividad_lead: 21,
+            buffer_entre_citas_min: 30,
+          }),
+        }),
+      );
+    });
+
+    it('debe actualizar solo los campos provistos en update', async () => {
+      prisma.configSeguridad.upsert.mockResolvedValue({});
+
+      await service.updateConfigSeguridad('tenant-1', {
+        dias_inactividad_lead: 10,
+      });
+
+      expect(prisma.configSeguridad.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { dias_inactividad_lead: 10 },
+        }),
+      );
+    });
+  });
+
+  describe('hardDeleteTenant', () => {
+    it('debe ejecutar la transacción completa y borrar el tenant', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      const txMock = {
+        ...prisma,
+        tenant: { ...prisma.tenant, delete: jest.fn() },
+      };
+      prisma.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+
+      await service.hardDeleteTenant('tenant-1');
+
+      expect(txMock.tenant.delete).toHaveBeenCalledWith({
+        where: { id: 'tenant-1' },
+      });
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        timeout: 30000,
+      });
+    });
+
+    it('debe lanzar NotFoundException si el tenant no existe y no debe iniciar la transacción', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(null);
+
+      await expect(service.hardDeleteTenant('no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
 });

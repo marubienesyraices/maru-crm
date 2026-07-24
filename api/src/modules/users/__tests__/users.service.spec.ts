@@ -246,4 +246,180 @@ describe('UsersService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  // ─── P-01: DESBLOQUEO MANUAL ───────────────────────────────
+
+  describe('desbloquear', () => {
+    it('debe limpiar intentos_login y bloqueado_hasta', async () => {
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        intentos_login: 0,
+        bloqueado_hasta: null,
+      });
+
+      const result = await service.desbloquear('tenant-1', 'user-1');
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { intentos_login: 0, bloqueado_hasta: null },
+      });
+      expect(result.message).toContain('desbloqueada');
+    });
+
+    it('debe lanzar NotFoundException si el usuario no existe en el tenant', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.desbloquear('tenant-1', 'no-existe'),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── P-03: RESET 2FA POR ADMIN ─────────────────────────────
+
+  describe('resetTotp', () => {
+    it('debe apagar totp_habilitado y borrar el secret', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        totp_habilitado: true,
+      });
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        totp_habilitado: false,
+      });
+
+      const result = await service.resetTotp('tenant-1', 'user-1');
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { totp_secret: null, totp_habilitado: false },
+      });
+      expect(result.message).toContain('2FA desactivado');
+    });
+
+    it('debe lanzar NotFoundException si el usuario no existe en el tenant', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.resetTotp('tenant-1', 'no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  // ─── SUPER_ADMIN: GESTIÓN DE ADMINISTRADORES ───────────────
+
+  describe('findAllAdmins', () => {
+    it('debe retornar los admins con su tenant', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        { ...mockUser, rol: 'ADMIN', tenant: { nombre: 'Test Corp' } },
+      ]);
+
+      const result = await service.findAllAdmins();
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { rol: 'ADMIN' } }),
+      );
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('createAdmin', () => {
+    const dto = {
+      tenantId: 'tenant-1',
+      email: 'nuevo-admin@test.com',
+      nombre: 'Nuevo Admin',
+    };
+
+    it('debe crear el admin cuando el tenant no tiene uno todavía', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        ...mockUser,
+        id: 'user-admin',
+        rol: 'ADMIN',
+      });
+
+      const result = await service.createAdmin(dto);
+
+      expect(result.rol).toBe('ADMIN');
+      expect(prisma.user.create).toHaveBeenCalled();
+    });
+
+    it('debe rechazar si el tenant no existe', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(null);
+
+      await expect(service.createAdmin(dto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe rechazar si el tenant ya tiene un administrador', async () => {
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.user.findFirst.mockResolvedValue({
+        nombre: 'Admin Existente',
+        email: 'admin@test.com',
+      });
+
+      await expect(service.createAdmin(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateAdmin', () => {
+    it('debe rechazar si el admin no existe', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateAdmin('no-existe', { nombre: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe rechazar mover el admin a un tenant que ya tiene uno', async () => {
+      prisma.user.findFirst
+        .mockResolvedValueOnce({
+          ...mockUser,
+          rol: 'ADMIN',
+          tenant_id: 'tenant-1',
+        }) // el admin editado
+        .mockResolvedValueOnce({
+          nombre: 'Otro Admin',
+          email: 'otro@test.com',
+        }); // ya existe en tenant-2
+      prisma.tenant.findUnique.mockResolvedValue({
+        ...mockTenant,
+        id: 'tenant-2',
+      });
+
+      await expect(
+        service.updateAdmin('user-admin', { tenantId: 'tenant-2' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('debe actualizar el admin cuando el tenant destino no tiene uno', async () => {
+      prisma.user.findFirst
+        .mockResolvedValueOnce({
+          ...mockUser,
+          rol: 'ADMIN',
+          tenant_id: 'tenant-1',
+        })
+        .mockResolvedValueOnce(null);
+      prisma.tenant.findUnique.mockResolvedValue({
+        ...mockTenant,
+        id: 'tenant-2',
+      });
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        tenant_id: 'tenant-2',
+      });
+
+      const result = await service.updateAdmin('user-admin', {
+        tenantId: 'tenant-2',
+      });
+
+      expect(result.tenant_id).toBe('tenant-2');
+    });
+  });
 });

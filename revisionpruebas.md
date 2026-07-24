@@ -9,7 +9,7 @@
 
 | Suite | Resultado | Cobertura |
 |:------|:----------|:----------|
-| **API — unitarias** (`api/`, Jest) | ✅ **594/594** passed, 43 suites | Stmts **77.34%** · Branch **63.25%** · Func **55.26%** · Lines **77.95%** |
+| **API — unitarias** (`api/`, Jest) | ✅ **620/620** passed, 44 suites *(tras P4.1)* | Stmts **78.68%** · Branch **64.08%** · Func **56.72%** · Lines **79.37%** |
 | **API — smoke E2E** (`app.e2e-spec.ts`) | ✅ **1/1** passed | — (arranca la app completa, no mide líneas) |
 | **Web — unitarias** (`web/`, Vitest) | ✅ **11/11** passed, 3 archivos | Stmts **1.02%** (48/4688) — solo los 3 archivos con test propio |
 | **Portal — unitarias** (`portal/`, Vitest) | ✅ **6/6** passed, 2 archivos | Stmts **12.61%** (54/428) |
@@ -25,6 +25,8 @@
 ---
 
 ## 1. API (`api/`) — pruebas unitarias
+
+> **Nota**: esta sección es la fotografía del barrido inicial (594/594, 77.34% stmt). Tras aplicar P4.1 (ver sección 10) la suite pasó a **620/620, 78.68% stmt** — los números de esta sección quedan como referencia histórica de qué se encontró originalmente; el estado más actual está en la sección 10.
 
 Ejecutado con `npx jest --ci --coverage` contra la DB aislada:
 
@@ -199,7 +201,7 @@ A pedido explícito, se revisó **qué implica concretamente** subir la cobertur
 
 **Hallazgo transversal**: en todos los módulos de abajo, los *servicios* ya tienen spec propio (parcial); lo que falta son métodos específicos dentro de esos servicios que el spec existente no ejercita — no hace falta crear módulos de test nuevos, solo ampliar los que ya existen. La única excepción es `common/encryption`, que no tiene ningún archivo de test.
 
-### P4.1 — Alto riesgo de seguridad / bajo esfuerzo (hacer primero)
+### P4.1 — Alto riesgo de seguridad / bajo esfuerzo ✅ Aplicado
 
 | Archivo | Qué falta probar | Por qué importa |
 |:--------|:------------------|:-----------------|
@@ -208,6 +210,20 @@ A pedido explícito, se revisó **qué implica concretamente** subir la cobertur
 | `modules/users/users.service.ts` — `createAdmin()`, `updateAdmin()`, `findAllAdmins()` | Un tenant no puede tener 2 admins (`createAdmin`), reasignar un admin a otro tenant valida que el destino no tenga admin ya | Únicas rutas SUPER_ADMIN de gestión de administradores, cross-tenant por diseño (`bypass_rls`) |
 | `modules/tenants/tenants.service.ts` — `hardDeleteTenant()` (40.7% stmt, **0 tests** en este método) | Que borre las ~18 tablas en el orden correcto (o al menos que la transacción se ejecute completa sin violar FKs con datos de prueba reales) | **Es la única operación irreversible y destructiva de todo el sistema** (borra un tenant completo, cascada manual con `$executeRaw`) y hoy no tiene ninguna prueba — si alguien agrega una tabla nueva con `tenant_id` y olvida añadirla a la lista, quedaría huérfana o rompería la transacción, y nada lo detectaría hasta producción |
 | `modules/tenants/tenants.service.ts` — `cancelTenant()`, `updateConfigSeguridad()` | Que cancelar mate las sesiones activas + invalide el cache de Redis; upsert de config con create/update parciales | `update()` ya prueba la ruta de suspensión; `cancelTenant`/`updateConfigSeguridad` son primas cercanas sin cubrir |
+
+**Hecho**: `encryption.service.spec.ts` nuevo (9 tests — round-trip, ciphertext manipulado, constructor sin key / key corta). 12 tests nuevos en `users.service.spec.ts` (`desbloquear`, `resetTotp`, `findAllAdmins`, `createAdmin`, `updateAdmin`). 6 tests nuevos en `tenants.service.spec.ts` (`cancelTenant`, `updateConfigSeguridad`, `hardDeleteTenant`). De paso se agregaron `$executeRaw` y `tenant.delete` al mock central de Prisma (`test/mocks/prisma.mock.ts`) — no existían, hacían falta para simular la transacción de `hardDeleteTenant`.
+
+**Validado**: suite completa **620/620 tests, 44 suites** (antes 594/594, 43 suites) contra una DB Postgres aislada y recién sembrada, misma metodología del resto del documento.
+
+| Métrica | Antes | Después |
+|:--------|------:|--------:|
+| `api/` global — statements | 77.34% | **78.68%** |
+| `api/` global — branches | 63.25% | **64.08%** |
+| `api/` global — functions | 55.26% | **56.72%** |
+| `api/` global — lines | 77.95% | **79.37%** |
+| `common/encryption` — statements | 44% | **100%** |
+| `modules/tenants` — statements | 58.9% | **75.13%** |
+| `modules/users` — statements | 53.5% | **68.69%** |
 
 ### P4.2 — Lógica de negocio de alto valor (cálculos puros, fáciles de testear con Prisma mockeado)
 
@@ -237,7 +253,7 @@ No se recomienda escribir specs para el resto de controllers solo por subir el %
 
 ### Orden recomendado y esfuerzo estimado
 
-1. **P4.1** (seguridad) — ~25-30 tests nuevos, esfuerzo bajo (mocks ya existen en los specs actuales de `users`/`tenants`, solo hay que crear `encryption.service.spec.ts` desde cero).
+1. ~~**P4.1** (seguridad)~~ ✅ Hecho — 27 tests nuevos (9+12+6), en vez de los ~25-30 estimados.
 2. **P4.2** (lógica de negocio) — ~20-25 tests nuevos, esfuerzo medio (requiere mockear `fetch` global para geocoding y construir arrays de `comparables` para los distintos escenarios de confianza).
 3. **P4.3** (email) — ~10-12 tests nuevos, esfuerzo bajo (mismo patrón que los 6 tests ya existentes en `email.service.spec.ts`).
 4. **P4.4** (controllers) — ~15 tests nuevos si se decide hacerlo, esfuerzo medio-alto (requiere mockear `Express.Multer.File`); es la única parte de este plan con una decisión de alcance pendiente, no una recomendación cerrada.
