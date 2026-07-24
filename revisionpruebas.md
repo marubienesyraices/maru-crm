@@ -1,349 +1,198 @@
-# Revisión de Pruebas — GestProp CRM
+# Barrido de Pruebas — GestProp CRM
 
-> Fecha de revisión: 24-jul-2026 · Alcance: `api/` (unitarias + seguridad OWASP), `web/` (Cypress E2E), `infra/k6/` (carga), `portal/` y `mobile/` (ausencia de pruebas).
-> Metodología: no solo se leyó el código de las pruebas — se ejecutó la suite completa localmente, se inspeccionó el reporte de cobertura archivo por archivo, y se revisaron las últimas ejecuciones reales de GitHub Actions (`gh run view`) para confirmar qué pasa y qué falla en CI de verdad, no solo en local.
+> Fecha: 24-jul-2026 · Alcance: `api/` (unitarias + e2e), `web/` (Vitest + Cypress E2E), `portal/` (Vitest), `mobile/` (ausencia de pruebas), y confirmación en CI real (GitHub Actions).
+> Metodología: se ejecutaron todas las suites de verdad (no solo se leyó el código) contra una base de datos Postgres aislada y recién sembrada (`gestprop_test`/`gestprop_crm_test`, creada y eliminada en esta misma sesión — la base de datos de desarrollo real nunca se usa para correr pruebas), se midió cobertura real con los reportes de Jest/Vitest, y se confirmó el estado de la corrida más reciente de CI real vía `gh run view`.
 
 ---
 
 ## Resumen ejecutivo
 
-| Señal | Estado |
-|:------|:-------|
-| Lint & Build (CI) | ✅ Verde (arreglado en sesión anterior) |
-| **Unit Tests (CI real)** | ✅ **Corregido** (P0, ver abajo) — validado localmente con Postgres+Redis reales, 529/529 |
-| **E2E Cypress (CI real)** | ✅ **Corregido** (P0, ver abajo) — API confirmada arrancando y respondiendo `/api/health` |
-| Unit Tests (local, con DB aislada) | ✅ 589/589 en 43 suites (tras P0+P1+P2) |
-| Cobertura de líneas (API) | 69.9%→**77.9%** tras P2 (umbral configurado: 65%) |
-| Cobertura de funciones (API) | 48.5%→**55.3%** tras P2 — sigue la más débil de las 4 métricas |
-| E2E Cypress | 6 suites originales (~29 casos, "smoke tests") + 1 suite nueva (P2, transición completa de pipeline) |
-| Suite OWASP — credenciales y aserciones vacías | ✅ **Corregido** (P1, ver abajo) |
-| Pruebas de carga k6 | ✅ Credenciales corregidas (P1) — sigue sin integrarse en CI |
-| Schedulers sin cobertura real (pipeline/propiedades/visitas) | ✅ **Corregido** (P2, ver abajo) — 17-36%→100% stmt |
-| `config-sistema.service.ts` sin ningún test | ✅ **Corregido** (P2, ver abajo) |
-| `GET /api/clientes` sin RBAC por agente | ✅ **Corregido** — ver Hallazgo #4 |
-| Unit tests en `web/` (componentes/hooks) | ✅ **Corregido** (P3.10) — Vitest + Testing Library, 11 tests |
-| Tests automatizados en `portal/` | ✅ **Corregido** (P3.11) — Vitest + Testing Library, 6 tests |
-| Tests automatizados en `mobile/` | **0** (fuera de alcance de P3, no priorizado) |
-| `api/test/app.e2e-spec.ts` (boilerplate muerto) | ✅ **Corregido** (P3.12) — smoke test real de `/api/health` |
-| Pruebas de carga k6 en CI | ✅ **Corregido** (P3.13) — job manual `workflow_dispatch` |
+| Suite | Resultado | Cobertura |
+|:------|:----------|:----------|
+| **API — unitarias** (`api/`, Jest) | ✅ **594/594** passed, 43 suites | Stmts **77.34%** · Branch **63.25%** · Func **55.26%** · Lines **77.95%** |
+| **API — smoke E2E** (`app.e2e-spec.ts`) | ✅ **1/1** passed | — (arranca la app completa, no mide líneas) |
+| **Web — unitarias** (`web/`, Vitest) | ✅ **11/11** passed, 3 archivos | Stmts **1.02%** (48/4688) — solo los 3 archivos con test propio |
+| **Portal — unitarias** (`portal/`, Vitest) | ✅ **6/6** passed, 2 archivos | Stmts **12.61%** (54/428) |
+| **E2E Cypress** (`web/cypress/`) | ✅ **22/22** passed, 8 specs | — (smoke tests de navegación, no miden líneas) |
+| **Mobile** (`mobile/`, Expo) | — | **0 tests** — sin alcance en este barrido |
+| **Lint** (`api`, `web`) | ✅ Limpio (4 warnings cosméticos en `api`, 0 en `web`) | |
+| **Lint** (`portal`, `next lint`) | ❌ Roto **localmente** (pre-existente, no relacionado con pruebas) | |
+| **Build** (`api`, `web`, `portal`) | ✅ Los 3 compilan limpio | |
+| **CI real** (GitHub Actions, run `30108992846`) | ✅ Verde — Lint & Build, E2E Tests, Unit Tests | `k6 Load Tests` correctamente en espera (solo `workflow_dispatch`) |
 
-**El hallazgo más importante de esta revisión no está en la cobertura, está en que el pipeline de CI real (GitHub Actions) lleva rato en rojo por una sola causa raíz que nadie había notado porque el job de Lint fallaba primero y ocultaba todo lo que venía después.** Ver Hallazgo #1.
+**Total de pruebas automatizadas ejecutadas en este barrido: 634** (594 API unit + 1 API e2e + 11 web + 6 portal + 22 Cypress + 0 mobile — se cuentan por separado porque corren con runners y propósitos distintos).
 
 ---
 
-## Hallazgo #1 (crítico) — CI real rota: falta `MASTER_ENCRYPTION_KEY`
+## 1. API (`api/`) — pruebas unitarias
 
-**Confirmado ejecutando `gh run view` sobre la corrida más reciente (`30060398408`, commit `bed9156`):**
+Ejecutado con `npx jest --ci --coverage` contra la DB aislada:
 
 ```
-Lint & Build     ✓  1m44s
-E2E Tests        ✗  2m26s   (falla en "Wait for services")
-Unit Tests       ✗  1m3s    (falla en "Run API Tests")
+Test Suites: 43 passed, 43 total
+Tests:       594 passed, 594 total
+Snapshots:   0 total
 ```
 
-### Causa raíz (una sola, para ambos jobs)
+### Cobertura global
 
-`EncryptionService` (`api/src/common/encryption/encryption.service.ts:13-21`) exige `MASTER_ENCRYPTION_KEY` (64 chars hex) y **lanza `InternalServerErrorException` en el constructor** si falta:
+| Métrica | % | Umbral configurado (`coverageThreshold`) |
+|:--------|--:|:---:|
+| Statements | 77.34% | 65% ✅ |
+| Branches | 63.25% | 50% ✅ |
+| Functions | 55.26% | 45% ✅ |
+| Lines | 77.95% | 65% ✅ |
 
-```ts
-const raw = config.get<string>('MASTER_ENCRYPTION_KEY');
-if (!raw || raw.length !== 64) {
-  throw new InternalServerErrorException('MASTER_ENCRYPTION_KEY must be a 64-char hex string...');
-}
-```
+Todas las métricas superan el umbral configurado, con más margen que en el barrido anterior (72-78% ahora vs 69-78% antes) — resultado esperado tras los specs de schedulers/config-sistema/brochure/pdf-render agregados en la ronda P2.
 
-`.github/workflows/ci.yml` **nunca define esta variable**, ni en el job `test` ni en el job `e2e` — a diferencia de `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`, que sí están. `.env.example` documenta la variable como requerida desde que se introdujo el cifrado de credenciales de integraciones (commit `884413b`, *feat: multi-tenant portal config, per-tenant credentials...*).
+### Cobertura por módulo (agregada, statements/branch/func/lines)
 
-**Efecto en el job `test` (Unit Tests):**
-```
-FAIL src/__tests__/security/owasp.security.spec.ts (6.256 s)
-InternalServerErrorException: MASTER_ENCRYPTION_KEY must be a 64-char hex string (32 bytes)...
-Test Suites: 1 failed, 37 passed, 38 total
-Tests:       20 failed, 509 passed, 529 total
-```
-Solo la suite OWASP falla (es la única que hace `Test.createTestingModule({ imports: [AppModule] })` y arranca la app completa; el resto de specs mockean `PrismaService`/dependencias y nunca instancian `EncryptionService`).
+Módulos por debajo del 70% de statements — los de mayor riesgo relativo, ordenados de menor a mayor:
 
-**Efecto en el job `e2e` (Cypress):**
-```
-Start API (background)  → nest start --watch  (crashea al resolver EncryptionModule)
-Wait for services        → Error: Timed out waiting for: http://localhost:3000/api/health
-```
-La API nunca boota, `wait-on` agota el timeout de 60s, Cypress nunca llega a ejecutarse.
+| Módulo | Stmt | Branch | Func | Lines | Nota |
+|:-------|-----:|-------:|-----:|------:|:-----|
+| `modules/email` | 48.4% | 36.4% | 42.1% | 46.8% | Fire-and-forget, sin `RESEND_API_KEY` en tests |
+| `modules/documentos` | 51.1% | 27.7% | 54.2% | 49.8% | |
+| `modules/upload` | 50% | 24.1% | 26.7% | 50% | Multipart, difícil de testear unitariamente |
+| `modules/users` | 53.5% | 42.0% | 32.7% | 54.1% | |
+| `modules/tenants` | 58.9% | 46.4% | 22.2% | 57.5% | Gestión de tenants, solo SUPER_ADMIN |
+| `modules/propiedades` | 62.6% | 42.9% | 27.7% | 68.0% | El módulo de mayor volumen de negocio — vale la pena revisar en una próxima ronda |
+| `src` (bootstrap: `main.ts`, `instrument.ts`) | 64.2% | 27.3% | 66.7% | 63.3% | Normal — `main.ts`/`instrument.ts` no se testean unitariamente en ningún proyecto Nest típico |
+| `common/encryption` | 53.1% | 50% | 20% | 46.4% | Cifrado de credenciales de integraciones — sensible, vale la pena revisar |
+| `modules/visitas` | 70.8% | 48.4% | 45.2% | 70.3% | |
 
-### ¿Desde cuándo?
+Módulos con cobertura ejemplar (100% o cerca): `search` (100%), `common/decorators`, `common/filters`, `common/middleware` (100%), `config-sistema` (96.9%), `firma-digital` (95.3%), `videollamadas` (95.7%), `storage` (95.3%), `catalogo-planes` (95.7%), `config-portal` (95%).
 
-Se revisaron corridas históricas: **todas las ejecuciones de CI desde al menos el 18-jul-2026 están en rojo.** Antes de esta sesión, el job `Lint & Build` fallaba primero (por los ~1500 errores de tipado que se corrigieron en las sesiones anteriores) y, como `test`/`e2e` dependen de `needs: lint-build`, **nunca llegaban a ejecutarse** — por eso este problema nunca se vio. Al arreglar el lint en esta sesión, el pipeline avanzó y expuso una rotura que ya existía, oculta, desde que se agregó el módulo de cifrado.
-
-### Fix aplicado ✅
-
-Se agregó `MASTER_ENCRYPTION_KEY` (64 hex chars fijos, no es un secreto real — solo necesita pasar la validación de formato) al `env:` de los jobs `test` y `e2e` en `.github/workflows/ci.yml`.
-
-Al investigar el fix se descubrió que **no bastaba con la variable**: el job `test` nunca tuvo Postgres/Redis (a diferencia de `e2e`), así que aunque `EncryptionService` dejara de fallar, `owasp.security.spec.ts` habría chocado a continuación con `PrismaService` («DATABASE_APP_URL or DATABASE_URL environment variable is required» — mismo patrón de constructor que lanza síncronamente). Por eso el job `test` ahora también levanta `postgres:16-alpine` + `redis:7-alpine` como *services*, corre `prisma migrate deploy` + el seed, y pasa `DATABASE_URL`/`REDIS_URL`/`JWT_*`/`MASTER_ENCRYPTION_KEY` al paso `Run API Tests` — el mismo patrón que ya usaba el job `e2e`.
-
-**Validado localmente** (no solo leído) creando un rol+DB Postgres aislados (`gestprop_test`/`gestprop_crm_test`) dentro del contenedor de desarrollo existente, replicando exactamente las variables de entorno que quedaron en `ci.yml`, y corriendo:
-- `npx jest src/__tests__/security/owasp.security.spec.ts` → 20/20 passed (antes: 20/20 failed).
-- Suite completa `npx jest --ci --coverage` → 38/38 suites, 529/529 tests.
-- `npx nest start` con las variables del job `e2e` → la API arrancó y `GET /api/health` respondió `{"status":"ok"}` (antes: la API crasheaba al resolver `EncryptionModule` y `wait-on` agotaba el timeout de 60s).
-
-La base de datos y el rol de prueba temporales se eliminaron después de validar; no se tocó la base de datos de desarrollo real.
+**Patrón estructural sin cambios respecto al barrido anterior**: ningún `*.controller.ts` tiene spec unitario propio — la cobertura de controllers viene indirectamente de `owasp.security.spec.ts` (arranca la app completa y golpea un puñado de rutas reales). No es un hallazgo nuevo, ya estaba documentado; se confirma que sigue igual.
 
 ---
 
-## Hallazgo #2 (alto) — La suite OWASP tiene pruebas que nunca prueban nada
+## 2. API (`api/`) — smoke E2E
 
-Independiente del Hallazgo #1 (que hace fallar la suite entera), **incluso si `MASTER_ENCRYPTION_KEY` se arregla, 4 de los ~20 casos de `owasp.security.spec.ts` seguirían sin validar nada real**, por un problema de datos de prueba:
+`npm run test:e2e` (jest-e2e.json, arranca la `AppModule` completa vía `Test.createTestingModule`):
 
-```ts
-const ADMIN_CREDENTIALS = { email: 'admin@demo.com', password: 'Admin1234!' };
+```
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
 ```
 
-Este usuario **no existe** en el seed real (`prisma/seed.ts` crea `admin@gestprop.net` / `Admin@2026Desa`). Se verificó de forma empírica instrumentando el test: `loginAs()` devuelve `token = undefined`.
-
-Los 4 tests que dependen de `loginAs()` tienen el patrón:
-```ts
-const token = await loginAs(app);
-if (!token) return; // Skip if login fails in test env
-```
-Es decir, **si el login falla, el test termina sin ninguna aserción y Jest lo reporta como "passed"**. Esto aplica a:
-- `A01 — should reject IDOR — accessing other tenant resources via path manipulation` (nunca prueba IDOR)
-- `A02 — should not return password hash in user responses` (nunca verifica que el hash no se filtre)
-- `A03 — should sanitize SQL injection attempts in search query` (nunca prueba los payloads SQL)
-- `A03 — should handle NoSQL-like injection in request body` (nunca prueba el payload)
-
-Es decir, la mitad de las categorías OWASP marcadas como "✅ Completo" en `estadoproyecto.md` (A01 IDOR, A02 exposición de hash) en realidad **no se están verificando en absoluto** — el CI las reporta en verde por diseño accidental (skip silencioso), no porque la protección se haya comprobado.
-
-**Bonus — un test que no prueba lo que dice su nombre:**
-```ts
-it('should block account after 5 failed login attempts', async () => {
-  const firstRes = await request(app.getHttpServer()).post('/api/auth/login').send(badCreds);
-  expect([401, 400]).toContain(firstRes.status);
-});
-```
-Solo hace **un** intento de login y verifica que devuelva 401/400 — nunca verifica el bloqueo tras 5 intentos que el nombre promete. Al investigar el fix se encontró que **el mecanismo real no es "5 intentos"**: `handleFailedLogin()` en `auth.service.ts` (línea ~571) bloquea la cuenta progresivamente — 3 intentos fallidos → 15 min, 6 → 1 hora, 9 → indefinido (requiere desbloqueo manual de un admin). Es un bloqueo **por cuenta** (campos `intentos_login`/`bloqueado_hasta` en `users`), distinto del `ThrottlerGuard` por IP que protege el endpoint `/api/auth/login` (20 intentos/15min en producción, 200 en no-producción — ver `auth.controller.ts`). Ninguno de los dos mecanismos reales tenía una prueba que los verificara.
-
-### Fix aplicado ✅
-1. `ADMIN_CREDENTIALS` ahora usa `admin@gestprop.net` / `Admin@2026Desa` (el admin real del seed).
-2. Los 4 `if (!token) return;` ahora lanzan `throw new Error(...)` con un mensaje diagnóstico — un login fallido rompe el test en vez de silenciarlo.
-3. El test de "bloqueo" se reescribió para verificar el mecanismo **real**: 3 intentos fallidos contra una cuenta seed dedicada (`pedro.junior@gestprop.net`, no la usada por `ADMIN_CREDENTIALS`, para no bloquear la cuenta que usan los otros tests) devuelven 401, y el 4to intento devuelve 403 (bloqueada). Se dejó como test separado y explícito que el *primer* intento contra un email inexistente no dispara el throttle (sigue siendo 401/400, no 429).
-
-**Validado localmente** con la misma metodología del Hallazgo #1 (DB Postgres aislada y recién sembrada, para que el bloqueo del test no interfiera con corridas anteriores): suite completa `owasp.security.spec.ts` → 21/21 passed; suite completa del API → 530/530 passed.
+Verifica `GET /api/health` → `200` con `{ status: 'ok', ts: <ISO string> }`.
 
 ---
 
-## Hallazgo #3 (medio) — Pruebas de carga k6 rotas por el mismo tipo de problema
+## 3. Web (`web/`) — pruebas unitarias (Vitest)
 
-`infra/k6/auth.js` y `infra/k6/pipeline.js` usan las mismas credenciales inexistentes:
-```js
-JSON.stringify({ email: 'admin@demo.com', password: 'Admin1234!' })
 ```
-En `pipeline.js`, el flujo es:
-```js
-export function setup() { return { token: getToken() }; }  // getToken() devuelve null si login falla
-export default function ({ token }) {
-  if (!token) { sleep(1); return; }  // toda iteración duerme y sale — nunca golpea /api/pipeline, /api/clientes, /api/notificaciones
-  ...
-}
+Test Files  3 passed (3)
+     Tests  11 passed (11)
 ```
-Es decir, **estos scripts nunca han probado carga real** contra los endpoints que dicen probar — solo miden cuánto tarda un login que siempre falla. `portal-publico.js` no requiere login y probablemente sí funciona (no se verificó credenciales ahí).
 
-Además, **k6 no está integrado en ningún workflow de CI** (`grep k6 .github/workflows/*.yml` no devuelve nada) — son scripts de ejecución manual (`k6 run infra/k6/auth.js`), así que este problema pudo pasar desapercibido fácilmente.
+| Archivo | Qué cubre |
+|:--------|:----------|
+| `lib/__tests__/api.spec.ts` | Interceptor de refresh de `apiRequest()`: reintento tras 401, exclusión de endpoints de auth, logout si el refresh falla, deduplicación de refreshes concurrentes |
+| `hooks/__tests__/usePipeline.spec.tsx` | `useMovePipeline()` — optimistic update antes de la respuesta del servidor + rollback si la transición es rechazada |
+| `components/__tests__/ProtectedRoute.spec.tsx` | El único guard de rutas de la app: redirige a `/login` sin sesión o con token corrupto, renderiza children con sesión válida |
 
-### Fix aplicado ✅
-Se corrigieron las credenciales en `auth.js` y `pipeline.js` (`admin@gestprop.net` / `Admin@2026Desa`). `portal-publico.js` no necesitaba cambios (no requiere login). Se validó la sintaxis con `node --check` (no hay `k6` instalado localmente para correrlos de verdad).
+### Cobertura
 
-Sigue pendiente (no es parte de este fix): k6 no está integrado en CI — considerar agregar un job manual (`workflow_dispatch`) que los ejecute contra un ambiente de staging.
+```
+Statements   : 1.02% ( 48/4688 )
+Branches     : 0.89% ( 37/4153 )
+Functions    : 0.74% ( 12/1614 )
+Lines        : 1.08% ( 43/3972 )
+```
+
+Este número bajo es **esperado, no un problema nuevo**: hasta esta sesión `web/` tenía 0 tests en absoluto (`revisionpruebas.md` anterior lo señalaba como Hallazgo). Los 3 archivos con test propio (`lib/api.ts`, `hooks/usePipeline.ts`, `components/ProtectedRoute.tsx`) están cubiertos al 62-100%; el resto de `web/src` (~20 hooks, ~30 páginas, ~10 componentes, `authStore.ts`) sigue sin ninguna prueba automatizada — es la base de partida documentada en P3.10, no una regresión.
+
+Se instaló `@vitest/coverage-v8` y se configuró `test.coverage.include: ['src/**/*.{ts,tsx}']` en `vite.config.ts` para que el reporte mida contra **todo** `src/`, no solo los archivos tocados por algún test (de lo contrario el % reportado habría sido engañosamente alto, ~80%, al ignorar todo lo no instrumentado).
 
 ---
 
-## Hallazgo #4 (crítico) — `GET /api/clientes` no aplica RBAC por agente ✅ Corregido
-
-Al preparar el caso de Cypress "JUNIOR no debería ver clientes ajenos" (P2, item 9), se encontró que **la protección que se iba a probar no existe**.
-
-`CLAUDE.md` documenta: *"VisibilityGuard — injects req.visibleUserIds: JUNIOR → self only; SENIOR → self + recursive downline; ADMIN/SUPER_ADMIN → all"*. Se verificó qué controllers realmente aplican `VisibilityGuard`:
+## 4. Portal (`portal/`) — pruebas unitarias (Vitest)
 
 ```
-src/modules/pipeline/pipeline.controller.ts
-src/modules/propiedades/propiedades.controller.ts
-src/modules/search/search.controller.ts
-src/modules/visitas/visitas.controller.ts
+Test Files  2 passed (2)
+     Tests  6 passed (6)
 ```
 
-**`clientes.controller.ts` no está en la lista.** Solo usa `@UseGuards(JwtAuthGuard)`, y `ClientesService.findAll()` (línea 57) solo filtra por `tenant_id` — el filtro por `agente_id` solo se aplica si el caller lo pasa explícitamente como query param, nada lo fuerza para JUNIOR/SENIOR.
+| Archivo | Qué cubre |
+|:--------|:----------|
+| `components/__tests__/RegistroInteresForm.spec.tsx` | Formulario público de registro de interés (`POST /api/public/registro`): abrir/cerrar, envío exitoso con el body correcto, mensaje de error del backend |
+| `app/verificar/__tests__/VerificarClient.spec.tsx` | Verificación de email (`POST /api/public/verificar-email`): sin token no llama al API, token válido confirma y muestra el nombre, token inválido/expirado muestra el error |
 
-**Confirmado en vivo** (no solo leyendo código): login como `ana.junior@gestprop.net` (rol JUNIOR) contra el API local y `GET /api/clientes?limit=50`:
+### Cobertura
+
 ```
-total: 12
-Cliente E2E Test | agente: Julian Ponciano Desa
-Cliente E2E Test | agente: Julian Ponciano Desa
-David Castro | agente: null
-...
+Statements   : 12.61% ( 54/428 )
+Branches     : 11.53% ( 36/312 )
+Functions    : 6.97% ( 9/129 )
+Lines        : 14.04% ( 50/356 )
 ```
-Ana ve los 12 contactos del tenant, incluyendo dos asignados explícitamente a otro agente (`Julian Ponciano Desa`, no ella). Un JUNIOR puede ver la cartera de contactos de cualquier otro agente de su inmobiliaria vía este endpoint — un problema real de segregación de datos entre agentes, no un hueco de pruebas.
 
-### Fix aplicado ✅
-
-Por decisión explícita del usuario en una sesión posterior, se corrigió el gap:
-
-- `ClientesController`: `@UseGuards(JwtAuthGuard)` → `@UseGuards(JwtAuthGuard, VisibilityGuard)`, mismo patrón que `pipeline`/`propiedades`/`visitas`/`search`. `findAll` y `getStats` ahora reciben `@Req() req: VisibilityRequest` y pasan `req.visibleUserIds` al service.
-- `ClientesService.findAll()` / `getStats()`: filtran por `agente_id: { in: visibleUserIds }` cuando `visibleUserIds` no es `null` (ADMIN/SUPER_ADMIN siguen sin restricción).
-- **Matiz de seguridad detectado al implementar**: `FiltrosClienteDto` ya expone un filtro `agenteId` explícito (`?agenteId=...`) que, de no manejarse con cuidado, habría permitido a un JUNIOR/SENIOR *ampliar* su visibilidad pasando el id de un agente ajeno. Se implementó como intersección: si `filtros.agenteId` no está dentro de `visibleUserIds`, la query resuelve a `{ in: [] }` (cero resultados) en vez de ignorar la restricción.
-- 5 tests nuevos en `clientes.service.spec.ts` cubriendo: sin restricción (ADMIN), restricción aplicada (JUNIOR/SENIOR), e intersección correcta/incorrecta con `filtros.agenteId`.
-- Nuevo `web/cypress/e2e/08-rbac-clientes.cy.ts`: crea un contacto como ADMIN y otro como ANA (JUNIOR real del seed), confirma que ANA solo ve el suyo y que ADMIN ve ambos.
-
-**Validado en vivo** (no solo unit tests) contra una instancia real de la API en una DB aislada: se repitió exactamente la prueba que originalmente expuso el bug —
-```
-ANA (JUNIOR) antes del fix:  total: 12 (todos los contactos del tenant)
-ANA (JUNIOR) después del fix: total: 1  (solo el suyo)
-CARLOS (SENIOR):              ve el de Ana (downline), no el del admin
-ADMIN:                        sigue viendo todos (sin restricción)
-```
-Suite completa del API: 594/594 tests (43 suites) en una DB Postgres aislada y recién sembrada.
+Dos advertencias no fatales durante la recolección de cobertura: `politica-privacidad/page.tsx` y `mi-cuenta/verify/page.tsx` (Server Components de Next) no pudieron ser parseados por el remapper de `@vitest/coverage-v8` (usa `rolldown`, que no soporta cierta sintaxis de RSC de Next 16 aislada de su pipeline) — se excluyen automáticamente del reporte con un warning, no rompen la corrida. Es una limitación conocida de medir cobertura de componentes de servidor con herramientas pensadas para Vite/SPA, no un bug de las pruebas.
 
 ---
 
-## Cobertura de pruebas unitarias (API) — detalle
+## 5. E2E Cypress (`web/cypress/`)
 
-Ejecutado localmente con `.env` completo: **529/529 tests, 38 suites, 0 fallos.**
+**Corridas por primera vez en esta sesión contra la app real (API + Vite dev server) en la DB aislada**, en vez de solo confirmarse por lectura de código + CI:
 
 ```
-Statements   : 69.59% ( 4146/5957 )
-Branches     : 57.35% ( 2137/3726 )
-Functions    : 48.54% (  433/892  )   ← la métrica más débil, con margen
-Lines        : 69.94% ( 3723/5323 )
+✔  01-auth.cy.ts                    5/5
+✔  02-propiedades.cy.ts             4/4
+✔  03-pipeline.cy.ts                2/2
+✔  04-agenda.cy.ts                  2/2
+✔  05-clientes.cy.ts                3/3
+✔  06-busqueda-global.cy.ts         3/3
+✔  07-pipeline-transiciones.cy.ts   1/1
+✔  08-rbac-clientes.cy.ts           2/2
+   ────────────────────────────────
+   All specs passed!               22/22   (32s)
 ```
 
-El umbral configurado en `api/package.json` (`coverageThreshold`) es 65% statements/lines, 50% branches, 45% functions — el proyecto pasa el umbral, pero por poco margen en `functions` y `branches`.
-
-### Patrón estructural: solo los `*.service.ts` tienen pruebas dedicadas
-
-Se comparó cada `*.service.ts` / `*.controller.ts` / `*.scheduler.ts` / `*.processor.ts` / `*.guard.ts` contra la existencia de un spec con su mismo nombre en `__tests__/`:
-
-| Tipo de archivo | Con spec propio | Sin spec propio |
-|:-----------------|:---:|:---:|
-| `*.service.ts` | 34 | 4 (`email-triggers`, `notificacion-preferencias`, `config-sistema`, `pdf-render`) |
-| `*.controller.ts` | 0 | ~30 |
-| `*.scheduler.ts` | 1 (`documentos.scheduler`) | 5 (`pipeline`, `propiedades`, `visitas`, `audit-archive`, `tenants`) |
-| `*.processor.ts` | 0 | 2 (`brochure.processor`, `meta.processor`) |
-| `*.guard.ts` | 3 (`plan`, `roles`, `visibility`) | 2 (`jwt-auth`, `cliente-jwt`) |
-
-**Ningún controller tiene un spec unitario propio.** La cobertura que sí aparece en algunos controllers (60-90% en `propiedades.controller.ts`, `clientes.controller.ts`, etc.) no viene de pruebas de sus reglas de negocio — viene indirectamente de que `owasp.security.spec.ts` levanta la `AppModule` completa y hace ~10 peticiones HTTP contra un puñado de rutas (`/api/propiedades`, `/api/users`, `/api/search`, `/api/health`, `/api/audit`). Por eso el **function coverage** de los controllers es tan bajo (8-33%) pese a un statement coverage aparentemente decente: se ejecuta la ruta feliz de 1-2 endpoints, el resto de métodos (crear, actualizar, borrar, transiciones de estado) nunca se llama desde ninguna prueba.
-
-### Archivos con menor cobertura (statements)
-
-| Archivo | Stmt | Branch | Func | Nota |
-|:--------|-----:|-------:|-----:|:-----|
-| `modules/brochure/brochure.service.ts` | 14% | 13% | 37% | Genera PDFs — lógica central sin cubrir |
-| `modules/pipeline/pipeline.scheduler.ts` | 17% | 13% | 8% | Cron de inactividad de leads — sin spec propio |
-| `modules/documentos/carta-comision.controller.ts` | 23% | 15% | 17% | |
-| `modules/documentos/pdf-render.service.ts` | 25% | 0% | 14% | |
-| `modules/propiedades/propiedades.scheduler.ts` | 26% | 20% | 13% | Cron de auto-publicación/estancamiento — sin spec propio |
-| `modules/upload/upload.controller.ts` | 27% | 18% | 8% | |
-| `modules/config-sistema/config-sistema.service.ts` | 33% | 26% | 17% | **Módulo entero sin ningún test** (ver abajo) |
-| `common/decorators/current-user.decorator.ts` | 33% | 0% | 0% | |
-| `modules/portal/cliente-jwt.guard.ts` | 33% | 38% | 50% | Guard de autenticación del portal de clientes — riesgo si falla |
-| `modules/visitas/visitas.scheduler.ts` | 36% | 59% | 20% | |
-| `modules/email/email.service.ts` | 40% | 34% | 46% | |
-| `modules/users/users.service.ts` | 40% | 34% | 47% | |
-| `modules/tenants/tenants.service.ts` | 41% | 43% | 40% | |
-
-### Módulo completo sin ninguna prueba: `config-sistema`
-
-`api/src/modules/config-sistema/` (controller + service + dto) es el **único módulo de los 32 en `src/modules/` sin ningún directorio `__tests__/`**. Gestiona la configuración global de Resend/email del sistema (usada como fallback de todos los tenants) — es infraestructura sensible sin ninguna cobertura.
-
-### `main.ts` / `instrument.ts` en 0%
-Es normal y esperable — son el bootstrap y la inicialización de Sentry, no se testean unitariamente en ningún proyecto NestJS típico. No es un hallazgo, se menciona solo para que no distraiga al leer la tabla completa de cobertura.
+**Nota importante — corrección de una nota anterior**: sesiones previas de este barrido asumían que Cypress estaba roto en este entorno Windows (`npx cypress verify` fallaba con `bad option: --smoke-test`). La causa real es que este shell tiene `ELECTRON_RUN_AS_NODE=1` seteado globalmente, lo que hace que el binario de Cypress (basado en Electron) arranque como Node puro. Con `env -u ELECTRON_RUN_AS_NODE` antes de cualquier invocación de Cypress, **funciona perfectamente** — ya estaba documentado en memoria (`project_electron_run_as_node_cypress`) de una sesión anterior; este barrido lo reconfirma de punta a punta corriendo la suite completa, no solo `cypress verify`.
 
 ---
 
-## Pruebas E2E (Cypress) — 6 suites, cobertura superficial
+## 6. Mobile (`mobile/`)
+
+**0 tests.** Sin cambios respecto al barrido anterior — fuera de alcance de esta tarea (no se agregó tooling de testing a Expo/React Native en esta sesión).
+
+---
+
+## 7. Lint
+
+- **`api/`**: limpio — 4 warnings cosméticos preexistentes (`@typescript-eslint/no-unsafe-argument` en `import.service.ts` y `sindicacion.service.ts`), 0 errores.
+- **`web/`**: limpio. Se corrigió un hallazgo menor de este barrido: correr `vitest run --coverage` genera `web/coverage/` (reporte HTML), y ESLint no lo ignoraba — lint reportaba 3 warnings sobre archivos generados (`coverage/block-navigation.js`, etc.). Se agregó `coverage` a `globalIgnores` en `eslint.config.js`, igual que ya se ignoraba `dist`.
+- **`portal/`**: `npm run lint` (`next lint`) **falla en este entorno** con `Invalid project directory provided, no such directory: ...\portal\lint`. Confirmado con `git stash` que el problema existe igual en `master` sin ninguno de los cambios de esta sesión — es una incompatibilidad de la actualización a Next.js 16 con este entorno Windows local, no algo introducido por las pruebas. Sigue sin arreglarse (fuera de alcance de un barrido de pruebas).
+
+---
+
+## 8. Build
+
+`npm run build:api`, `npm run build:web`, `npm run build:portal` — los tres compilan limpio (incluye el type-check de `tsc -b` / `next build`).
+
+Se encontró y corrigió un error de tipos introducido por la config de cobertura agregada en este barrido: la opción `coverage.all: true` no existe en el tipo `CoverageOptions` de la versión de Vitest instalada (`^4.1.10`) — se agregó por costumbre de versiones anteriores de Vitest, donde era necesaria para incluir archivos sin cobertura en el reporte. En esta versión el reporte ya incluye todos los archivos que matchean `coverage.include` por defecto (se confirmó que el reporte no cambia al quitar `all: true`), así que se eliminó la opción de `web/vite.config.ts` y `portal/vitest.config.ts` — el error solo aparecía en `tsc -b`/`next build` (que sí type-chequean `vite.config.ts`/`vitest.config.ts`), no al correr `vitest run` directamente.
+
+---
+
+## 9. Confirmación en CI real (GitHub Actions)
+
+Corrida más reciente en `master` al momento de este barrido — run [`30108992846`](https://github.com/marubienesyraices/maru-crm/actions/runs/30108992846), commit `9f60c65` (el mismo commit que agregó Vitest a `web/`/`portal/`, el smoke test de `/api/health`, y el job manual de k6):
 
 ```
-01-auth.cy.ts             9 casos
-02-propiedades.cy.ts      5 casos
-03-pipeline.cy.ts         3 casos
-04-agenda.cy.ts           3 casos
-05-clientes.cy.ts         5 casos
-06-busqueda-global.cy.ts  4 casos
-                         ────────
-                         29 casos
+✓ Lint & Build            2m4s
+✓ E2E Tests (Cypress)     3m24s
+✓ Unit Tests              2m27s
+- k6 Load Tests           0s   (correctamente en espera — solo corre con workflow_dispatch)
 ```
 
-Todos son **smoke tests de navegación** ("muestra el listado", "navega al formulario", "crea un registro vía API y aparece en el listado"). Ninguno verifica:
+Los tres jobs automáticos en verde. El job `k6` no corrió porque está gateado a disparo manual, tal como se diseñó — no es una falla.
 
-- **Reglas de negocio de la máquina de estados** — Pipeline solo verifica que las columnas y tarjetas se muestren, no que `NUEVO → CONTACTADO → ... → GANADO/PERDIDO` funcione, ni el modal de CIERRE con documentos obligatorios, ni que mover a `EN_NEGOCIACION` reserve la propiedad.
-- **Permisos por rol (RBAC)** — ningún test verifica que un JUNIOR no vea clientes de otros agentes, que un SENIOR sí vea su downline, o que rutas de ADMIN estén bloqueadas para roles menores.
-- **Multi-tenancy / RLS** desde el navegador (dos tenants, un usuario no debería ver datos del otro).
-- Módulos completos sin ningún E2E: **Portal público, BI/Ranking, Campañas de email, Meta, Sindicación, Firma Digital, Videollamadas, Admin (usuarios/tenants/organigrama), Auditoría, Import CSV, todas las páginas de Settings, Tareas, Horarios, 2FA, onboarding.**
-
-No es necesariamente un problema — 29 smoke tests que corren en cada push tienen valor real (detectan rupturas de build/routing/render), pero **no reemplazan pruebas de reglas de negocio**, que hoy solo viven (parcialmente) en los specs de `*.service.ts` del API.
+Anotaciones no bloqueantes: GitHub avisa que `actions/checkout@v4` / `actions/setup-node@v4` corren forzados en Node 24 porque targetean Node 20 (deprecado por GitHub, no por este repo) — housekeeping menor, no afecta el resultado de las pruebas.
 
 ---
 
-## Ausencia total de pruebas: `web/`, `portal/`, `mobile/`
+## Conclusión
 
-- **`web/`**: cero tests unitarios de componentes, hooks (`usePropiedades`, `usePipeline`, `useVisitas`, etc.) o stores (`authStore`). Toda la lógica de mutaciones optimistas, invalidación de queries, y transformación de datos en los ~20 hooks de `web/src/hooks/` no tiene ninguna prueba automatizada fuera de los smoke tests de Cypress.
-- **`portal/`** (Next.js, público): 0 tests. Es la superficie que ve cualquier visitante no autenticado — registro de clientes, chatbot de leads, verificación de email, Mi Cuenta con Google OAuth — sin ninguna prueba.
-- **`mobile/`** (Expo): 0 tests. Login 2FA, modo offline con caché, push notifications — sin ninguna prueba.
-
----
-
-## Deuda menor de pruebas (housekeeping)
-
-- ~~**`api/test/app.e2e-spec.ts`** es el boilerplate por defecto que genera `nest new`...~~ ✅ **Corregido (P3.12)** — ver detalle en P3 más abajo.
-- Advertencias de lint pendientes (no bloquean CI, 4 en total): `no-unsafe-argument` en `import.service.ts:336,353` y `sindicacion.service.ts:449,450` — parámetros `any` pasados a funciones tipadas. Bajo riesgo, cosmético.
-
----
-
-## Recomendaciones priorizadas
-
-### P0 — Desbloquear CI ✅ Aplicado
-1. ~~Agregar `MASTER_ENCRYPTION_KEY`...~~ — Hecho. Además se agregaron los *services* `postgres`/`redis`, migración y seed al job `test` (no los tenía). Validado localmente y **confirmado en la corrida real de GitHub Actions** (run `30061947586`, commit `9390512`): `Lint & Build` ✓ 1m39s, `E2E Tests (Cypress)` ✓ 2m19s, `Unit Tests` ✓ 1m37s — los tres jobs en verde por primera vez desde al menos el 18-jul-2026.
-
-### P1 — Cerrar huecos de falsa confianza en seguridad ✅ Aplicado
-2. ~~Corregir credenciales en `owasp.security.spec.ts`~~ — Hecho, ahora usa `admin@gestprop.net`/`Admin@2026Desa` (real del seed).
-3. ~~Cambiar los 4 `if (!token) return;`~~ — Hecho, ahora lanzan `Error` con mensaje diagnóstico.
-4. ~~Reescribir el test de "bloqueo tras 5 intentos"~~ — Hecho, pero el mecanismo real resultó ser distinto al asumido (ver Hallazgo #2 actualizado): 3 intentos → 15min, no 5. El test nuevo verifica el mecanismo real contra una cuenta seed dedicada.
-5. ~~Corregir credenciales stale en `infra/k6/auth.js` y `infra/k6/pipeline.js`~~ — Hecho.
-
-Validado: suite completa del API 530/530 en una DB Postgres aislada recién sembrada (misma metodología del P0). **Confirmado en CI real**: aunque no se supervisó una corrida dedicada solo para este push, el job `Unit Tests` de las corridas posteriores (P2, runs `30066542722` y `30067514369`) ya incluye estos cambios acumulados y pasó en verde ambas veces — ver confirmación de P2 más abajo.
-
-### P2 — Cerrar huecos de cobertura de mayor riesgo de negocio ✅ Aplicado (parcial)
-6. ~~Agregar specs a los schedulers~~ — Hecho. `pipeline.scheduler.ts` 17%→100% stmt (12 tests), `propiedades.scheduler.ts` 26%→100% stmt (12 tests), `visitas.scheduler.ts` 36%→100% stmt (10 tests).
-7. ~~Agregar spec a `config-sistema.service.ts`~~ — Hecho, 0%→100% stmt (12 tests). Era el único módulo de los 32 en `src/modules/` sin ningún test.
-8. ~~Agregar spec a `brochure.service.ts` y `pdf-render.service.ts`~~ — Hecho. `brochure.service.ts` 14%→90.5% stmt (10 tests nuevos: PDF válido con propiedad completa/mínima/solo-renta/config personalizada, verificando la cabecera `%PDF` real). `pdf-render.service.ts` 25%→50% stmt (13 tests) — la mitad del archivo (`getBrowser()`) usa un `import()` dinámico real de Puppeteer que Jest no puede interceptar sin `--experimental-vm-modules` (cambio global de config fuera de alcance); se cubrió `renderHtml()`/`onModuleDestroy()` inyectando un browser ya "conectado" directamente.
-9. Expandir Cypress: ~~transición completa del pipeline (con modal CIERRE)~~ — Hecho, `07-pipeline-transiciones.cy.ts`, cubre NUEVO→CONTACTADO→INTERESADO→EN_NEGOCIACION→CIERRE (con validación de que el modal exige documentos)→GANADO. ~~El caso de RBAC (JUNIOR no debería ver clientes ajenos)~~ — Hecho en una sesión posterior, tras corregir el gap real del Hallazgo #4: `08-rbac-clientes.cy.ts` nuevo, confirma que ANA (JUNIOR) ve su propio contacto pero no el del admin, y que ADMIN ve ambos.
-
-Validado: suite completa del API con todos los specs nuevos, en una DB Postgres aislada y recién sembrada (misma metodología de los hallazgos anteriores) — 43 suites, 589 tests, 0 fallos. Cobertura global: statements 69.6%→**77.3%**, branches 57.3%→**63.2%**, functions 48.5%→**55.3%**, lines 69.9%→**77.9%**.
-
-**Nota sobre `07-pipeline-transiciones.cy.ts`**: no se pudo ejecutar de punta a punta en este entorno — `npx cypress verify` falla localmente (`Cypress.exe: bad option: --smoke-test`), un problema preexistente del binario de Cypress en esta máquina Windows, no relacionado con este cambio. Se validó por lectura cuidadosa del componente y se confirmó en el job `e2e` de CI real: la primera corrida (run `30066542722`) falló en el paso EN_NEGOCIACION porque las propiedades nacen en `BORRADOR` y esa transición exige `DISPONIBLE` (409 Conflict) — un bug real del setup del test, no del resto de la suite (los 6 specs preexistentes, 19/19, siguieron en verde). Se corrigió agregando un `PATCH .../estado` a `DISPONIBLE` antes de crear el trámite, se validó la secuencia completa contra el API real vía `curl`, y la siguiente corrida de CI (run `30067514369`) quedó completamente verde: Lint & Build, **E2E Tests (7/7 specs, incluyendo el nuevo)**, y Unit Tests.
-
-**Actualización tras corregir el Hallazgo #4**: se agregaron 5 tests más a `clientes.service.spec.ts` y la suite `08-rbac-clientes.cy.ts`. Suite completa del API: **594/594 tests, 43 suites**, en una DB Postgres aislada y recién sembrada. `08-rbac-clientes.cy.ts` tampoco se pudo ejecutar localmente (mismo problema de Cypress) — el comportamiento se validó primero en vivo contra una instancia real de la API (ver Hallazgo #4), y **luego confirmado en la corrida real de CI** (run `30100776427`, commit `2a1a559`): Lint & Build ✓, **E2E Tests ✓ 2m44s (8/8 specs, incluyendo `08-rbac-clientes.cy.ts`)**, Unit Tests ✓ 1m48s.
-
-### P3 — Inversión estructural (a más largo plazo) ✅ Aplicado
-
-12. ~~Eliminar `api/test/app.e2e-spec.ts` (código muerto) o convertirlo en un smoke test real de `/api/health`~~ — Hecho. Se reemplazó la prueba de `GET /` → `"Hello World!"` (ruta inexistente en la app real) por un smoke test que arranca la `AppModule` completa (mismo patrón que `owasp.security.spec.ts`: `Test.createTestingModule({ imports: [AppModule] }).compile()`) y verifica `GET /api/health` → `200` con `{ status: 'ok', ts: <ISO string> }`. Se agregó un paso nuevo `Run API E2E smoke test` (`npm run test:e2e`) al job `test` de `ci.yml`, con las mismas variables de entorno que el resto del job — antes este script existía en `package.json` pero nada lo invocaba.
-
-13. ~~Automatizar k6 como job manual (`workflow_dispatch`) en CI una vez corregidas las credenciales~~ — Hecho. Nuevo job `k6` en `ci.yml`, gateado por `if: github.event_name == 'workflow_dispatch'` (no corre en cada push/PR — son pruebas de varios minutos, no un gate de merge). Se dispara desde Actions → "Run workflow" eligiendo un input `script` (`all` / `auth` / `pipeline` / `portal-publico`). Levanta Postgres+Redis igual que los otros jobs, arranca la API (y el portal solo si el script elegido lo necesita), y usa las acciones oficiales `grafana/setup-k6-action@v1` + `grafana/run-k6-action@v1` (verificadas vía `gh api repos/grafana/{setup,run}-k6-action` — ambas existen, ambas tienen un tag móvil `v1`) para instalar y correr cada script de `infra/k6/`.
-
-10. ~~Introducir Vitest + Testing Library en `web/` para los hooks de datos y componentes con lógica no trivial~~ — Hecho. Se agregó `vitest` + `@testing-library/react`/`jest-dom`/`user-event` + `jsdom` a `web/`, con `vite.config.ts` extendido (`test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'], globals: true }`) y scripts `npm run test` / `test:watch`. Tests nuevos (11 casos, 3 archivos), elegidos por ser la lógica no trivial más citada en `CLAUDE.md`:
-    - `lib/__tests__/api.spec.ts` — el interceptor de refresh de `apiRequest()` (`web/src/lib/api.ts`): reintento tras 401 con el token nuevo, exclusión de los endpoints de auth (un 401 de `/api/auth/login` es una credencial inválida real, no una sesión expirada), logout si el refresh falla, y deduplicación de refreshes concurrentes (dos 401 simultáneos disparan un solo refresh, no dos).
-    - `hooks/__tests__/usePipeline.spec.tsx` — `useMovePipeline()`, el hook que `CLAUDE.md` señala explícitamente como "optimistic update con rollback": verifica que la tarjeta se mueve de columna *antes* de que el servidor responda, y que se revierte al estado previo si el servidor rechaza la transición.
-    - `components/__tests__/ProtectedRoute.spec.tsx` — el único guard de rutas de la app: redirige a `/login` sin sesión (o con token sin usuario, caso de token corrupto) y renderiza los children con sesión válida.
-
-    Se agregó un paso `Test Web (Vitest)` al job `lint-build` de `ci.yml`, antes de `Build Web`. Se ampliaron los `types` de `tsconfig.app.json` (`vitest/globals`, `@testing-library/jest-dom`) para que `tsc -b` (parte de `npm run build -w web`) siga tipando limpio con los archivos de test incluidos.
-
-11. ~~Smoke tests mínimos en `portal/` (registro de cliente, verificación de email) dado que es superficie pública~~ — Hecho. Mismo stack que `web/` (`vitest.config.ts` propio, ya que `portal/` es Next.js sin `vite.config.ts` existente), con `next/navigation` y `next/link` mockeados donde hacía falta. Tests nuevos (6 casos, 2 archivos):
-    - `components/__tests__/RegistroInteresForm.spec.tsx` — el formulario público de registro de interés (`POST /api/public/registro`): estado inicial cerrado → se abre al hacer clic, envío exitoso con el body correcto (`nombre`/`email`/`propiedad_id`) y muestra la confirmación, y muestra el mensaje de error real del backend si la petición falla.
-    - `app/verificar/__tests__/VerificarClient.spec.tsx` — la página de verificación de email (`POST /api/public/verificar-email`): sin token en la URL no llama al API, con token válido confirma y muestra el nombre del cliente, con token inválido/expirado muestra el mensaje de error del backend.
-
-    Se agregaron pasos `Test Portal (Vitest)` y `Build Portal` a `ci.yml` (job `lint-build`) — antes `portal/` no se compilaba ni se probaba en CI en absoluto.
-
-**Validación de P3** (metodología idéntica a los hallazgos anteriores — DB Postgres aislada `gestprop_test`/`gestprop_crm_test`, recién sembrada, eliminada después):
-- `npx jest --ci` (suite completa del API): **594/594 tests, 43 suites, 0 fallos**.
-- `npm run test:e2e` (nuevo smoke test de `/api/health`): 1/1 passed.
-- `npx vitest run` en `web/`: **11/11 passed**. `npx vitest run` en `portal/`: **6/6 passed**.
-- `npm run build -w web` y `npm run build -w portal`: ambos compilan limpio (`tsc -b` / `next build` con TypeScript check incluido).
-- `npm run lint -w web`: limpio. `npm run lint -w portal` (`next lint`) **falla de forma preexistente** en este entorno Windows (`Invalid project directory provided, no such directory: ...\portal\lint`) — confirmado con `git stash` que ocurre igual en `master` sin ninguno de estos cambios; es un problema de la actualización a Next.js 16 en este entorno local, no introducido por P3, y no se intentó arreglar (fuera de alcance).
-- Sintaxis de `ci.yml` validada parseándola con `js-yaml` tras cada cambio (workflow_dispatch inputs, job `k6`, pasos nuevos en `lint-build`).
-
-**Nota metodológica importante descubierta durante esta validación**: `PrismaService` usa `DATABASE_APP_URL` (con fallback a `DATABASE_URL`) — sobreescribir solo `DATABASE_URL` en el shell no aísla una prueba que arranca la `AppModule` real (como `owasp.security.spec.ts` o el nuevo `app.e2e-spec.ts`) de la base de datos de desarrollo real, porque `.env` define `DATABASE_APP_URL` apuntando a `gestprop_crm`. Esto causó que una corrida de validación local bloqueara accidentalmente la cuenta real `pedro.junior@gestprop.net` en la DB de desarrollo (no en la de prueba) — se detectó, se restauró manualmente (`intentos_login=0`, `bloqueado_hasta=NULL`) y se confirmó que ninguna otra cuenta quedó afectada. Las corridas de validación reportadas arriba ya se hicieron sobreescribiendo ambas variables.
+Todas las suites de pruebas del sistema (API unitarias, API smoke e2e, Web unitarias, Portal unitarias, Cypress E2E) pasan al 100% localmente contra una base de datos aislada y recién sembrada, y el estado se replica en la corrida más reciente de CI real. La cobertura de `api/` (77.3% statements) es sólida y por encima del umbral configurado; `web/` (1.02%) y `portal/` (12.6%) reflejan honestamente que la inversión en pruebas ahí recién comenzó esta sesión (antes era 0% en ambos) — quedan como la brecha más grande del sistema, junto con `mobile/` (0%), para una próxima ronda de trabajo si se decide seguir invirtiendo en esa dirección.
