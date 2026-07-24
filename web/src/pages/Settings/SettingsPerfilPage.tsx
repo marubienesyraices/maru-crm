@@ -35,8 +35,8 @@ export default function SettingsPerfilPage() {
       });
       setPwSuccess('Contraseña actualizada correctamente.');
       setPwForm({ current: '', next: '', confirm: '' });
-    } catch (e: any) {
-      setPwError(e.message);
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : String(e));
     } finally {
       setPwLoading(false);
     }
@@ -71,8 +71,8 @@ export default function SettingsPerfilPage() {
       setQrCodeUrl(data.qrCodeDataUrl);
       setSecret(data.secret);
       setTwoFAStep('setup');
-    } catch (e: any) {
-      setTwoFAError(e.message);
+    } catch (e) {
+      setTwoFAError(e instanceof Error ? e.message : String(e));
     } finally {
       setTwoFALoading(false);
     }
@@ -91,8 +91,8 @@ export default function SettingsPerfilPage() {
       setTwoFAStep('idle');
       setConfirmCode('');
       setTwoFASuccess('2FA activado. Tu cuenta ahora tiene una capa extra de seguridad.');
-    } catch (e: any) {
-      setTwoFAError(e.message);
+    } catch (e) {
+      setTwoFAError(e instanceof Error ? e.message : String(e));
     } finally {
       setTwoFALoading(false);
     }
@@ -111,8 +111,8 @@ export default function SettingsPerfilPage() {
       setTwoFAStep('idle');
       setDisableCode('');
       setTwoFASuccess('2FA desactivado.');
-    } catch (e: any) {
-      setTwoFAError(e.message);
+    } catch (e) {
+      setTwoFAError(e instanceof Error ? e.message : String(e));
     } finally {
       setTwoFALoading(false);
     }

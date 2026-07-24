@@ -14,7 +14,32 @@ const TIPO_LABELS: Record<string, string> = {
   BODEGA: 'Bodega', FINCA: 'Finca', EDIFICIO: 'Edificio', OTRO: 'Otro',
 };
 
-function fmtPrice(prop: any): string {
+interface PropiedadDetalle {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  gestion: string;
+  moneda?: string;
+  precio_venta?: number | string | null;
+  precio_renta?: number | string | null;
+  zona?: string | null;
+  municipio?: string | null;
+  departamento?: string | null;
+  habitaciones?: number | null;
+  banos?: number | null;
+  parqueos?: number | null;
+  area_construccion_m2?: number | string | null;
+  area_terreno_m2?: number | string | null;
+  niveles?: number | null;
+  descripcion?: string | null;
+  latitud?: number | string | null;
+  longitud?: number | string | null;
+  imagenes?: { url: string; tipo?: string }[];
+  tenant?: { nombre: string } | null;
+}
+
+function fmtPrice(prop: PropiedadDetalle): string {
   const moneda = prop.moneda || 'GTQ';
   if (prop.gestion === 'AMBAS' && prop.precio_venta && prop.precio_renta) {
     return `${moneda} ${Number(prop.precio_venta).toLocaleString('es-GT')} venta / ${Number(prop.precio_renta).toLocaleString('es-GT')} renta`;
@@ -100,8 +125,8 @@ function RegistroModal({ propiedadId, onClose }: { propiedadId: string; onClose:
         throw new Error(j.message || 'Error al enviar el registro');
       }
       setState('success');
-    } catch (err: any) {
-      setError(err.message || 'Error de conexión');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
       setState('open');
     }
   };
@@ -195,7 +220,7 @@ export default function PortalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { planFeatures } = useAuthStore();
-  const [prop, setProp] = useState<any>(null);
+  const [prop, setProp] = useState<PropiedadDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
@@ -206,7 +231,7 @@ export default function PortalDetailPage() {
     fetch(`${API}/api/public/propiedades/${id}?vista=mapa_crm`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); return null; }
-        return r.json();
+        return r.json() as Promise<PropiedadDetalle>;
       })
       .then((data) => { if (data) setProp(data); })
       .catch(() => setNotFound(true))
@@ -271,7 +296,7 @@ export default function PortalDetailPage() {
 
           {images.length > 1 && (
             <div className="portal-detail-thumbs">
-              {images.map((img: any, i: number) => {
+              {images.map((img: { url: string; tipo?: string }, i: number) => {
                 const src = img.url.startsWith('http') ? img.url : `${API}${img.url}`;
                 return (
                   <div

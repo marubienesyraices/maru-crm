@@ -77,6 +77,19 @@ interface BrandingResponse {
   tiene_organigrama?: boolean;
 }
 
+interface LoginResponse {
+  requires2FA?: boolean;
+  tempToken?: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface Verify2FAResponse {
+  accessToken: string;
+  refreshToken: string;
+  passwordExpiresIn?: number | null;
+}
+
 function applyBrandingColors(info: BrandingResponse) {
   const root = document.documentElement;
   if (info.color_primario)   root.style.setProperty('--brand-primary',   info.color_primario);
@@ -146,7 +159,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await apiRequest<any>('/api/auth/login', {
+      const data = await apiRequest<LoginResponse>('/api/auth/login', {
         method: 'POST',
         body: { email, password },
       });
@@ -169,8 +182,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .then(applyBranding)
         .catch(() => {});
       return { requires2FA: false };
-    } catch (err: any) {
-      set({ isLoading: false, error: err.message });
+    } catch (err) {
+      set({ isLoading: false, error: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   },
@@ -179,7 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verify2FA: async (tempToken, totpCode) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await apiRequest<any>('/api/auth/verify-2fa', {
+      const data = await apiRequest<Verify2FAResponse>('/api/auth/verify-2fa', {
         method: 'POST',
         body: { tempToken, totpCode },
       });
@@ -197,8 +210,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       apiRequest<BrandingResponse>('/api/tenants/branding', { token: data.accessToken })
         .then(applyBranding)
         .catch(() => {});
-    } catch (err: any) {
-      set({ isLoading: false, error: err.message });
+    } catch (err) {
+      set({ isLoading: false, error: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   },

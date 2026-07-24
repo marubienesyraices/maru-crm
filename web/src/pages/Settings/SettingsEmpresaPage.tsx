@@ -130,7 +130,7 @@ export default function SettingsEmpresaPage() {
     }
   }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   const uploadLogo = async (file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
@@ -159,8 +159,8 @@ export default function SettingsEmpresaPage() {
       setForm((prev) => ({ ...prev, logo_url: url }));
       toast.success('Logo subido correctamente');
       await refreshBranding();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al subir el logo');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al subir el logo');
     } finally {
       setUploadingLogo(false);
     }
@@ -199,8 +199,8 @@ export default function SettingsEmpresaPage() {
       });
       toast.success('Cambios guardados');
       await refreshBranding();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -217,8 +217,8 @@ export default function SettingsEmpresaPage() {
       setForm((prev) => ({ ...prev, logo_url: null }));
       toast.success('Logo eliminado');
       await refreshBranding();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al eliminar el logo');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al eliminar el logo');
     } finally {
       setSaving(false);
     }
