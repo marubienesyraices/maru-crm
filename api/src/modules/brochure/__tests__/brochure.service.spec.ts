@@ -70,7 +70,10 @@ describe('BrochureService.generateBuffer', () => {
     (prisma as any).configBrochure = {
       findUnique: jest.fn().mockResolvedValue(null),
     };
-    storage = { localPath: jest.fn() };
+    // localPath() devuelve null → fetchImageBuffer() cae al branch de URL
+    // remota; como ninguna URL de prueba empieza con "http", nunca se llega
+    // a hacer una petición de red real.
+    storage = { localPath: jest.fn().mockReturnValue(null) };
     service = new BrochureService(prisma as any, storage as any);
   });
 
@@ -80,5 +83,142 @@ describe('BrochureService.generateBuffer', () => {
     await expect(service.generateBuffer('prop-x', 't1')).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  function basePropiedad(overrides: Record<string, any> = {}) {
+    return {
+      id: 'prop-1',
+      codigo: 'CASA-0001',
+      titulo: 'Casa de prueba',
+      tipo: 'CASA',
+      gestion: 'VENTA',
+      estado: 'DISPONIBLE',
+      moneda: null,
+      precio_venta: 1500000,
+      precio_renta: null,
+      descripcion: 'Una descripción larga de la propiedad de prueba.',
+      habitaciones: 3,
+      banos: 2,
+      parqueos: 1,
+      niveles: 2,
+      area_terreno_m2: 300,
+      area_construccion_m2: 200,
+      ano_construccion: 2015,
+      amenidades: ['Piscina', 'Gimnasio', 'Seguridad 24/7'],
+      zona: 'Zona 15',
+      municipio: 'Guatemala',
+      departamento: 'Guatemala',
+      direccion: 'Calle Falsa 123',
+      pais: 'Guatemala',
+      imagenes: [],
+      agente: { nombre: 'Ana Agente', email: 'ana@gestprop.net' },
+      propietario: { nombre: 'Prop. Dueño', telefono: '5555-5555' },
+      tenant: {
+        nombre: 'GestProp Demo',
+        moneda: 'GTQ',
+        color_primario: '#1e3a5f',
+        logo_url: null,
+      },
+      ...overrides,
+    };
+  }
+
+  it('debe generar un PDF válido con una propiedad completa (todas las secciones)', async () => {
+    (prisma as any).propiedad.findFirst.mockResolvedValue(
+      basePropiedad({
+        gestion: 'AMBAS',
+        precio_renta: 8000,
+        imagenes: Array.from({ length: 8 }, (_, i) => ({
+          url: `/uploads/img-${i}.jpg`,
+          tipo: i === 0 ? 'portada' : 'galeria',
+          orden: i,
+        })),
+      }),
+    );
+
+    const result = await service.generateBuffer('prop-1', 't1');
+
+    expect(result.codigo).toBe('CASA-0001');
+    expect(result.buffer.length).toBeGreaterThan(0);
+    expect(result.buffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('debe generar un PDF válido con una propiedad mínima (sin imágenes, agente, ubicación ni características)', async () => {
+    (prisma as any).propiedad.findFirst.mockResolvedValue(
+      basePropiedad({
+        descripcion: null,
+        habitaciones: null,
+        banos: null,
+        parqueos: null,
+        niveles: null,
+        area_terreno_m2: null,
+        area_construccion_m2: null,
+        ano_construccion: null,
+        estado: null,
+        amenidades: [],
+        zona: null,
+        municipio: null,
+        departamento: null,
+        direccion: null,
+        pais: null,
+        imagenes: [],
+        agente: null,
+        propietario: null,
+      }),
+    );
+
+    const result = await service.generateBuffer('prop-1', 't1');
+
+    expect(result.buffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('debe generar un PDF válido solo con precio de renta (gestión RENTA)', async () => {
+    (prisma as any).propiedad.findFirst.mockResolvedValue(
+      basePropiedad({
+        gestion: 'RENTA',
+        precio_venta: null,
+        precio_renta: 6500,
+      }),
+    );
+
+    const result = await service.generateBuffer('prop-1', 't1');
+
+    expect(result.buffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('debe respetar la configuración de integraciones (color/tagline/logo de la carta) y de secciones personalizadas', async () => {
+    (prisma as any).propiedad.findFirst.mockResolvedValue(basePropiedad());
+    (prisma as any).configIntegraciones.findUnique.mockResolvedValue({
+      carta_color_primario: '#ff0000',
+      carta_tagline: 'Tu inmobiliaria de confianza',
+      carta_logo_url: null,
+    });
+    (prisma as any).configBrochure.findUnique.mockResolvedValue({
+      secciones: [
+        { id: 'agente', label: 'Tu asesor', visible: false, order: 1 },
+        { id: 'descripcion', label: 'Descripción', visible: true, order: 2 },
+        { id: 'caracteristicas', label: 'Detalles', visible: true, order: 3 },
+        { id: 'amenidades', label: 'Amenidades', visible: true, order: 4 },
+        { id: 'ubicacion', label: 'Ubicación', visible: true, order: 5 },
+        {
+          id: 'galeria_strip',
+          label: 'Galería',
+          visible: true,
+          order: 6,
+        },
+        {
+          id: 'galeria_pagina2',
+          label: 'Galería 2',
+          visible: false,
+          order: 7,
+        },
+      ],
+      footer_texto: 'Pie de página personalizado',
+      watermark_texto: 'PRIVADO',
+    });
+
+    const result = await service.generateBuffer('prop-1', 't1');
+
+    expect(result.buffer.subarray(0, 4).toString()).toBe('%PDF');
   });
 });

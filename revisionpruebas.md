@@ -12,12 +12,15 @@
 | Lint & Build (CI) | ✅ Verde (arreglado en sesión anterior) |
 | **Unit Tests (CI real)** | ✅ **Corregido** (P0, ver abajo) — validado localmente con Postgres+Redis reales, 529/529 |
 | **E2E Cypress (CI real)** | ✅ **Corregido** (P0, ver abajo) — API confirmada arrancando y respondiendo `/api/health` |
-| Unit Tests (local, con `.env` completo) | ✅ 530/530 (529 + 1 test nuevo del P1) |
-| Cobertura de líneas (API) | 69.9% (umbral configurado: 65%) |
-| Cobertura de funciones (API) | 48.5% — la más débil de las 4 métricas |
-| E2E Cypress | 6 suites / ~29 casos, todos "smoke tests" superficiales |
+| Unit Tests (local, con DB aislada) | ✅ 589/589 en 43 suites (tras P0+P1+P2) |
+| Cobertura de líneas (API) | 69.9%→**77.9%** tras P2 (umbral configurado: 65%) |
+| Cobertura de funciones (API) | 48.5%→**55.3%** tras P2 — sigue la más débil de las 4 métricas |
+| E2E Cypress | 6 suites originales (~29 casos, "smoke tests") + 1 suite nueva (P2, transición completa de pipeline) |
 | Suite OWASP — credenciales y aserciones vacías | ✅ **Corregido** (P1, ver abajo) |
 | Pruebas de carga k6 | ✅ Credenciales corregidas (P1) — sigue sin integrarse en CI |
+| Schedulers sin cobertura real (pipeline/propiedades/visitas) | ✅ **Corregido** (P2, ver abajo) — 17-36%→100% stmt |
+| `config-sistema.service.ts` sin ningún test | ✅ **Corregido** (P2, ver abajo) |
+| `GET /api/clientes` sin RBAC por agente | ❌ **Gap real encontrado, sin corregir** — ver Hallazgo #4 |
 | Unit tests en `web/` (componentes/hooks) | **0** |
 | Tests automatizados en `portal/` y `mobile/` | **0** |
 
@@ -149,6 +152,39 @@ Sigue pendiente (no es parte de este fix): k6 no está integrado en CI — consi
 
 ---
 
+## Hallazgo #4 (crítico) — `GET /api/clientes` no aplica RBAC por agente
+
+Al preparar el caso de Cypress "JUNIOR no debería ver clientes ajenos" (P2, item 9), se encontró que **la protección que se iba a probar no existe**.
+
+`CLAUDE.md` documenta: *"VisibilityGuard — injects req.visibleUserIds: JUNIOR → self only; SENIOR → self + recursive downline; ADMIN/SUPER_ADMIN → all"*. Se verificó qué controllers realmente aplican `VisibilityGuard`:
+
+```
+src/modules/pipeline/pipeline.controller.ts
+src/modules/propiedades/propiedades.controller.ts
+src/modules/search/search.controller.ts
+src/modules/visitas/visitas.controller.ts
+```
+
+**`clientes.controller.ts` no está en la lista.** Solo usa `@UseGuards(JwtAuthGuard)`, y `ClientesService.findAll()` (línea 57) solo filtra por `tenant_id` — el filtro por `agente_id` solo se aplica si el caller lo pasa explícitamente como query param, nada lo fuerza para JUNIOR/SENIOR.
+
+**Confirmado en vivo** (no solo leyendo código): login como `ana.junior@gestprop.net` (rol JUNIOR) contra el API local y `GET /api/clientes?limit=50`:
+```
+total: 12
+Cliente E2E Test | agente: Julian Ponciano Desa
+Cliente E2E Test | agente: Julian Ponciano Desa
+David Castro | agente: null
+...
+```
+Ana ve los 12 contactos del tenant, incluyendo dos asignados explícitamente a otro agente (`Julian Ponciano Desa`, no ella). Un JUNIOR puede ver la cartera de contactos de cualquier otro agente de su inmobiliaria vía este endpoint — un problema real de segregación de datos entre agentes, no un hueco de pruebas.
+
+### Estado: documentado, sin corregir
+
+Por decisión explícita del usuario, este hallazgo queda **documentado pero no corregido** en esta sesión — no se agregó `VisibilityGuard` a `ClientesController` ni se escribió el test de Cypress que lo hubiera cubierto (un test afirmando el comportamiento correcto habría fallado por este bug real, no por falta de cobertura). Queda pendiente decidir:
+1. Si es un gap real a corregir (agregar `VisibilityGuard` a `ClientesController`, mismo patrón que `pipeline`/`propiedades`/`visitas`/`search`), o
+2. Si es comportamiento intencional (p. ej., los contactos se consideran compartidos a nivel de tenant a diferencia de los trámites de pipeline) — en cuyo caso `CLAUDE.md` debería aclarar la excepción explícitamente para que no se lea como una omisión.
+
+---
+
 ## Cobertura de pruebas unitarias (API) — detalle
 
 Ejecutado localmente con `.env` completo: **529/529 tests, 38 suites, 0 fallos.**
@@ -255,11 +291,15 @@ No es necesariamente un problema — 29 smoke tests que corren en cada push tien
 
 Validado: suite completa del API 530/530 en una DB Postgres aislada recién sembrada (misma metodología del P0). Pendiente: confirmar en la corrida real de CI tras el push.
 
-### P2 — Cerrar huecos de cobertura de mayor riesgo de negocio
-6. Agregar specs a los schedulers (`pipeline.scheduler`, `propiedades.scheduler`, `visitas.scheduler`) — corren desatendidos en producción y hoy casi no tienen cobertura.
-7. Agregar spec a `config-sistema.service.ts` (único módulo sin ninguna prueba).
-8. Agregar spec a `brochure.service.ts` y `pdf-render.service.ts` (14-25% de cobertura en lógica que genera documentos legales/comerciales).
-9. Expandir Cypress con al menos: transición completa del pipeline (incluyendo modal CIERRE), y un caso de RBAC (JUNIOR no debería ver clientes ajenos).
+### P2 — Cerrar huecos de cobertura de mayor riesgo de negocio ✅ Aplicado (parcial)
+6. ~~Agregar specs a los schedulers~~ — Hecho. `pipeline.scheduler.ts` 17%→100% stmt (12 tests), `propiedades.scheduler.ts` 26%→100% stmt (12 tests), `visitas.scheduler.ts` 36%→100% stmt (10 tests).
+7. ~~Agregar spec a `config-sistema.service.ts`~~ — Hecho, 0%→100% stmt (12 tests). Era el único módulo de los 32 en `src/modules/` sin ningún test.
+8. ~~Agregar spec a `brochure.service.ts` y `pdf-render.service.ts`~~ — Hecho. `brochure.service.ts` 14%→90.5% stmt (10 tests nuevos: PDF válido con propiedad completa/mínima/solo-renta/config personalizada, verificando la cabecera `%PDF` real). `pdf-render.service.ts` 25%→50% stmt (13 tests) — la mitad del archivo (`getBrowser()`) usa un `import()` dinámico real de Puppeteer que Jest no puede interceptar sin `--experimental-vm-modules` (cambio global de config fuera de alcance); se cubrió `renderHtml()`/`onModuleDestroy()` inyectando un browser ya "conectado" directamente.
+9. Expandir Cypress: ~~transición completa del pipeline (con modal CIERRE)~~ — Hecho, `07-pipeline-transiciones.cy.ts` nuevo, cubre NUEVO→CONTACTADO→INTERESADO→EN_NEGOCIACION→CIERRE (con validación de que el modal exige documentos)→GANADO. El caso de RBAC (JUNIOR no debería ver clientes ajenos) **no se escribió** — ver Hallazgo #4: la protección que hubiera probado no existe en el código real, así que escribir el test lo habría dejado fallando por un bug real, no por falta de cobertura. Queda pendiente de decisión del equipo.
+
+Validado: suite completa del API con todos los specs nuevos, en una DB Postgres aislada y recién sembrada (misma metodología de los hallazgos anteriores) — 43 suites, 589 tests, 0 fallos. Cobertura global: statements 69.6%→**77.3%**, branches 57.3%→**63.2%**, functions 48.5%→**55.3%**, lines 69.9%→**77.9%**.
+
+**Nota sobre `07-pipeline-transiciones.cy.ts`**: no se pudo ejecutar de punta a punta en este entorno — `npx cypress verify` falla localmente (`Cypress.exe: bad option: --smoke-test`), un problema preexistente del binario de Cypress en esta máquina Windows, no relacionado con este cambio. Se validó por lectura cuidadosa del componente (`PipelinePage.tsx`: mapa `NEXT_ESTADO`, texto exacto de los botones, clases `CierreModal`/`GanadoModal`) siguiendo el mismo patrón de setup vía `cy.request` que ya usa `02-propiedades.cy.ts`, y pasó lint sin errores — pero se recomienda correrlo una vez en un entorno con Cypress funcional (o dejar que lo confirme el job `e2e` de CI) antes de darlo por definitivamente verde.
 
 ### P3 — Inversión estructural (a más largo plazo)
 10. Introducir Vitest + Testing Library en `web/` para los hooks de datos y componentes con lógica no trivial.
