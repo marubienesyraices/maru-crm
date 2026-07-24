@@ -14,7 +14,7 @@ interface AuditLog {
   entidad_id: string | null;
   ip_address: string;
   user_agent: string | null;
-  payload_cambio: any;
+  payload_cambio: unknown;
   created_at: string;
 }
 
@@ -80,7 +80,7 @@ export default function AuditPage() {
     }
   }, [filters, accessToken, toast]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { queueMicrotask(() => { fetchLogs(); }); }, [fetchLogs]);
 
   const set = (key: string, value: string) =>
     setFilters((f) => ({ ...f, [key]: value, page: 1 }));
@@ -203,7 +203,7 @@ export default function AuditPage() {
                     </td>
                     <td className="audit-ip">{log.ip_address}</td>
                     <td>
-                      {log.payload_cambio && (
+                      {!!log.payload_cambio && (
                         <button
                           className="audit-expand-btn"
                           onClick={() => setExpanded(expanded === log.id ? null : log.id)}
@@ -213,7 +213,7 @@ export default function AuditPage() {
                       )}
                     </td>
                   </tr>
-                  {expanded === log.id && log.payload_cambio && (
+                  {expanded === log.id && !!log.payload_cambio && (
                     <tr className="audit-detail-row">
                       <td colSpan={6}>
                         <pre className="audit-payload">{JSON.stringify(log.payload_cambio, null, 2)}</pre>

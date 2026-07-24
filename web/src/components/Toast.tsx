@@ -18,6 +18,7 @@ interface ToastAPI {
 
 const ToastContext = createContext<ToastAPI | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with the provider it reads from
 export function useToast(): ToastAPI {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be inside ToastProvider');

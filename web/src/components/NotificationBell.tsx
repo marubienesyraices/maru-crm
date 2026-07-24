@@ -67,14 +67,14 @@ export default function NotificationBell() {
 
   // Poll unread count every 60 seconds
   useEffect(() => {
-    fetchCount();
+    queueMicrotask(() => { fetchCount(); });
     const interval = setInterval(fetchCount, 60000);
     return () => clearInterval(interval);
   }, [fetchCount]);
 
   // Load all when dropdown opens
   useEffect(() => {
-    if (open) fetchAll();
+    if (open) queueMicrotask(() => { fetchAll(); });
   }, [open, fetchAll]);
 
   // Close on outside click

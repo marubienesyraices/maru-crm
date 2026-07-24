@@ -46,7 +46,7 @@ export default function ImportModal({ entity, onClose, onSuccess }: Props) {
     e.preventDefault();
     setDragging(false);
     pickFile(e.dataTransfer.files[0]);
-  }, []); // eslint-disable-line
+  }, []);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -65,8 +65,8 @@ export default function ImportModal({ entity, onClose, onSuccess }: Props) {
       if (!res.ok) throw new Error(data.message || 'Error al importar');
       setResult(data);
       if (data.created > 0) onSuccess();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setUploading(false);
     }

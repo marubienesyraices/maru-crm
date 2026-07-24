@@ -16,6 +16,7 @@ Cypress.Commands.add('logout', () => {
 });
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace -- required by Cypress's own TS augmentation pattern
   namespace Cypress {
     interface Chainable {
       loginAs(email: string, password: string): Chainable<void>;

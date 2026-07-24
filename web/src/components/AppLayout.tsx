@@ -146,7 +146,7 @@ export default function AppLayout() {
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
-    setSidebarOpen(false);
+    queueMicrotask(() => { setSidebarOpen(false); });
   }, [location.pathname]);
 
   // Prevent body scroll when sidebar is open on mobile

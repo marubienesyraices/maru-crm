@@ -12,6 +12,7 @@ type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with the provider it reads from
 export function useConfirm(): ConfirmFn {
   const fn = useContext(ConfirmContext);
   if (!fn) throw new Error('useConfirm must be inside ConfirmProvider');
