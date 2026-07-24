@@ -6,19 +6,24 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto, UpdateClienteDto, FiltrosClienteDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import {
+  VisibilityGuard,
+  type VisibilityRequest,
+} from '../../common/guards/visibility.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Clientes')
 @ApiBearerAuth('JWT')
 @Controller('api/clientes')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VisibilityGuard)
 export class ClientesController {
   constructor(private service: ClientesService) {}
 
@@ -38,14 +43,18 @@ export class ClientesController {
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() filtros: FiltrosClienteDto,
+    @Req() req: VisibilityRequest,
   ) {
-    return this.service.findAll(user.tenantId, filtros);
+    return this.service.findAll(user.tenantId, filtros, req.visibleUserIds);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas de clientes por origen' })
-  getStats(@CurrentUser() user: AuthenticatedUser) {
-    return this.service.getStats(user.tenantId);
+  getStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: VisibilityRequest,
+  ) {
+    return this.service.getStats(user.tenantId, req.visibleUserIds);
   }
 
   @Get(':id')

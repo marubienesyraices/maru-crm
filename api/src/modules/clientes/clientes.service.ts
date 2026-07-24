@@ -54,14 +54,30 @@ export class ClientesService {
     });
   }
 
-  async findAll(tenantId: string, filtros: FiltrosClienteDto) {
+  async findAll(
+    tenantId: string,
+    filtros: FiltrosClienteDto,
+    visibleUserIds?: string[] | null,
+  ) {
     const page = filtros.page || 1;
     const limit = filtros.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ClienteWhereInput = { tenant_id: tenantId };
+    if (visibleUserIds) {
+      // El filtro explícito de agenteId no puede ampliar lo que el rol
+      // puede ver (JUNIOR/SENIOR) — se intersecta con visibleUserIds.
+      where.agente_id = filtros.agenteId
+        ? {
+            in: visibleUserIds.includes(filtros.agenteId)
+              ? [filtros.agenteId]
+              : [],
+          }
+        : { in: visibleUserIds };
+    } else if (filtros.agenteId) {
+      where.agente_id = filtros.agenteId;
+    }
     if (filtros.origen) where.origen = filtros.origen as OrigenCliente;
-    if (filtros.agenteId) where.agente_id = filtros.agenteId;
     if (filtros.esPropietario !== undefined)
       where.es_propietario = filtros.esPropietario;
 
@@ -171,15 +187,16 @@ export class ClientesService {
     });
   }
 
-  async getStats(tenantId: string) {
+  async getStats(tenantId: string, visibleUserIds?: string[] | null) {
+    const where: Prisma.ClienteWhereInput = { tenant_id: tenantId };
+    if (visibleUserIds) where.agente_id = { in: visibleUserIds };
+
     const [total, propietarios, porOrigenRaw] = await Promise.all([
-      this.prisma.cliente.count({ where: { tenant_id: tenantId } }),
-      this.prisma.cliente.count({
-        where: { tenant_id: tenantId, es_propietario: true },
-      }),
+      this.prisma.cliente.count({ where }),
+      this.prisma.cliente.count({ where: { ...where, es_propietario: true } }),
       this.prisma.cliente.groupBy({
         by: ['origen'],
-        where: { tenant_id: tenantId },
+        where,
         _count: true,
       }),
     ]);

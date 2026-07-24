@@ -131,6 +131,64 @@ describe('ClientesService', () => {
         }),
       );
     });
+
+    it('no debe restringir por agente cuando visibleUserIds es null (ADMIN/SUPER_ADMIN)', async () => {
+      prisma.cliente.findMany.mockResolvedValue([]);
+      prisma.cliente.count.mockResolvedValue(0);
+
+      await service.findAll(TENANT_ID, {}, null);
+
+      const where = prisma.cliente.findMany.mock.calls[0][0].where;
+      expect(where.agente_id).toBeUndefined();
+    });
+
+    it('debe restringir a los agentes visibles cuando visibleUserIds está definido (JUNIOR/SENIOR)', async () => {
+      prisma.cliente.findMany.mockResolvedValue([]);
+      prisma.cliente.count.mockResolvedValue(0);
+
+      await service.findAll(TENANT_ID, {}, ['agente-1', 'agente-2']);
+
+      expect(prisma.cliente.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            agente_id: { in: ['agente-1', 'agente-2'] },
+          }),
+        }),
+      );
+    });
+
+    it('no debe permitir que filtros.agenteId amplíe la visibilidad de un JUNIOR/SENIOR a un agente ajeno', async () => {
+      prisma.cliente.findMany.mockResolvedValue([]);
+      prisma.cliente.count.mockResolvedValue(0);
+
+      // "agente-ajeno" no está en la lista de visibles del usuario
+      await service.findAll(TENANT_ID, { agenteId: 'agente-ajeno' }, [
+        'agente-1',
+        'agente-2',
+      ]);
+
+      expect(prisma.cliente.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ agente_id: { in: [] } }),
+        }),
+      );
+    });
+
+    it('debe permitir que filtros.agenteId acote dentro de los agentes visibles', async () => {
+      prisma.cliente.findMany.mockResolvedValue([]);
+      prisma.cliente.count.mockResolvedValue(0);
+
+      await service.findAll(TENANT_ID, { agenteId: 'agente-1' }, [
+        'agente-1',
+        'agente-2',
+      ]);
+
+      expect(prisma.cliente.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ agente_id: { in: ['agente-1'] } }),
+        }),
+      );
+    });
   });
 
   describe('findOne', () => {
@@ -195,6 +253,28 @@ describe('ClientesService', () => {
 
       expect(result.total).toBe(5);
       expect(result.porOrigen).toHaveLength(2);
+    });
+
+    it('debe restringir las estadísticas a los agentes visibles cuando aplica', async () => {
+      prisma.cliente.count.mockResolvedValue(0);
+      prisma.cliente.groupBy.mockResolvedValue([]);
+
+      await service.getStats(TENANT_ID, ['agente-1']);
+
+      expect(prisma.cliente.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            agente_id: { in: ['agente-1'] },
+          }),
+        }),
+      );
+      expect(prisma.cliente.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            agente_id: { in: ['agente-1'] },
+          }),
+        }),
+      );
     });
   });
 });
