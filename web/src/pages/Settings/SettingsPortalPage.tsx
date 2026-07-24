@@ -183,7 +183,7 @@ export default function SettingsPortalPage() {
     finally { setLoading(false); }
   }, [accessToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   const saveBranding = async () => {
     setSaving(true);
@@ -199,7 +199,7 @@ export default function SettingsPortalPage() {
         },
       });
       showSaved();
-    } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error al guardar'); }
     finally { setSaving(false); }
   };
 
@@ -209,13 +209,14 @@ export default function SettingsPortalPage() {
       // Strip server-managed fields that the DTO rejects (id, tenant_id, updated_at)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, ...dto } = portal as ConfigPortal & Record<string, unknown>;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { tenant_id: _tid, updated_at: _ua, ...cleanDto } = dto as Record<string, unknown>;
       const updated = await apiRequest<ConfigPortal>('/api/tenants/mi-tenant/portal', {
         method: 'PATCH', token: accessToken!, body: cleanDto,
       });
       setPortal(updated);
       showSaved();
-    } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error al guardar'); }
     finally { setSaving(false); }
   };
 
@@ -232,7 +233,7 @@ export default function SettingsPortalPage() {
         },
       });
       showSaved();
-    } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error al guardar'); }
     finally { setSaving(false); }
   };
 
