@@ -41,6 +41,24 @@ const EMPTY_FORM = {
   tipoInteres: '', gestionInteres: '', presupuestoMax: '', zonaInteres: '', habitacionesMin: '', superficieMinM2: '',
 };
 
+interface ClienteDetail {
+  nombre?: string;
+  email?: string;
+  telefono?: string;
+  dpi?: string;
+  nit?: string;
+  direccion?: string;
+  origen?: string;
+  notas?: string;
+  es_propietario?: boolean;
+  tipo_interes?: string;
+  gestion_interes?: string;
+  presupuesto_max?: number | string | null;
+  zona_interes?: string;
+  habitaciones_min?: number | string | null;
+  superficie_min_m2?: number | string | null;
+}
+
 export default function ClientFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
@@ -60,7 +78,7 @@ export default function ClientFormPage() {
 
   useEffect(() => {
     if (!isEdit) return;
-    apiRequest<any>(`/api/clientes/${id}`, { token: accessToken! })
+    apiRequest<ClienteDetail>(`/api/clientes/${id}`, { token: accessToken! })
       .then((c) => {
         setForm({
           nombre: c.nombre || '',
@@ -77,7 +95,7 @@ export default function ClientFormPage() {
           presupuestoMax: c.presupuesto_max ? String(c.presupuesto_max) : '',
           zonaInteres: c.zona_interes || '',
           habitacionesMin: c.habitaciones_min != null ? String(c.habitaciones_min) : '',
-          superficieMinM2: (c as any).superficie_min_m2 != null ? String((c as any).superficie_min_m2) : '',
+          superficieMinM2: c.superficie_min_m2 != null ? String(c.superficie_min_m2) : '',
         });
       })
       .catch(() => setError('No se pudo cargar el contacto'))
@@ -92,7 +110,7 @@ export default function ClientFormPage() {
     if (Object.keys(errs).length) { setFieldErrors(errs); return; }
     setSaving(true); setError('');
     try {
-      const body: any = {
+      const body: Record<string, unknown> = {
         nombre: form.nombre,
         email: form.email || undefined,
         telefono: form.telefono || undefined,
@@ -118,7 +136,7 @@ export default function ClientFormPage() {
         toast.success('Contacto creado correctamente');
         navigate('/clientes');
       }
-    } catch (err: any) { setError(err.message); } finally { setSaving(false); }
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setSaving(false); }
   };
 
   if (loading) return <div className="clients-loading"><div className="spinner" /><span>Cargando...</span></div>;
