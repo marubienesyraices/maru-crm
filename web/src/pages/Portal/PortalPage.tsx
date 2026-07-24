@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { Map as MapboxMapInstance, Popup as MapboxPopup, MapLayerMouseEvent } from 'mapbox-gl';
 import { useAuthStore } from '../../stores/authStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './Portal.css';
@@ -8,9 +9,28 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 const GT_CENTER: [number, number] = [-90.5069, 14.6349]; // Guatemala City
 
+interface PortalPropiedad {
+  id: string;
+  titulo: string;
+  gestion: string;
+  moneda?: string;
+  precio_venta?: number | string | null;
+  precio_renta?: number | string | null;
+  zona?: string | null;
+  municipio?: string | null;
+  departamento?: string | null;
+  habitaciones?: number | null;
+  banos?: number | null;
+  latitud?: number | string | null;
+  longitud?: number | string | null;
+  imagenes?: { url: string }[];
+  tenant?: { nombre: string } | null;
+  agente?: { nombre: string } | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────
 
-function fmtPrice(prop: any): string {
+function fmtPrice(prop: PortalPropiedad): string {
   const moneda = prop.moneda || 'GTQ';
   const precio = prop.gestion === 'RENTA'
     ? prop.precio_renta
@@ -31,7 +51,7 @@ function gestBadgeClass(g: string) {
 // ─── Property Card ─────────────────────────────────────────────
 
 function PropertyCard({ prop, active, onClick }: {
-  prop: any;
+  prop: PortalPropiedad;
   active: boolean;
   onClick: () => void;
 }) {
@@ -75,13 +95,13 @@ function PropertyCard({ prop, active, onClick }: {
 // ─── Map ───────────────────────────────────────────────────────
 
 function MapboxMap({ properties, activeId, onSelect }: {
-  properties: any[];
+  properties: PortalPropiedad[];
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const popupRef = useRef<any>(null);
+  const mapRef = useRef<MapboxMapInstance | null>(null);
+  const popupRef = useRef<MapboxPopup | null>(null);
   const [ready, setReady] = useState(false);
 
   // Lazy-load mapbox-gl to avoid SSR issues and keep initial bundle lean
@@ -130,10 +150,13 @@ function MapboxMap({ properties, activeId, onSelect }: {
           },
         });
 
-        map.on('click', 'props-circle', (e: any) => {
+        map.on('click', 'props-circle', (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
-          const props = f.properties;
+          const props = f.properties as {
+            lng: number; lat: number; thumb: string; titulo: string;
+            location: string; price: string; id: string;
+          };
           const coords: [number, number] = [props.lng, props.lat];
 
           if (popupRef.current) popupRef.current.remove();
@@ -176,9 +199,10 @@ function MapboxMap({ properties, activeId, onSelect }: {
 
   // Update GeoJSON data when properties change
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
-    const source = mapRef.current.getSource('props');
-    if (!source) return;
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const source = map.getSource('props');
+    if (!source || source.type !== 'geojson') return;
 
     const features = properties
       .filter((p) => p.latitud && p.longitud)
@@ -204,7 +228,7 @@ function MapboxMap({ properties, activeId, onSelect }: {
     if (features.length > 0) {
       const lngs = features.map((f) => f.geometry.coordinates[0]);
       const lats = features.map((f) => f.geometry.coordinates[1]);
-      mapRef.current.fitBounds(
+      map.fitBounds(
         [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
         { padding: 60, maxZoom: 14, duration: 600 },
       );
@@ -213,21 +237,22 @@ function MapboxMap({ properties, activeId, onSelect }: {
 
   // Highlight active feature
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
+    const map = mapRef.current;
+    if (!ready || !map) return;
     // Reset all feature states first
     properties.forEach((p) => {
       try {
-        mapRef.current.setFeatureState({ source: 'props', id: p.id }, { active: false });
+        map.setFeatureState({ source: 'props', id: p.id }, { active: false });
       } catch { /* feature may not exist in map */ }
     });
     if (activeId) {
       try {
-        mapRef.current.setFeatureState({ source: 'props', id: activeId }, { active: true });
+        map.setFeatureState({ source: 'props', id: activeId }, { active: true });
         const active = properties.find((p) => p.id === activeId);
         if (active?.latitud && active?.longitud) {
-          mapRef.current.easeTo({
+          map.easeTo({
             center: [Number(active.longitud), Number(active.latitud)],
-            zoom: Math.max(mapRef.current.getZoom(), 13),
+            zoom: Math.max(map.getZoom(), 13),
             duration: 400,
           });
         }
@@ -253,7 +278,7 @@ function MapboxMap({ properties, activeId, onSelect }: {
 export default function PortalPage() {
   const navigate = useNavigate();
   const { planFeatures } = useAuthStore();
-  const [properties, setProperties] = useState<any[]>([]);
+  const [properties, setProperties] = useState<PortalPropiedad[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -277,14 +302,19 @@ export default function PortalPage() {
 
       const res = await fetch(`${API}/api/public/propiedades?${params}`);
       if (!res.ok) throw new Error('Error al cargar propiedades');
-      const json = await res.json();
+      const json = (await res.json()) as {
+        data?: PortalPropiedad[];
+        meta?: { total: number; page: number; limit: number; totalPages: number };
+      };
       setProperties(json.data ?? []);
       setMeta(json.meta ?? { total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 });
-    } catch { }
+    } catch { /* keep previous properties on error */ }
     finally { setLoading(false); }
   }, [filters, page]);
 
-  useEffect(() => { fetchProperties(); }, [fetchProperties]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchProperties(); });
+  }, [fetchProperties]);
 
   const setFilter = (key: keyof typeof filters, value: string) => {
     setPage(1); // cualquier cambio de filtro reinicia a la primera página
