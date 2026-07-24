@@ -50,7 +50,7 @@ function ListaTab({ token, onNew }: { token: string; onNew: () => void }) {
     finally { setLoading(false); }
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   const publicar = async (id: string) => {
     const ok = await confirm({ title: '¿Publicar ahora?', message: 'La publicación se enviará a las redes configuradas.', confirmLabel: 'Publicar' });
@@ -60,7 +60,7 @@ function ListaTab({ token, onNew }: { token: string; onNew: () => void }) {
       await apiRequest(`/api/meta/${id}/publicar`, { token, method: 'POST' });
       toast.success('Publicado correctamente');
       load();
-    } catch (e: any) { toast.error(e?.message ?? 'Error al publicar'); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error al publicar'); }
     finally { setPublishing(null); }
   };
 
@@ -161,8 +161,8 @@ function NuevaTab({ token, onCreated }: { token: string; onCreated: () => void }
   const charWarning = mensaje.length > maxChars;
 
   useEffect(() => {
-    apiRequest<Propiedad[]>('/api/propiedades?limit=200', { token })
-      .then((data: any) => setPropiedades(Array.isArray(data) ? data : data?.data ?? []))
+    apiRequest<Propiedad[] | { data: Propiedad[] }>('/api/propiedades?limit=200', { token })
+      .then((data) => setPropiedades(Array.isArray(data) ? data : data?.data ?? []))
       .catch(() => {});
   }, [token]);
 
@@ -204,13 +204,18 @@ function NuevaTab({ token, onCreated }: { token: string; onCreated: () => void }
 
       setMensaje(''); setImagenUrl(''); setPropiedadId(''); setProgramadoPara('');
       onCreated();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error al guardar');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
     } finally { setSaving(false); }
   };
 
-  // Minimum datetime: 10 min from now
-  const minDatetime = new Date(Date.now() + 10 * 60 * 1000).toISOString().slice(0, 16);
+  // Minimum datetime: 10 min from now (computed once after mount to avoid impure Date.now() during render)
+  const [minDatetime, setMinDatetime] = useState('');
+  useEffect(() => {
+    queueMicrotask(() => {
+      setMinDatetime(new Date(Date.now() + 10 * 60 * 1000).toISOString().slice(0, 16));
+    });
+  }, []);
 
   return (
     <div className="meta-form-section">
