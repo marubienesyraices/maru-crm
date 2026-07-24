@@ -94,8 +94,10 @@ export default function AdminUsersPage() {
   }, [accessToken, isSuperAdmin]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchTenants();
+    queueMicrotask(() => {
+      fetchUsers();
+      fetchTenants();
+    });
   }, [fetchUsers, fetchTenants]);
 
   const openCreate = () => {
@@ -127,8 +129,8 @@ export default function AdminUsersPage() {
       await apiRequest(`/api/users/${editing.id}/reenviar-activacion`, { method: 'POST', token: accessToken! });
       setError('');
       alert('Correo de activación reenviado correctamente.');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setResending(false);
     }
@@ -144,7 +146,7 @@ export default function AdminUsersPage() {
     setError('');
     try {
       if (isSuperAdmin) {
-        const body: any = { email: form.email, nombre: form.nombre, tenantId: form.tenantId };
+        const body: Record<string, unknown> = { email: form.email, nombre: form.nombre, tenantId: form.tenantId };
         if (editing && form.estado) body.estado = form.estado;
         if (editing) {
           await apiRequest(`/api/users/admins/${editing.id}`, { method: 'PUT', body, token: accessToken! });
@@ -152,7 +154,7 @@ export default function AdminUsersPage() {
           await apiRequest('/api/users/admins', { method: 'POST', body, token: accessToken! });
         }
       } else {
-        const body: any = { ...form };
+        const body: Record<string, unknown> = { ...form };
         delete body.tenantId;
         if (!body.idSupervisor) delete body.idSupervisor;
         if (!editing) delete body.estado;
@@ -164,14 +166,14 @@ export default function AdminUsersPage() {
       }
       setShowModal(false);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
   };
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -183,8 +185,8 @@ export default function AdminUsersPage() {
     try {
       await apiRequest(`/api/users/${u.id}/desbloquear`, { method: 'POST', token: accessToken! });
       fetchUsers();
-    } catch (err: any) {
-      alert(err.message ?? 'Error al desbloquear');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al desbloquear');
     } finally {
       setUnlocking(null);
     }
@@ -209,8 +211,8 @@ export default function AdminUsersPage() {
       setReasignarModal(null);
       alert(res.message);
       fetchUsers();
-    } catch (err: any) {
-      setReasignarError(err.message ?? 'Error al reasignar');
+    } catch (err) {
+      setReasignarError(err instanceof Error ? err.message : 'Error al reasignar');
     } finally {
       setReasignando(false);
     }
@@ -234,8 +236,8 @@ export default function AdminUsersPage() {
       });
       setTransferModal(null);
       fetchUsers();
-    } catch (err: any) {
-      setTransferError(err.message ?? 'Error al transferir');
+    } catch (err) {
+      setTransferError(err instanceof Error ? err.message : 'Error al transferir');
     } finally {
       setTransferring(false);
     }
@@ -537,7 +539,7 @@ export default function AdminUsersPage() {
                     try {
                       await apiRequest(`/api/users/${editing.id}/reset-2fa`, { method: 'POST', token: accessToken! });
                       alert('2FA reseteado. El usuario podrá configurarlo de nuevo en su próximo acceso.');
-                    } catch (err: any) { alert(err.message); }
+                    } catch (err) { alert(err instanceof Error ? err.message : String(err)); }
                   }}
                 >
                   🔄 Resetear 2FA
