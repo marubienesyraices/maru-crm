@@ -58,7 +58,7 @@ export function useCreateCliente() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest('/api/clientes', { method: 'POST', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -70,7 +70,7 @@ export function useUpdateCliente(id: string) {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest(`/api/clientes/${id}`, { method: 'PUT', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes', id] });

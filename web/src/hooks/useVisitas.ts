@@ -2,6 +2,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
+export interface Visita {
+  id: string;
+  estado: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  ubicacion?: string | null;
+  zoom_join_url?: string | null;
+  reporte_fecha?: string | null;
+  reporte_notas?: string | null;
+  reporte_nivel_interes?: string | null;
+  reporte_reaccion?: string | null;
+  reporte_siguiente_paso?: string | null;
+  interes?: {
+    cliente?: { nombre: string } | null;
+    propiedad?: { codigo: string } | null;
+  } | null;
+}
+
 export function useVisitasConfig() {
   const { accessToken } = useAuthStore();
   return useQuery<{ buffer_entre_citas_min: number }>({
@@ -14,7 +32,7 @@ export function useVisitasConfig() {
 
 export function useVisitas(from: Date, to: Date) {
   const { accessToken } = useAuthStore();
-  return useQuery<any[]>({
+  return useQuery<Visita[]>({
     queryKey: ['visitas', from.toISOString(), to.toISOString()],
     queryFn: () =>
       apiRequest(`/api/visitas?from=${from.toISOString()}&to=${to.toISOString()}`, {
@@ -28,7 +46,7 @@ export function useCreateVisita() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest('/api/visitas', { method: 'POST', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitas'] });
@@ -40,7 +58,7 @@ export function useUpdateVisita() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; [k: string]: any }) =>
+    mutationFn: ({ id, ...body }: { id: string; [k: string]: unknown }) =>
       apiRequest(`/api/visitas/${id}`, { method: 'PATCH', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitas'] });
@@ -64,7 +82,7 @@ export function useReporteVisita() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; [k: string]: any }) =>
+    mutationFn: ({ id, ...body }: { id: string; [k: string]: unknown }) =>
       apiRequest(`/api/visitas/${id}/reporte`, { method: 'PATCH', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitas'] });

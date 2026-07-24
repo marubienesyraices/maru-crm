@@ -68,7 +68,7 @@ export function useCreatePropiedad() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest('/api/propiedades', { method: 'POST', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['propiedades'] });
@@ -80,7 +80,7 @@ export function useUpdatePropiedad(id: string) {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest(`/api/propiedades/${id}`, { method: 'PUT', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['propiedades', id] });

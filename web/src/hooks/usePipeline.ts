@@ -2,9 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
+export interface PipelineItem {
+  id: string;
+  estado: string;
+  [key: string]: unknown;
+}
+
 export function usePipeline() {
   const { accessToken } = useAuthStore();
-  return useQuery<Record<string, any[]>>({
+  return useQuery<Record<string, PipelineItem[]>>({
     queryKey: ['pipeline'],
     queryFn: () => apiRequest('/api/pipeline', { token: accessToken! }),
     enabled: !!accessToken,
@@ -60,9 +66,9 @@ export function useMovePipeline() {
 
     onMutate: async ({ id, nuevoEstado }) => {
       await queryClient.cancelQueries({ queryKey: ['pipeline'] });
-      const previous = queryClient.getQueryData<Record<string, any[]>>(['pipeline']);
+      const previous = queryClient.getQueryData<Record<string, PipelineItem[]>>(['pipeline']);
 
-      queryClient.setQueryData<Record<string, any[]>>(['pipeline'], (prev = {}) => {
+      queryClient.setQueryData<Record<string, PipelineItem[]>>(['pipeline'], (prev = {}) => {
         const item = Object.values(prev).flat().find((i) => i.id === id);
         if (!item) return prev;
         const next = { ...prev };
@@ -91,7 +97,7 @@ export function useCreatePipeline() {
   const { accessToken } = useAuthStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, any>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       apiRequest('/api/pipeline', { method: 'POST', body, token: accessToken! }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline'] });
