@@ -289,7 +289,7 @@ No es necesariamente un problema — 29 smoke tests que corren en cada push tien
 4. ~~Reescribir el test de "bloqueo tras 5 intentos"~~ — Hecho, pero el mecanismo real resultó ser distinto al asumido (ver Hallazgo #2 actualizado): 3 intentos → 15min, no 5. El test nuevo verifica el mecanismo real contra una cuenta seed dedicada.
 5. ~~Corregir credenciales stale en `infra/k6/auth.js` y `infra/k6/pipeline.js`~~ — Hecho.
 
-Validado: suite completa del API 530/530 en una DB Postgres aislada recién sembrada (misma metodología del P0). Pendiente: confirmar en la corrida real de CI tras el push.
+Validado: suite completa del API 530/530 en una DB Postgres aislada recién sembrada (misma metodología del P0). **Confirmado en CI real**: aunque no se supervisó una corrida dedicada solo para este push, el job `Unit Tests` de las corridas posteriores (P2, runs `30066542722` y `30067514369`) ya incluye estos cambios acumulados y pasó en verde ambas veces — ver confirmación de P2 más abajo.
 
 ### P2 — Cerrar huecos de cobertura de mayor riesgo de negocio ✅ Aplicado (parcial)
 6. ~~Agregar specs a los schedulers~~ — Hecho. `pipeline.scheduler.ts` 17%→100% stmt (12 tests), `propiedades.scheduler.ts` 26%→100% stmt (12 tests), `visitas.scheduler.ts` 36%→100% stmt (10 tests).
