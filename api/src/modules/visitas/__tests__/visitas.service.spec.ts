@@ -287,4 +287,156 @@ describe('VisitasService', () => {
       );
     });
   });
+
+  // ─── ACCIÓN DEL CLIENTE (ruta pública, sin JWT) ─────────────
+
+  describe('procesarAccionCliente', () => {
+    const TOKEN = 'reschedule-token-abc';
+    const futureExpiry = new Date(Date.now() + 60 * 60 * 1000);
+
+    const visitaConToken = {
+      ...mockVisita,
+      reschedule_token: TOKEN,
+      reschedule_expires: futureExpiry,
+    };
+
+    beforeEach(() => {
+      prisma.propiedad.findUnique.mockResolvedValue({ tenant_id: TENANT_ID });
+    });
+
+    it('CONFIRMAR: marca la visita como CONFIRMADA y notifica al agente', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+      prisma.visita.update.mockResolvedValue({});
+
+      const result = await service.procesarAccionCliente(TOKEN, {
+        accion: 'CONFIRMAR',
+      });
+
+      expect(result).toEqual({ success: true, accion: 'CONFIRMAR' });
+      expect(prisma.visita.update).toHaveBeenCalledWith({
+        where: { id: VISITA_ID },
+        data: { estado: 'CONFIRMADA' },
+      });
+      expect(notificaciones.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tipo: 'VISITA_AGENDADA', userId: AGENTE_ID }),
+      );
+    });
+
+    it('CANCELAR: marca CANCELADA, invalida el token y guarda las notas', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+      prisma.visita.update.mockResolvedValue({});
+
+      const result = await service.procesarAccionCliente(TOKEN, {
+        accion: 'CANCELAR',
+        notas: 'Ya no puedo asistir',
+      });
+
+      expect(result).toEqual({ success: true, accion: 'CANCELAR' });
+      expect(prisma.visita.update).toHaveBeenCalledWith({
+        where: { id: VISITA_ID },
+        data: {
+          estado: 'CANCELADA',
+          reschedule_token: null,
+          reschedule_expires: null,
+          reschedule_notas: 'Ya no puedo asistir',
+        },
+      });
+    });
+
+    it('REPROGRAMAR: guarda la propuesta cuando fecha_fin > fecha_inicio y es futura', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+      prisma.visita.update.mockResolvedValue({});
+
+      const nuevaInicio = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const nuevaFin = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000 + 3600000,
+      ).toISOString();
+
+      const result = await service.procesarAccionCliente(TOKEN, {
+        accion: 'REPROGRAMAR',
+        fecha_inicio: nuevaInicio,
+        fecha_fin: nuevaFin,
+      });
+
+      expect(result).toEqual({ success: true, accion: 'REPROGRAMAR' });
+      expect(prisma.visita.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: VISITA_ID },
+          data: expect.objectContaining({
+            reschedule_propuesta_inicio: new Date(nuevaInicio),
+            reschedule_propuesta_fin: new Date(nuevaFin),
+          }),
+        }),
+      );
+    });
+
+    it('REPROGRAMAR: rechaza si falta fecha_inicio o fecha_fin', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+
+      await expect(
+        service.procesarAccionCliente(TOKEN, { accion: 'REPROGRAMAR' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('REPROGRAMAR: rechaza si fecha_fin no es posterior a fecha_inicio', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+      const inicio = new Date(Date.now() + 86400000).toISOString();
+
+      await expect(
+        service.procesarAccionCliente(TOKEN, {
+          accion: 'REPROGRAMAR',
+          fecha_inicio: inicio,
+          fecha_fin: inicio,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('REPROGRAMAR: rechaza si la fecha propuesta no es futura', async () => {
+      prisma.visita.findUnique.mockResolvedValue(visitaConToken);
+      const pasado = new Date(Date.now() - 86400000).toISOString();
+      const pasadoFin = new Date(Date.now() - 82800000).toISOString();
+
+      await expect(
+        service.procesarAccionCliente(TOKEN, {
+          accion: 'REPROGRAMAR',
+          fecha_inicio: pasado,
+          fecha_fin: pasadoFin,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza con NotFoundException si el token no corresponde a ninguna visita', async () => {
+      prisma.visita.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.procesarAccionCliente('token-invalido', {
+          accion: 'CONFIRMAR',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rechaza si el enlace ya expiró', async () => {
+      prisma.visita.findUnique.mockResolvedValue({
+        ...visitaConToken,
+        reschedule_expires: new Date(Date.now() - 60 * 60 * 1000),
+      });
+
+      await expect(
+        service.procesarAccionCliente(TOKEN, { accion: 'CONFIRMAR' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza si la visita ya fue cancelada', async () => {
+      prisma.visita.findUnique.mockResolvedValue({
+        ...visitaConToken,
+        estado: 'CANCELADA',
+      });
+
+      await expect(
+        service.procesarAccionCliente(TOKEN, { accion: 'CONFIRMAR' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });

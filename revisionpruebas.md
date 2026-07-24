@@ -9,7 +9,7 @@
 
 | Suite | Resultado | Cobertura |
 |:------|:----------|:----------|
-| **API — unitarias** (`api/`, Jest) | ✅ **620/620** passed, 44 suites *(tras P4.1)* | Stmts **78.68%** · Branch **64.08%** · Func **56.72%** · Lines **79.37%** |
+| **API — unitarias** (`api/`, Jest) | ✅ **643/643** passed, 44 suites *(tras P4.1+P4.2)* | Stmts **80.83%** · Branch **67.08%** · Func **58.63%** · Lines **81.61%** |
 | **API — smoke E2E** (`app.e2e-spec.ts`) | ✅ **1/1** passed | — (arranca la app completa, no mide líneas) |
 | **Web — unitarias** (`web/`, Vitest) | ✅ **11/11** passed, 3 archivos | Stmts **1.02%** (48/4688) — solo los 3 archivos con test propio |
 | **Portal — unitarias** (`portal/`, Vitest) | ✅ **6/6** passed, 2 archivos | Stmts **12.61%** (54/428) |
@@ -225,7 +225,7 @@ A pedido explícito, se revisó **qué implica concretamente** subir la cobertur
 | `modules/tenants` — statements | 58.9% | **75.13%** |
 | `modules/users` — statements | 53.5% | **68.69%** |
 
-### P4.2 — Lógica de negocio de alto valor (cálculos puros, fáciles de testear con Prisma mockeado)
+### P4.2 — Lógica de negocio de alto valor (cálculos puros, fáciles de testear con Prisma mockeado) ✅ Aplicado
 
 | Archivo | Qué falta probar | Por qué importa |
 |:--------|:------------------|:-----------------|
@@ -233,6 +233,23 @@ A pedido explícito, se revisó **qué implica concretamente** subir la cobertur
 | `modules/propiedades/propiedades.service.ts` — `delete()` | Rechazo si el estado no es BORRADOR/SUSPENDIDA, rechazo si tiene interesados o solicitudes de firma, que se borren brochures/whatsapp huérfanos antes del cascade | Único método de "borrado real" del módulo más grande del sistema, sin ninguna prueba — a diferencia de `cambiarEstado` (la máquina de estados), que sí está bien cubierta |
 | `modules/propiedades/propiedades.service.ts` — `geocodeFromDto()` | Que devuelva `null` sin `MAPBOX_TOKEN` o con menos de 2 partes de dirección, y que un fetch fallido/timeout no rompa la creación de la propiedad | Llamada a Mapbox con `fetch` global — mockeable con `vi.fn()`/`jest.spyOn(global, 'fetch')`, sin necesidad de red real |
 | `modules/visitas/visitas.service.ts` — `procesarAccionCliente()` (55% stmt, ~130 líneas sin cubrir) | Reprogramar/cancelar una visita vía el link público que recibe el cliente por email (sin JWT, valida por `token`) | Es una ruta pública (`bypass_rls`, ver `PortalModule` en `CLAUDE.md`) que un cliente externo no autenticado puede invocar — el flujo con más superficie de ataque de todo el módulo, y el menos probado |
+
+**Hecho**: 14 tests nuevos en `propiedades.service.spec.ts` — 3 de geocodificación vía `update()` (con `MAPBOX_TOKEN`, sin token, y fetch caído sin romper la actualización), 5 de `delete()` (borrado exitoso con limpieza de archivos huérfanos, y los 3 rechazos por estado/interesados/firma), y 6 de `getPrecioSugerido()` (SIN_DATOS, filtro por radio geográfico usando `haversineM` con un punto a ~111km excluido, los 3 niveles de `confianza` vía `it.each`, y el filtro por `gestion=RENTA`). 10 tests nuevos en `visitas.service.spec.ts` para `procesarAccionCliente()` — los 3 flujos (CONFIRMAR/CANCELAR/REPROGRAMAR), las 3 validaciones de fecha al reprogramar, y los 3 rechazos por token inválido/expirado/visita ya cancelada.
+
+De paso se agregaron al mock central de Prisma (`test/mocks/prisma.mock.ts`) varios métodos que no existían y hacían falta: `propiedad.delete`, `brochureJob` (`findMany`/`deleteMany`), `whatsappEnvio.deleteMany`, y `visita.findUnique`.
+
+**Validado**: suite completa **643/643 tests, 44 suites** (antes 620/620) contra una DB Postgres aislada y recién sembrada.
+
+| Métrica | Antes (post-P4.1) | Después (post-P4.2) |
+|:--------|------:|--------:|
+| `api/` global — statements | 78.68% | **80.83%** |
+| `api/` global — branches | 64.08% | **67.08%** |
+| `api/` global — functions | 56.72% | **58.63%** |
+| `api/` global — lines | 79.37% | **81.61%** |
+| `modules/propiedades` — statements | 62.6% | **82.58%** |
+| `modules/propiedades` — functions | 27.7% | **44.57%** |
+| `modules/visitas` — statements | 70.8% | **83.57%** |
+| `modules/visitas` — branches | 48.4% | **62.5%** |
 
 ### P4.3 — Flujos de email (arquitectura documentada en `CLAUDE.md`, sin probar)
 
@@ -254,11 +271,11 @@ No se recomienda escribir specs para el resto de controllers solo por subir el %
 ### Orden recomendado y esfuerzo estimado
 
 1. ~~**P4.1** (seguridad)~~ ✅ Hecho — 27 tests nuevos (9+12+6), en vez de los ~25-30 estimados.
-2. **P4.2** (lógica de negocio) — ~20-25 tests nuevos, esfuerzo medio (requiere mockear `fetch` global para geocoding y construir arrays de `comparables` para los distintos escenarios de confianza).
+2. ~~**P4.2** (lógica de negocio)~~ ✅ Hecho — 24 tests nuevos (14+10), en vez de los ~20-25 estimados.
 3. **P4.3** (email) — ~10-12 tests nuevos, esfuerzo bajo (mismo patrón que los 6 tests ya existentes en `email.service.spec.ts`).
 4. **P4.4** (controllers) — ~15 tests nuevos si se decide hacerlo, esfuerzo medio-alto (requiere mockear `Express.Multer.File`); es la única parte de este plan con una decisión de alcance pendiente, no una recomendación cerrada.
 
-**Impacto esperado**: subir statements de `api/` de 77.3% a un rango estimado de **83-86%** completando P4.1-P4.3 (sin tocar controllers), con la mejora concentrada en `functions`/`branches` (hoy las métricas más débiles, 55.3%/63.3%) porque casi todo lo listado arriba son métodos completos hoy en 0%, no ramas sueltas dentro de métodos ya parcialmente cubiertos.
+**Impacto esperado**: subir statements de `api/` de 77.3% a un rango estimado de **83-86%** completando P4.1-P4.3 (sin tocar controllers) — tras P4.1+P4.2 ya está en **80.83%**, con la mejora concentrada en `functions`/`branches` (las métricas que arrancaron más débiles: 55.3%→58.63%, 63.3%→67.08%) porque casi todo lo cubierto eran métodos completos en 0%, no ramas sueltas dentro de métodos ya parcialmente cubiertos.
 
 ---
 

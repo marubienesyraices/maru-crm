@@ -21,6 +21,8 @@ export type MockPrismaService = {
   favorito: { [key: string]: jest.Mock };
   busquedaGuardada: { [key: string]: jest.Mock };
   brochureDescarga: { [key: string]: jest.Mock };
+  brochureJob: { [key: string]: jest.Mock };
+  whatsappEnvio: { [key: string]: jest.Mock };
   sindicacionPublicacion: { [key: string]: jest.Mock };
   $executeRawUnsafe: jest.Mock;
   $executeRaw: jest.Mock;
@@ -77,6 +79,7 @@ export function createMockPrismaService(): MockPrismaService {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn(),
     },
@@ -145,6 +148,7 @@ export function createMockPrismaService(): MockPrismaService {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
@@ -153,6 +157,13 @@ export function createMockPrismaService(): MockPrismaService {
       create: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+    },
+    brochureJob: {
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    whatsappEnvio: {
+      deleteMany: jest.fn(),
     },
     sindicacionPublicacion: {
       create: jest.fn(),

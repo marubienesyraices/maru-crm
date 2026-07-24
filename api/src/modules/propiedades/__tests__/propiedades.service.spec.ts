@@ -430,4 +430,265 @@ describe('PropiedadesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  // ─── UPDATE: GEOCODING (geocodeFromDto, vía update) ────────
+
+  describe('update — geocodificación de dirección', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      mockConfigService.get.mockReset().mockReturnValue(undefined);
+    });
+
+    it('geocodifica la nueva dirección cuando el plan tiene mapas y hay MAPBOX_TOKEN', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.catalogoPlan.findUnique.mockResolvedValue({ tiene_mapas: true });
+      prisma.propiedad.update.mockResolvedValue({
+        ...mockPropiedad,
+        latitud: 14.6,
+        longitud: -90.5,
+      });
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'MAPBOX_TOKEN' ? 'test-token' : undefined,
+      );
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ features: [{ center: [-90.5, 14.6] }] }),
+      });
+
+      await service.update(TENANT_ID, 'prop-001', {
+        direccion: 'Nueva dirección',
+      });
+
+      expect(global.fetch).toHaveBeenCalled();
+      expect(prisma.propiedad.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ latitud: 14.6, longitud: -90.5 }),
+        }),
+      );
+    });
+
+    it('no llama a Mapbox si no hay MAPBOX_TOKEN configurado', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.catalogoPlan.findUnique.mockResolvedValue({ tiene_mapas: true });
+      prisma.propiedad.update.mockResolvedValue(mockPropiedad);
+      global.fetch = jest.fn();
+
+      await service.update(TENANT_ID, 'prop-001', {
+        direccion: 'Otra dirección',
+      });
+
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('no rompe la actualización si Mapbox falla (red caída)', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(mockPropiedad);
+      prisma.tenant.findUnique.mockResolvedValue(mockTenant);
+      prisma.catalogoPlan.findUnique.mockResolvedValue({ tiene_mapas: true });
+      prisma.propiedad.update.mockResolvedValue(mockPropiedad);
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'MAPBOX_TOKEN' ? 'test-token' : undefined,
+      );
+      global.fetch = jest.fn().mockRejectedValue(new Error('network down'));
+
+      await expect(
+        service.update(TENANT_ID, 'prop-001', {
+          direccion: 'Dirección con fetch roto',
+        }),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  // ─── DELETE ─────────────────────────────────────────────────
+
+  describe('delete', () => {
+    const deletablePropiedad = {
+      ...mockPropiedad,
+      estado: 'BORRADOR',
+      imagenes: [
+        { url: 'img.jpg', thumbnail_url: 'img-thumb.jpg', original_url: null },
+      ],
+      documentos: [{ url: 'doc.pdf' }],
+      _count: { interesados: 0, firma_solicitudes: 0 },
+    };
+
+    it('debe borrar la propiedad y limpiar los archivos huérfanos (brochures/whatsapp)', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(deletablePropiedad);
+      prisma.brochureJob.findMany.mockResolvedValue([{ url: 'brochure.pdf' }]);
+
+      await service.delete(TENANT_ID, 'prop-001');
+
+      expect(prisma.brochureJob.deleteMany).toHaveBeenCalledWith({
+        where: { propiedad_id: 'prop-001' },
+      });
+      expect(prisma.whatsappEnvio.deleteMany).toHaveBeenCalledWith({
+        where: { propiedad_id: 'prop-001' },
+      });
+      expect(prisma.propiedad.delete).toHaveBeenCalledWith({
+        where: { id: 'prop-001' },
+      });
+      expect(mockStorageService.remove).toHaveBeenCalledTimes(4); // img + thumb + doc + brochure
+    });
+
+    it('debe lanzar NotFoundException si la propiedad no existe', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue(null);
+
+      await expect(service.delete(TENANT_ID, 'no-existe')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('debe rechazar el borrado si el estado no es BORRADOR/SUSPENDIDA', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...deletablePropiedad,
+        estado: 'DISPONIBLE',
+      });
+
+      await expect(service.delete(TENANT_ID, 'prop-001')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.propiedad.delete).not.toHaveBeenCalled();
+    });
+
+    it('debe rechazar el borrado si tiene clientes interesados en el pipeline', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...deletablePropiedad,
+        _count: { interesados: 1, firma_solicitudes: 0 },
+      });
+
+      await expect(service.delete(TENANT_ID, 'prop-001')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.propiedad.delete).not.toHaveBeenCalled();
+    });
+
+    it('debe rechazar el borrado si tiene solicitudes de firma registradas', async () => {
+      prisma.propiedad.findFirst.mockResolvedValue({
+        ...deletablePropiedad,
+        _count: { interesados: 0, firma_solicitudes: 1 },
+      });
+
+      await expect(service.delete(TENANT_ID, 'prop-001')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.propiedad.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── PRECIO SUGERIDO ────────────────────────────────────────
+
+  describe('getPrecioSugerido', () => {
+    it('retorna SIN_DATOS cuando no hay comparables', async () => {
+      prisma.propiedad.findMany.mockResolvedValue([]);
+
+      const result = await service.getPrecioSugerido(TENANT_ID, {
+        tipo: 'CASA',
+        gestion: 'VENTA',
+      });
+
+      expect(result.confianza).toBe('SIN_DATOS');
+      expect(result.comparable_count).toBe(0);
+      expect(result.precio_sugerido_venta).toBeNull();
+    });
+
+    it('con lat/lng filtra por radio (queryComparablesByGeo + haversineM)', async () => {
+      prisma.propiedad.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          codigo: 'C1',
+          titulo: 'Cercana',
+          precio_venta: 1000000,
+          precio_renta: null,
+          area_construccion_m2: null,
+          latitud: 14.6,
+          longitud: -90.5,
+        },
+        {
+          id: 'p2',
+          codigo: 'C2',
+          titulo: 'Lejana (~111km)',
+          precio_venta: 2000000,
+          precio_renta: null,
+          area_construccion_m2: null,
+          latitud: 15.6,
+          longitud: -90.5,
+        },
+      ]);
+
+      const result = await service.getPrecioSugerido(TENANT_ID, {
+        lat: 14.6,
+        lng: -90.5,
+        tipo: 'CASA',
+        gestion: 'VENTA',
+        radioKm: 5,
+      });
+
+      expect(result.usa_geo).toBe(true);
+      expect(result.comparable_count).toBe(1);
+      expect(result.precio_sugerido_venta).toBe(1000000);
+    });
+
+    it.each([
+      [1, 'BAJA'],
+      [3, 'MEDIA'],
+      [5, 'ALTA'],
+    ])(
+      'confianza es %s con %i comparables sin geo (queryComparablesByDepartamento)',
+      async (count, expectedConfianza) => {
+        const rows = Array.from({ length: count }, (_, i) => ({
+          id: `p${i}`,
+          codigo: `C${i}`,
+          titulo: `Prop ${i}`,
+          precio_venta: 1000000,
+          precio_renta: null,
+          area_construccion_m2: null,
+        }));
+        prisma.propiedad.findMany.mockResolvedValue(rows);
+
+        const result = await service.getPrecioSugerido(TENANT_ID, {
+          tipo: 'CASA',
+          gestion: 'VENTA',
+          departamento: 'Guatemala',
+        });
+
+        expect(result.usa_geo).toBe(false);
+        expect(result.comparable_count).toBe(count);
+        expect(result.confianza).toBe(expectedConfianza);
+        expect(result.precio_sugerido_venta).toBe(1000000);
+      },
+    );
+
+    it('excluye comparables sin precio_renta cuando gestion=RENTA', async () => {
+      prisma.propiedad.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          codigo: 'C1',
+          titulo: 'Solo venta',
+          precio_venta: 1000000,
+          precio_renta: null,
+          area_construccion_m2: null,
+        },
+        {
+          id: 'p2',
+          codigo: 'C2',
+          titulo: 'Solo renta',
+          precio_venta: null,
+          precio_renta: 5000,
+          area_construccion_m2: null,
+        },
+      ]);
+
+      const result = await service.getPrecioSugerido(TENANT_ID, {
+        tipo: 'CASA',
+        gestion: 'RENTA',
+      });
+
+      expect(result.comparable_count).toBe(1);
+      expect(result.precio_sugerido_renta).toBe(5000);
+      expect(result.precio_sugerido_venta).toBeNull();
+    });
+  });
 });
