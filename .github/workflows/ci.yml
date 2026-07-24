@@ -5,6 +5,18 @@ on:
     branches: [master, main, develop]
   pull_request:
     branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'Script k6 a ejecutar'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - auth
+          - pipeline
+          - portal-publico
 
 env:
   NODE_VERSION: '20'
@@ -34,6 +46,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test Web (Vitest)
+        run: npm run test -w web
+
+      - name: Test Portal (Vitest)
+        run: npm run test -w portal
+
       - name: Build API
         run: npm run build -w api
 
@@ -41,6 +59,11 @@ jobs:
         run: npm run build -w web
         env:
           VITE_API_URL: http://localhost:3000
+
+      - name: Build Portal
+        run: npm run build -w portal
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
 
   # ─── Unit Tests ──────────────────────────────────────────
   test:
@@ -92,6 +115,20 @@ jobs:
       # el job e2e, y no solo el jest de siempre.
       - name: Run API Tests
         run: npx jest --verbose --ci --coverage
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-test-access-secret-32chars-ok
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-32chars-ok
+          MASTER_ENCRYPTION_KEY: 2c30728429764a7912e2e5c71f835d1a0cbd7cc9ed849c321f0beacb43548dd6
+          NODE_ENV: test
+
+      # app.e2e-spec.ts arranca la AppModule completa vía supertest (smoke
+      # test de GET /api/health) — usa jest-e2e.json, separado del jest de
+      # arriba, y por eso necesita su propio paso con las mismas env vars.
+      - name: Run API E2E smoke test
+        run: npm run test:e2e
         working-directory: api
         env:
           DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
@@ -187,3 +224,105 @@ jobs:
           name: cypress-screenshots
           path: web/cypress/screenshots/
           retention-days: 3
+
+  # ─── Load Tests (k6, manual) ──────────────────────────────────────────────
+  # Solo corre en workflow_dispatch (Actions → CI — GestProp CRM → Run
+  # workflow), no en cada push/PR: son pruebas de carga de varios minutos,
+  # no un gate de merge. Ver infra/k6/*.js — credenciales corregidas en
+  # revisionpruebas.md P1.
+  k6:
+    name: k6 Load Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    needs: lint-build
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gestprop_test
+          POSTGRES_PASSWORD: gestprop_test
+          POSTGRES_DB: gestprop_crm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Generate Prisma Client & migrate
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npx ts-node prisma/seed.ts
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
+
+      - name: Start API (background)
+        run: npm run dev:api &
+        env:
+          DATABASE_URL: postgresql://gestprop_test:gestprop_test@localhost:5432/gestprop_crm_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-test-access-secret-32chars-ok
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-32chars-ok
+          MASTER_ENCRYPTION_KEY: 2c30728429764a7912e2e5c71f835d1a0cbd7cc9ed849c321f0beacb43548dd6
+          PORT: 3000
+          NODE_ENV: test
+
+      - name: Start Portal (background)
+        if: github.event.inputs.script == 'portal-publico' || github.event.inputs.script == 'all'
+        run: npm run dev:portal &
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+
+      - name: Wait for services
+        run: |
+          if [ "${{ github.event.inputs.script }}" = "portal-publico" ] || [ "${{ github.event.inputs.script }}" = "all" ]; then
+            npx wait-on http://localhost:3000/api/health http://localhost:3001 --timeout 60000
+          else
+            npx wait-on http://localhost:3000/api/health --timeout 60000
+          fi
+
+      - name: Run k6 — auth
+        if: github.event.inputs.script == 'auth' || github.event.inputs.script == 'all'
+        uses: grafana/run-k6-action@v1
+        with:
+          path: infra/k6/auth.js
+        env:
+          BASE_URL: http://localhost:3000
+
+      - name: Run k6 — pipeline
+        if: github.event.inputs.script == 'pipeline' || github.event.inputs.script == 'all'
+        uses: grafana/run-k6-action@v1
+        with:
+          path: infra/k6/pipeline.js
+        env:
+          BASE_URL: http://localhost:3000
+
+      - name: Run k6 — portal-publico
+        if: github.event.inputs.script == 'portal-publico' || github.event.inputs.script == 'all'
+        uses: grafana/run-k6-action@v1
+        with:
+          path: infra/k6/portal-publico.js
+        env:
+          API_URL: http://localhost:3000
+          PORTAL_URL: http://localhost:3001
