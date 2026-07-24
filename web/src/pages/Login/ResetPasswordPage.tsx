@@ -45,17 +45,18 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setError('');
     try {
-      const body: any = { token, newPassword: password };
+      const body: Record<string, unknown> = { token, newPassword: password };
       if (requiresTOTP && totpCode) body.totpCode = totpCode;
       await apiRequest('/api/auth/reset-password', { method: 'POST', body });
       setDone(true);
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       // Check if backend requires TOTP
       try {
-        const parsed = JSON.parse(err.message ?? '{}');
+        const parsed = JSON.parse(message || '{}');
         if (parsed.requiresTOTP) { setRequiresTOTP(true); setError(parsed.message ?? 'Ingresa el código de tu app autenticadora'); return; }
       } catch { /* not JSON */ }
-      setError(err.message ?? 'Error al restablecer la contraseña');
+      setError(message || 'Error al restablecer la contraseña');
     } finally {
       setLoading(false);
     }

@@ -73,7 +73,7 @@ export default function TareasPage() {
     }
   }, [accessToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   function openNew() {
     setEditingId(null);

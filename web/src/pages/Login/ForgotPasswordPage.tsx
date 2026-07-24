@@ -20,8 +20,8 @@ export default function ForgotPasswordPage() {
         body: { email },
       });
       setSent(true);
-    } catch (err: any) {
-      setError(err.message ?? 'Error al enviar el correo');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al enviar el correo');
     } finally {
       setLoading(false);
     }

@@ -338,7 +338,7 @@ export default function SettingsIntegracionesPage() {
     finally { setLoading(false); }
   }, [accessToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(() => { load(); }); }, [load]);
 
   const handleChange = (key: keyof IntegConfig, val: string) => {
     setCfg((prev) => ({ ...prev, [key]: val }));
@@ -351,7 +351,7 @@ export default function SettingsIntegracionesPage() {
       // Skip masked values — those are unchanged credentials the server already has.
       const payload: Partial<IntegConfig> = {};
       (Object.keys(emptyConfig) as (keyof IntegConfig)[]).forEach((k) => {
-        if (cfg[k] !== MASKED) payload[k] = cfg[k] || undefined as any;
+        if (cfg[k] !== MASKED) payload[k] = cfg[k] || undefined;
       });
       const updated = await apiRequest<Partial<IntegConfig>>('/api/tenants/mi-tenant/integraciones', {
         method: 'PATCH', token: accessToken!, body: payload,
@@ -359,7 +359,7 @@ export default function SettingsIntegracionesPage() {
       setCfg({ ...emptyConfig, ...updated });
       setSavedMsg('Guardado');
       setTimeout(() => setSavedMsg(''), 3000);
-    } catch (e: any) { toast.error(e?.message ?? 'Error al guardar'); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error al guardar'); }
     finally { setSaving(false); }
   };
 

@@ -16,6 +16,13 @@ const ORIGEN_COLORS: Record<string, string> = {
 
 type RolFiltro = '' | 'propietarios' | 'clientes';
 
+interface ClienteListItem {
+  id: string; nombre: string; email?: string; telefono?: string; origen: string;
+  es_propietario?: boolean;
+  agente?: { nombre: string } | null;
+  _count?: { propiedades: number; intereses: number };
+}
+
 export default function ClientsListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,7 +44,7 @@ export default function ClientsListPage() {
   });
   const { data: stats } = useClientesStats();
 
-  const clientes: any[] = result?.data ?? [];
+  const clientes: ClienteListItem[] = result?.data ?? [];
   const meta = result?.meta ?? { total: 0, totalPages: 1 };
 
   const handleRolChange = (val: RolFiltro) => { setRolFiltro(val); setPage(1); };
@@ -62,7 +69,7 @@ export default function ClientsListPage() {
       {/* Stats */}
       {stats && (
         <div className="clients-stats">
-          {stats.porOrigen?.map((o: any) => (
+          {stats.porOrigen?.map((o: { origen: string; _count: number }) => (
             <div key={o.origen} className="client-stat-chip" style={{ borderColor: ORIGEN_COLORS[o.origen] || '#64748b' }}>
               <span>{ORIGEN_LABELS[o.origen] || o.origen}</span>
               <strong>{o._count}</strong>
@@ -148,11 +155,11 @@ export default function ClientsListPage() {
                   {ORIGEN_LABELS[c.origen] || c.origen}
                 </span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {c._count?.propiedades > 0 && (
-                    <span className="client-intereses-count">🏠 {c._count.propiedades}</span>
+                  {(c._count?.propiedades ?? 0) > 0 && (
+                    <span className="client-intereses-count">🏠 {c._count!.propiedades}</span>
                   )}
-                  {c._count?.intereses > 0 && (
-                    <span className="client-intereses-count">👁 {c._count.intereses}</span>
+                  {(c._count?.intereses ?? 0) > 0 && (
+                    <span className="client-intereses-count">👁 {c._count!.intereses}</span>
                   )}
                 </div>
               </div>

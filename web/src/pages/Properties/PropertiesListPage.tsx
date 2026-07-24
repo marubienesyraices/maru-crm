@@ -30,6 +30,11 @@ interface Propiedad {
   _count: { imagenes: number; documentos: number };
 }
 
+interface PropiedadesStats {
+  total: number;
+  porEstado: { estado: string; _count: number }[];
+}
+
 const ESTADO_COLORS: Record<string, string> = {
   BORRADOR: '#64748b',
   DISPONIBLE: '#22c55e',
@@ -81,7 +86,7 @@ function formatPrice(value: string | null, currency: string) {
       currency: currency || 'GTQ',
       maximumFractionDigits: 0,
     }).format(num);
-  } catch (e) {
+  } catch {
     // Fallback if currency code is invalid
     return `${currency || 'GTQ'} ${num.toLocaleString('es-GT')}`;
   }
@@ -100,7 +105,8 @@ export default function PropertiesListPage() {
   const propiedades: Propiedad[] = result?.data ?? [];
   const meta = result?.meta ?? { total: 0, page: 1, totalPages: 1 };
 
-  const totalPropiedades: number = (stats as any)?.total ?? 0;
+  const propStats = stats as PropiedadesStats | undefined;
+  const totalPropiedades: number = propStats?.total ?? 0;
   const atPropLimit = limitePropiedades !== null && totalPropiedades >= limitePropiedades;
 
   return (
@@ -143,9 +149,9 @@ export default function PropertiesListPage() {
       )}
 
       {/* Stats Row */}
-      {stats && (
+      {propStats && (
         <div className="props-stats">
-          {stats.porEstado.map((s: any) => (
+          {propStats.porEstado.map((s) => (
             <div key={s.estado} className="props-stat-chip" style={{ borderColor: ESTADO_COLORS[s.estado] || '#64748b' }}>
               <span className="props-stat-dot" style={{ background: ESTADO_COLORS[s.estado] || '#64748b' }} />
               <span className="props-stat-label">{s.estado.replace('_', ' ')}</span>

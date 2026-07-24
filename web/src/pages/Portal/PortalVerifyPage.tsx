@@ -16,8 +16,10 @@ export default function PortalVerifyPage() {
   useEffect(() => {
     const token = searchParams.get('token');
     if (!token) {
-      setErrorMsg('Enlace de verificación inválido.');
-      setState('error');
+      queueMicrotask(() => {
+        setErrorMsg('Enlace de verificación inválido.');
+        setState('error');
+      });
       return;
     }
 
@@ -32,8 +34,8 @@ export default function PortalVerifyPage() {
         setNombre(json.nombre || '');
         setState('success');
       })
-      .catch((err: any) => {
-        setErrorMsg(err.message || 'Error de verificación.');
+      .catch((err: unknown) => {
+        setErrorMsg(err instanceof Error ? err.message : 'Error de verificación.');
         setState('error');
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

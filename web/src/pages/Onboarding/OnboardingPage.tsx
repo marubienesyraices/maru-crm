@@ -39,8 +39,8 @@ export default function OnboardingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Error al activar la cuenta');
       setStep('success');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

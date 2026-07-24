@@ -73,7 +73,7 @@ export default function RankingPage() {
     finally { setLoading(false); }
   }, [desde, hasta, accessToken]);
 
-  useEffect(() => { fetchRanking(); }, [fetchRanking]);
+  useEffect(() => { queueMicrotask(() => { fetchRanking(); }); }, [fetchRanking]);
 
   if (loading) {
     return (

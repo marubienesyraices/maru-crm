@@ -42,7 +42,7 @@ export default function HorariosPage() {
       .finally(() => setLoading(false));
   }, [accessToken]);
 
-  const setField = (dia: number, field: keyof Horario, value: any) => {
+  const setField = (dia: number, field: keyof Horario, value: string | boolean) => {
     setHorarios((prev) =>
       prev.map((h) => (h.dia_semana === dia ? { ...h, [field]: value } : h)),
     );
