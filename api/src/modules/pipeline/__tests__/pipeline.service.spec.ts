@@ -27,7 +27,6 @@ const mockPropiedad = {
 };
 
 const AGENTE_ID = 'agent-001';
-const OTRO_AGENTE_ID = 'agent-002';
 
 const mockInteres = {
   id: 'int-001',

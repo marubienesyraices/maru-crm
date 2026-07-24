@@ -240,7 +240,6 @@ describe('BiService', () => {
       prisma.user.findMany.mockResolvedValue(
         agentes.map((a) => ({ id: a.id, nombre: a.nombre, rol: 'SENIOR' })),
       );
-      let call = 0;
       for (const a of agentes) {
         prisma.clientePropiedad.count
           .mockResolvedValueOnce(a.ganados ?? 0)
@@ -251,7 +250,6 @@ describe('BiService', () => {
         });
         prisma.visita.count.mockResolvedValueOnce(a.visitas ?? 0);
         prisma.interaccion.count.mockResolvedValueOnce(a.interacciones ?? 0);
-        call++;
       }
     };
 

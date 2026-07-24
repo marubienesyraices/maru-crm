@@ -35,7 +35,6 @@ const ALLOWED_IMAGE_MIMES = [
 const ALLOWED_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB
-const MAX_FILE_SIZE = MAX_IMAGE_SIZE; // legacy alias used by FilesInterceptor below
 const MAX_IMAGENES = 30;
 const MAX_VIDEOS = 3;
 

@@ -18,18 +18,18 @@ export class StorageService {
   private readonly uploadDir: string;
 
   constructor(private config: ConfigService) {
-    this.bucket = config.get('R2_BUCKET') || null;
-    this.publicUrl = config.get('R2_PUBLIC_URL') || null;
+    this.bucket = config.get<string>('R2_BUCKET') || null;
+    this.publicUrl = config.get<string>('R2_PUBLIC_URL') || null;
     this.uploadDir = join(process.cwd(), 'uploads');
 
     if (this.bucket) {
-      const accountId = config.get('R2_ACCOUNT_ID');
+      const accountId = config.get<string>('R2_ACCOUNT_ID');
       this.s3 = new S3Client({
         region: 'auto',
         endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
         credentials: {
-          accessKeyId: config.get('R2_ACCESS_KEY_ID') || '',
-          secretAccessKey: config.get('R2_SECRET_ACCESS_KEY') || '',
+          accessKeyId: config.get<string>('R2_ACCESS_KEY_ID') || '',
+          secretAccessKey: config.get<string>('R2_SECRET_ACCESS_KEY') || '',
         },
       });
       this.logger.log(`Storage: Cloudflare R2 (bucket: ${this.bucket})`);

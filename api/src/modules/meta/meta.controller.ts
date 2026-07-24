@@ -58,7 +58,10 @@ export class MetaController {
 
   @Post()
   @ApiOperation({ summary: 'Crear borrador de publicación Meta' })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateMetaPublicacionDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateMetaPublicacionDto,
+  ) {
     return this.svc.create(user.tenantId, user.sub, dto);
   }
 

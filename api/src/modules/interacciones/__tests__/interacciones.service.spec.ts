@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { InteraccionesService } from '../interacciones.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import {
   createMockPrismaService,
   MockPrismaService,
@@ -43,9 +44,7 @@ describe('InteraccionesService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: 'NotificacionesService', useValue: { create: jest.fn() } },
         {
-          provide:
-            require('../../../modules/notificaciones/notificaciones.service')
-              .NotificacionesService,
+          provide: NotificacionesService,
           useValue: { create: jest.fn() },
         },
       ],

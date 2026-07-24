@@ -24,7 +24,10 @@ export class BusquedasController {
   @SkipAudit()
   @Get()
   @ApiOperation({ summary: 'Listar búsquedas guardadas del cliente' })
-  list(@CurrentUser() user: AuthenticatedUser, @Param('clienteId') clienteId: string) {
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('clienteId') clienteId: string,
+  ) {
     return this.svc.list(user.tenantId, clienteId);
   }
 

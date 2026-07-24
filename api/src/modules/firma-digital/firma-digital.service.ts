@@ -26,7 +26,7 @@ interface OAuthTokenResponse {
   access_token: string;
   expires_in: number;
 }
-interface DocuSignWebhookBody {
+export interface DocuSignWebhookBody {
   data?: { envelopeId?: string; envelopeSummary?: { status?: string } };
   envelopeId?: string;
   status?: string;

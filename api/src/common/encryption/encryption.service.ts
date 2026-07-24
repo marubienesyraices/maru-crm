@@ -40,7 +40,7 @@ export class EncryptionService {
     const enc = buf.subarray(IV_BYTES + TAG_BYTES);
     const decipher = crypto.createDecipheriv(ALGO, this.key, iv);
     decipher.setAuthTag(tag);
-    return decipher.update(enc) + decipher.final('utf8');
+    return decipher.update(enc, undefined, 'utf8') + decipher.final('utf8');
   }
 
   /** Encrypt only when value is present; return null otherwise. */

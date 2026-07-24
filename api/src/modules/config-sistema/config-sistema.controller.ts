@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { ConfigSistemaService } from './config-sistema.service';
 import { UpdateConfigSistemaDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPER_ADMIN')
@@ -17,7 +19,10 @@ export class ConfigSistemaController {
   }
 
   @Patch()
-  update(@Req() req: any, @Body() dto: UpdateConfigSistemaDto) {
-    return this.svc.update(dto, req.user.sub);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateConfigSistemaDto,
+  ) {
+    return this.svc.update(dto, user.sub);
   }
 }

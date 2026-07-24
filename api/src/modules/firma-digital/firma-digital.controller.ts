@@ -7,6 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { SkipAudit } from '../../common/decorators/skip-audit.decorator';
 import { FirmaDigitalService } from './firma-digital.service';
+import type { DocuSignWebhookBody } from './firma-digital.service';
 
 class SolicitarFirmaDto {
   firmanteNombre!: string;
@@ -24,7 +25,10 @@ export class FirmaDigitalController {
 
   @Get(':propiedadId')
   @ApiOperation({ summary: 'Solicitudes de firma para una propiedad' })
-  getSolicitudes(@CurrentUser() user: AuthenticatedUser, @Param('propiedadId') id: string) {
+  getSolicitudes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('propiedadId') id: string,
+  ) {
     return this.svc.getSolicitudes(user.tenantId, id);
   }
 
@@ -46,7 +50,7 @@ export class FirmaDigitalController {
   @ApiOperation({
     summary: 'Webhook DocuSign Connect — actualiza estado de sobres',
   })
-  webhook(@Body() body: any) {
+  webhook(@Body() body: DocuSignWebhookBody) {
     return this.svc.handleWebhook(body);
   }
 }

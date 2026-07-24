@@ -26,7 +26,10 @@ export class InteraccionesController {
   @ApiOperation({
     summary: 'Registrar interacción (llamada, visita, mensaje…)',
   })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateInteraccionDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateInteraccionDto,
+  ) {
     return this.service.create(user.tenantId, user.sub, dto);
   }
 
