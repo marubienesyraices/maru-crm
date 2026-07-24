@@ -193,6 +193,66 @@ Anotaciones no bloqueantes: GitHub avisa que `actions/checkout@v4` / `actions/se
 
 ---
 
+## 10. Plan — Elevar cobertura de `api/` (siguiente ronda)
+
+A pedido explícito, se revisó **qué implica concretamente** subir la cobertura de `api/` más allá del 77.3% actual — no solo el número, sino qué lógica de negocio específica queda sin probar detrás de cada módulo débil. Metodología: se corrió `jest --coverage` de nuevo, se tomaron los rangos de líneas no cubiertas por archivo, y se leyó el código fuente real detrás de esos rangos (no se infirió nada del nombre del archivo).
+
+**Hallazgo transversal**: en todos los módulos de abajo, los *servicios* ya tienen spec propio (parcial); lo que falta son métodos específicos dentro de esos servicios que el spec existente no ejercita — no hace falta crear módulos de test nuevos, solo ampliar los que ya existen. La única excepción es `common/encryption`, que no tiene ningún archivo de test.
+
+### P4.1 — Alto riesgo de seguridad / bajo esfuerzo (hacer primero)
+
+| Archivo | Qué falta probar | Por qué importa |
+|:--------|:------------------|:-----------------|
+| `common/encryption/encryption.service.ts` (44% stmt, **0 tests**) | Round-trip `encrypt`/`decrypt`, `encryptIfPresent`/`decryptIfPresent` con `null`/`undefined`, el constructor rechazando `MASTER_ENCRYPTION_KEY` ausente o de longitud incorrecta, y que un ciphertext manipulado falle el auth tag (GCM) | Cifra credenciales de integraciones de cada tenant (`config-integraciones`) — es el único módulo de seguridad activa sin ninguna prueba en todo `api/` |
+| `modules/users/users.service.ts` — `desbloquear()`, `resetTotp()` (39.9% stmt) | Que `desbloquear` limpie `intentos_login`/`bloqueado_hasta`, que `resetTotp` apague `totp_habilitado` y borre el secret | Son las dos operaciones manuales de un ADMIN para revertir un bloqueo de cuenta o una pérdida de 2FA — invocadas en un incidente real, sin ninguna prueba hoy |
+| `modules/users/users.service.ts` — `createAdmin()`, `updateAdmin()`, `findAllAdmins()` | Un tenant no puede tener 2 admins (`createAdmin`), reasignar un admin a otro tenant valida que el destino no tenga admin ya | Únicas rutas SUPER_ADMIN de gestión de administradores, cross-tenant por diseño (`bypass_rls`) |
+| `modules/tenants/tenants.service.ts` — `hardDeleteTenant()` (40.7% stmt, **0 tests** en este método) | Que borre las ~18 tablas en el orden correcto (o al menos que la transacción se ejecute completa sin violar FKs con datos de prueba reales) | **Es la única operación irreversible y destructiva de todo el sistema** (borra un tenant completo, cascada manual con `$executeRaw`) y hoy no tiene ninguna prueba — si alguien agrega una tabla nueva con `tenant_id` y olvida añadirla a la lista, quedaría huérfana o rompería la transacción, y nada lo detectaría hasta producción |
+| `modules/tenants/tenants.service.ts` — `cancelTenant()`, `updateConfigSeguridad()` | Que cancelar mate las sesiones activas + invalide el cache de Redis; upsert de config con create/update parciales | `update()` ya prueba la ruta de suspensión; `cancelTenant`/`updateConfigSeguridad` son primas cercanas sin cubrir |
+
+### P4.2 — Lógica de negocio de alto valor (cálculos puros, fáciles de testear con Prisma mockeado)
+
+| Archivo | Qué falta probar | Por qué importa |
+|:--------|:------------------|:-----------------|
+| `modules/propiedades/propiedades.service.ts` — `getPrecioSugerido()` + `queryComparablesByGeo/Departamento` + `haversineM` (62.6% stmt) | Promedio ponderado por distancia inversa, los 3 niveles de `confianza` (ALTA/MEDIA/BAJA según cantidad de comparables), la rama geo (lat/lng) vs departamento, el caso `SIN_DATOS` sin comparables | Es la función de "precio sugerido" que ve el agente al publicar una propiedad — lógica de negocio real (no CRUD), 100% pura una vez mockeado `prisma.propiedad.findMany`, cero tests hoy |
+| `modules/propiedades/propiedades.service.ts` — `delete()` | Rechazo si el estado no es BORRADOR/SUSPENDIDA, rechazo si tiene interesados o solicitudes de firma, que se borren brochures/whatsapp huérfanos antes del cascade | Único método de "borrado real" del módulo más grande del sistema, sin ninguna prueba — a diferencia de `cambiarEstado` (la máquina de estados), que sí está bien cubierta |
+| `modules/propiedades/propiedades.service.ts` — `geocodeFromDto()` | Que devuelva `null` sin `MAPBOX_TOKEN` o con menos de 2 partes de dirección, y que un fetch fallido/timeout no rompa la creación de la propiedad | Llamada a Mapbox con `fetch` global — mockeable con `vi.fn()`/`jest.spyOn(global, 'fetch')`, sin necesidad de red real |
+| `modules/visitas/visitas.service.ts` — `procesarAccionCliente()` (55% stmt, ~130 líneas sin cubrir) | Reprogramar/cancelar una visita vía el link público que recibe el cliente por email (sin JWT, valida por `token`) | Es una ruta pública (`bypass_rls`, ver `PortalModule` en `CLAUDE.md`) que un cliente externo no autenticado puede invocar — el flujo con más superficie de ataque de todo el módulo, y el menos probado |
+
+### P4.3 — Flujos de email (arquitectura documentada en `CLAUDE.md`, sin probar)
+
+| Archivo | Qué falta probar |
+|:--------|:------------------|
+| `modules/email/email.service.ts` — `sendSystemEmail()`, `sendClientEmail()` (45% stmt) | Los specs actuales (`email.service.spec.ts`) solo prueban el `send()` genérico de bajo nivel. Las dos rutas de alto nivel que `CLAUDE.md` documenta explícitamente como arquitectura ("agent notifications" con CTA + tracking pixel vs "client emails" con branding de portal) no tienen ningún test propio |
+| `modules/email/email.tracking.controller.ts` (47% stmt) | El pixel de apertura (`abierto_at`) y el tracking de clics (`primer_clic_at`) — sin controller spec, y sin cubrir en ningún otro test |
+
+### P4.4 — Controllers sin spec propio (decisión de alcance pendiente)
+
+Sigue sin cambios el patrón ya documentado: **ningún `*.controller.ts` de los ~30 en `api/src/modules/` tiene un archivo de test propio.** La cobertura que muestran viene indirectamente de que `owasp.security.spec.ts` arranca la app completa y golpea un puñado de rutas. Escribir specs de controller para los 30 sería una inversión grande y de retorno decreciente (la mayoría son adaptadores delgados `req → service`). Se recomienda acotar a los que tienen lógica propia además de delegar al service:
+
+- `upload.controller.ts` (27% stmt) — validación de tipo/tamaño de archivo y orquestación de multer vive en el controller, no en un service.
+- `documentos.controller.ts` (42.9% stmt) — similar, maneja el multipart directamente.
+- `tenants.controller.ts` (57.1% stmt) — rutas SUPER_ADMIN sensibles (activar/cancelar/hard-delete un tenant).
+
+No se recomienda escribir specs para el resto de controllers solo por subir el %; sería trabajo de bajo valor real.
+
+### Orden recomendado y esfuerzo estimado
+
+1. **P4.1** (seguridad) — ~25-30 tests nuevos, esfuerzo bajo (mocks ya existen en los specs actuales de `users`/`tenants`, solo hay que crear `encryption.service.spec.ts` desde cero).
+2. **P4.2** (lógica de negocio) — ~20-25 tests nuevos, esfuerzo medio (requiere mockear `fetch` global para geocoding y construir arrays de `comparables` para los distintos escenarios de confianza).
+3. **P4.3** (email) — ~10-12 tests nuevos, esfuerzo bajo (mismo patrón que los 6 tests ya existentes en `email.service.spec.ts`).
+4. **P4.4** (controllers) — ~15 tests nuevos si se decide hacerlo, esfuerzo medio-alto (requiere mockear `Express.Multer.File`); es la única parte de este plan con una decisión de alcance pendiente, no una recomendación cerrada.
+
+**Impacto esperado**: subir statements de `api/` de 77.3% a un rango estimado de **83-86%** completando P4.1-P4.3 (sin tocar controllers), con la mejora concentrada en `functions`/`branches` (hoy las métricas más débiles, 55.3%/63.3%) porque casi todo lo listado arriba son métodos completos hoy en 0%, no ramas sueltas dentro de métodos ya parcialmente cubiertos.
+
+---
+
 ## Conclusión
 
 Todas las suites de pruebas del sistema (API unitarias, API smoke e2e, Web unitarias, Portal unitarias, Cypress E2E) pasan al 100% localmente contra una base de datos aislada y recién sembrada, y el estado se replica en la corrida más reciente de CI real. La cobertura de `api/` (77.3% statements) es sólida y por encima del umbral configurado; `web/` (1.02%) y `portal/` (12.6%) reflejan honestamente que la inversión en pruebas ahí recién comenzó esta sesión (antes era 0% en ambos) — quedan como la brecha más grande del sistema, junto con `mobile/` (0%), para una próxima ronda de trabajo si se decide seguir invirtiendo en esa dirección.
+
+API: 594/594 tests unitarios + 1/1 smoke e2e — cobertura 77.3% statements / 63.3% branches / 55.3% functions / 77.9% lines (por encima del umbral configurado).
+Web: 11/11 tests (Vitest) — cobertura 1.02% (refleja que recién empezaron esta sesión, no es una regresión).
+Portal: 6/6 tests (Vitest) — cobertura 12.6%.
+Cypress: 22/22 casos en los 8 specs, corridos de punta a punta contra la app real (no solo confirmados por CI).
+Lint/build: api/web limpios; portal con next lint roto de forma preexistente en este entorno Windows (no relacionado con las pruebas); los 3 paquetes compilan bien.
+CI real: última corrida (30108992846) verde en los 3 jobs automáticos.
