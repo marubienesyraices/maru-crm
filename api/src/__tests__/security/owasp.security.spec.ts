@@ -10,7 +10,13 @@ import { AppModule } from '../../app.module';
 
 // ─── Helpers ────────────────────────────────────────────────
 
-const ADMIN_CREDENTIALS = { email: 'admin@demo.com', password: 'Admin1234!' };
+// Credenciales reales del seed (prisma/seed.ts) — un email inexistente aquí
+// hace que loginAs() siempre devuelva undefined y los tests que dependen de
+// él terminen sin verificar nada (ver revisionpruebas.md, Hallazgo #2).
+const ADMIN_CREDENTIALS = {
+  email: 'admin@gestprop.net',
+  password: 'Admin@2026Desa',
+};
 
 async function loginAs(app: INestApplication, creds = ADMIN_CREDENTIALS) {
   const res = await request(app.getHttpServer())
@@ -79,7 +85,11 @@ describe('OWASP Top 10 — Security tests', () => {
       // UUID that doesn't belong to demo tenant
       const fakeId = '00000000-0000-0000-0000-000000000001';
       const token = await loginAs(app);
-      if (!token) return; // Skip if login fails in test env
+      if (!token) {
+        throw new Error(
+          'loginAs() no devolvió token — revisa ADMIN_CREDENTIALS contra el seed',
+        );
+      }
 
       const res = await request(app.getHttpServer())
         .get(`/api/propiedades/${fakeId}`)
@@ -94,7 +104,11 @@ describe('OWASP Top 10 — Security tests', () => {
   describe('A02 — Cryptographic Failures', () => {
     it('should not return password hash in user responses', async () => {
       const token = await loginAs(app);
-      if (!token) return;
+      if (!token) {
+        throw new Error(
+          'loginAs() no devolvió token — revisa ADMIN_CREDENTIALS contra el seed',
+        );
+      }
 
       const res = await request(app.getHttpServer())
         .get('/api/users')
@@ -131,7 +145,11 @@ describe('OWASP Top 10 — Security tests', () => {
   describe('A03 — Injection', () => {
     it('should sanitize SQL injection attempts in search query', async () => {
       const token = await loginAs(app);
-      if (!token) return;
+      if (!token) {
+        throw new Error(
+          'loginAs() no devolvió token — revisa ADMIN_CREDENTIALS contra el seed',
+        );
+      }
 
       const sqlPayloads = [
         "' OR '1'='1",
@@ -158,8 +176,7 @@ describe('OWASP Top 10 — Security tests', () => {
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
-          email: 'admin@demo.com',
-          password: 'Admin1234!',
+          ...ADMIN_CREDENTIALS,
           __proto__: { isAdmin: true },
           constructor: { name: 'hacked' },
         });
@@ -170,7 +187,11 @@ describe('OWASP Top 10 — Security tests', () => {
 
     it('should handle NoSQL-like injection in request body', async () => {
       const token = await loginAs(app);
-      if (!token) return;
+      if (!token) {
+        throw new Error(
+          'loginAs() no devolvió token — revisa ADMIN_CREDENTIALS contra el seed',
+        );
+      }
 
       // Attempt to pass object instead of string for filtering
       const res = await request(app.getHttpServer())
@@ -226,7 +247,7 @@ describe('OWASP Top 10 — Security tests', () => {
   // ─── A07: Authentication Failures ────────────────────────────
 
   describe('A07 — Identification and Authentication Failures', () => {
-    it('should block account after 5 failed login attempts', async () => {
+    it('should not rate-limit the first failed login attempt for an unknown user', async () => {
       const badCreds = {
         email: `brute-${Date.now()}@test.com`,
         password: 'wrongpass',
@@ -237,6 +258,36 @@ describe('OWASP Top 10 — Security tests', () => {
         .post('/api/auth/login')
         .send(badCreds);
       expect([401, 400]).toContain(firstRes.status);
+    });
+
+    it('should progressively lock a real account after repeated failed attempts (3 strikes → 15min)', async () => {
+      // Cuenta seed dedicada (no ADMIN_CREDENTIALS) para no bloquear la
+      // cuenta que usan el resto de los tests de este archivo. El bloqueo
+      // real es por cuenta — handleFailedLogin() en auth.service.ts marca
+      // bloqueado_hasta tras 3 intentos (15min), 6 (1h) y 9 (indefinido) —
+      // no existe una regla genérica de "5 intentos".
+      const creds = {
+        email: 'pedro.junior@gestprop.net',
+        password: 'wrongpass',
+      };
+
+      let lastStatus = 0;
+      for (let i = 0; i < 3; i++) {
+        const res = await request(app.getHttpServer())
+          .post('/api/auth/login')
+          .send(creds);
+        lastStatus = res.status;
+      }
+      // Los primeros 3 intentos son "credenciales inválidas", no bloqueo.
+      expect(lastStatus).toBe(401);
+
+      // El 3er intento fallido ya dejó bloqueada la cuenta 15 minutos — el
+      // siguiente intento debe rechazarse por bloqueo (403), no por
+      // credenciales inválidas (401).
+      const blockedRes = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send(creds);
+      expect(blockedRes.status).toBe(403);
     });
 
     it('should not accept empty password', async () => {

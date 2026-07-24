@@ -23,7 +23,7 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 function getToken() {
   const res = http.post(
     `${BASE_URL}/api/auth/login`,
-    JSON.stringify({ email: 'admin@demo.com', password: 'Admin1234!' }),
+    JSON.stringify({ email: 'admin@gestprop.net', password: 'Admin@2026Desa' }),
     { headers: { 'Content-Type': 'application/json' } },
   );
   if (res.status !== 200) return null;

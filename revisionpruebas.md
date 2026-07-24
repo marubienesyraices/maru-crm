@@ -12,11 +12,12 @@
 | Lint & Build (CI) | ✅ Verde (arreglado en sesión anterior) |
 | **Unit Tests (CI real)** | ✅ **Corregido** (P0, ver abajo) — validado localmente con Postgres+Redis reales, 529/529 |
 | **E2E Cypress (CI real)** | ✅ **Corregido** (P0, ver abajo) — API confirmada arrancando y respondiendo `/api/health` |
-| Unit Tests (local, con `.env` completo) | ✅ 529/529 |
+| Unit Tests (local, con `.env` completo) | ✅ 530/530 (529 + 1 test nuevo del P1) |
 | Cobertura de líneas (API) | 69.9% (umbral configurado: 65%) |
 | Cobertura de funciones (API) | 48.5% — la más débil de las 4 métricas |
 | E2E Cypress | 6 suites / ~29 casos, todos "smoke tests" superficiales |
-| Pruebas de carga k6 | 3 scripts, **rotos** (credenciales inexistentes) y no integrados en CI |
+| Suite OWASP — credenciales y aserciones vacías | ✅ **Corregido** (P1, ver abajo) |
+| Pruebas de carga k6 | ✅ Credenciales corregidas (P1) — sigue sin integrarse en CI |
 | Unit tests en `web/` (componentes/hooks) | **0** |
 | Tests automatizados en `portal/` y `mobile/` | **0** |
 
@@ -112,12 +113,14 @@ it('should block account after 5 failed login attempts', async () => {
   expect([401, 400]).toContain(firstRes.status);
 });
 ```
-Solo hace **un** intento de login y verifica que devuelva 401/400 — nunca verifica el bloqueo tras 5 intentos que el nombre promete. El bloqueo de fuerza bruta existe en el código (mencionado en `estadoproyecto.md`: "login a 20 intentos por 15 min" vía Throttler), pero no hay ninguna prueba automatizada que lo confirme.
+Solo hace **un** intento de login y verifica que devuelva 401/400 — nunca verifica el bloqueo tras 5 intentos que el nombre promete. Al investigar el fix se encontró que **el mecanismo real no es "5 intentos"**: `handleFailedLogin()` en `auth.service.ts` (línea ~571) bloquea la cuenta progresivamente — 3 intentos fallidos → 15 min, 6 → 1 hora, 9 → indefinido (requiere desbloqueo manual de un admin). Es un bloqueo **por cuenta** (campos `intentos_login`/`bloqueado_hasta` en `users`), distinto del `ThrottlerGuard` por IP que protege el endpoint `/api/auth/login` (20 intentos/15min en producción, 200 en no-producción — ver `auth.controller.ts`). Ninguno de los dos mecanismos reales tenía una prueba que los verificara.
 
-### Fix recomendado
-1. Reemplazar `admin@demo.com`/`Admin1234!` por las credenciales reales del seed, o mejor, crear un usuario dedicado a tests de seguridad en el seed.
-2. Cambiar `if (!token) return;` por `expect(token).toBeDefined();` (o similar) para que un login fallido **rompa el test** en vez de silenciarlo.
-3. Reescribir el test de fuerza bruta para hacer 5+ intentos reales contra el mismo email y verificar el bloqueo (429 o mensaje específico).
+### Fix aplicado ✅
+1. `ADMIN_CREDENTIALS` ahora usa `admin@gestprop.net` / `Admin@2026Desa` (el admin real del seed).
+2. Los 4 `if (!token) return;` ahora lanzan `throw new Error(...)` con un mensaje diagnóstico — un login fallido rompe el test en vez de silenciarlo.
+3. El test de "bloqueo" se reescribió para verificar el mecanismo **real**: 3 intentos fallidos contra una cuenta seed dedicada (`pedro.junior@gestprop.net`, no la usada por `ADMIN_CREDENTIALS`, para no bloquear la cuenta que usan los otros tests) devuelven 401, y el 4to intento devuelve 403 (bloqueada). Se dejó como test separado y explícito que el *primer* intento contra un email inexistente no dispara el throttle (sigue siendo 401/400, no 429).
+
+**Validado localmente** con la misma metodología del Hallazgo #1 (DB Postgres aislada y recién sembrada, para que el bloqueo del test no interfiera con corridas anteriores): suite completa `owasp.security.spec.ts` → 21/21 passed; suite completa del API → 530/530 passed.
 
 ---
 
@@ -139,8 +142,10 @@ Es decir, **estos scripts nunca han probado carga real** contra los endpoints qu
 
 Además, **k6 no está integrado en ningún workflow de CI** (`grep k6 .github/workflows/*.yml` no devuelve nada) — son scripts de ejecución manual (`k6 run infra/k6/auth.js`), así que este problema pudo pasar desapercibido fácilmente.
 
-### Fix recomendado
-Corregir las credenciales en los 3 scripts (usar las del seed real) y considerar agregar un job manual (`workflow_dispatch`) en CI que los ejecute contra un ambiente de staging.
+### Fix aplicado ✅
+Se corrigieron las credenciales en `auth.js` y `pipeline.js` (`admin@gestprop.net` / `Admin@2026Desa`). `portal-publico.js` no necesitaba cambios (no requiere login). Se validó la sintaxis con `node --check` (no hay `k6` instalado localmente para correrlos de verdad).
+
+Sigue pendiente (no es parte de este fix): k6 no está integrado en CI — considerar agregar un job manual (`workflow_dispatch`) que los ejecute contra un ambiente de staging.
 
 ---
 
@@ -242,11 +247,13 @@ No es necesariamente un problema — 29 smoke tests que corren en cada push tien
 ### P0 — Desbloquear CI ✅ Aplicado
 1. ~~Agregar `MASTER_ENCRYPTION_KEY`...~~ — Hecho. Además se agregaron los *services* `postgres`/`redis`, migración y seed al job `test` (no los tenía). Validado localmente y **confirmado en la corrida real de GitHub Actions** (run `30061947586`, commit `9390512`): `Lint & Build` ✓ 1m39s, `E2E Tests (Cypress)` ✓ 2m19s, `Unit Tests` ✓ 1m37s — los tres jobs en verde por primera vez desde al menos el 18-jul-2026.
 
-### P1 — Cerrar huecos de falsa confianza en seguridad
-2. Corregir credenciales en `owasp.security.spec.ts` (`admin@demo.com` → usuario real del seed o uno dedicado a tests).
-3. Cambiar los 4 `if (!token) return;` por aserciones que fallen el test si el login no funciona.
-4. Reescribir el test de "bloqueo tras 5 intentos" para que realmente intente 5+ veces y verifique el bloqueo.
-5. Corregir las mismas credenciales stale en `infra/k6/auth.js` y `infra/k6/pipeline.js`.
+### P1 — Cerrar huecos de falsa confianza en seguridad ✅ Aplicado
+2. ~~Corregir credenciales en `owasp.security.spec.ts`~~ — Hecho, ahora usa `admin@gestprop.net`/`Admin@2026Desa` (real del seed).
+3. ~~Cambiar los 4 `if (!token) return;`~~ — Hecho, ahora lanzan `Error` con mensaje diagnóstico.
+4. ~~Reescribir el test de "bloqueo tras 5 intentos"~~ — Hecho, pero el mecanismo real resultó ser distinto al asumido (ver Hallazgo #2 actualizado): 3 intentos → 15min, no 5. El test nuevo verifica el mecanismo real contra una cuenta seed dedicada.
+5. ~~Corregir credenciales stale en `infra/k6/auth.js` y `infra/k6/pipeline.js`~~ — Hecho.
+
+Validado: suite completa del API 530/530 en una DB Postgres aislada recién sembrada (misma metodología del P0). Pendiente: confirmar en la corrida real de CI tras el push.
 
 ### P2 — Cerrar huecos de cobertura de mayor riesgo de negocio
 6. Agregar specs a los schedulers (`pipeline.scheduler`, `propiedades.scheduler`, `visitas.scheduler`) — corren desatendidos en producción y hoy casi no tienen cobertura.

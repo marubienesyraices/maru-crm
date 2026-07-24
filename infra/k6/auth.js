@@ -26,7 +26,7 @@ export default function () {
   // Login
   const loginRes = http.post(
     `${BASE_URL}/api/auth/login`,
-    JSON.stringify({ email: 'admin@demo.com', password: 'Admin1234!' }),
+    JSON.stringify({ email: 'admin@gestprop.net', password: 'Admin@2026Desa' }),
     { headers: { 'Content-Type': 'application/json' } },
   );
 
