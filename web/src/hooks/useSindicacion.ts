@@ -2,9 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 
+export interface SindicacionPublicacion {
+  portal: 'ENCUENTRA24' | 'MERCADOLIBRE';
+  estado: 'PUBLICADO' | 'PENDIENTE' | 'ERROR' | 'RETIRADO';
+  external_url?: string | null;
+}
+
 export function useSindicacion(propiedadId: string) {
   const { accessToken } = useAuthStore();
-  return useQuery<any[]>({
+  return useQuery<SindicacionPublicacion[]>({
     queryKey: ['sindicacion', propiedadId],
     queryFn: () => apiRequest(`/api/sindicacion/${propiedadId}`, { token: accessToken! }),
     enabled: !!accessToken && !!propiedadId,

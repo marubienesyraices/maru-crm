@@ -10,7 +10,7 @@ import { useToast } from './Toast';
 import { useConfirm } from './ConfirmDialog';
 import './ImageUpload.css';
 
-interface PropiedadImagen {
+export interface PropiedadImagen {
   id: string;
   url: string;
   nombre: string | null;
@@ -149,11 +149,11 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Error al subir'); }
+      if (!res.ok) { const e = (await res.json()) as { message?: string }; throw new Error(e.message || 'Error al subir'); }
       toast.success('Imágenes subidas correctamente');
       onUpdate();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al subir imágenes');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al subir imágenes');
     } finally {
       setUploading(false);
     }
@@ -182,11 +182,11 @@ export default function ImageUpload({ propiedadId, imagenes, onUpdate }: Props) 
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Error al subir'); }
+      if (!res.ok) { const e = (await res.json()) as { message?: string }; throw new Error(e.message || 'Error al subir'); }
       toast.success('Video subido correctamente');
       onUpdate();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al subir video');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al subir video');
     } finally {
       setUploadingVideo(false);
     }

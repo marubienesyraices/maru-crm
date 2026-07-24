@@ -6,10 +6,52 @@ import { useSindicacion, usePublicarPortal, useRetirarPortal } from '../../hooks
 import { useFirmaSolicitudes, useSolicitarFirma } from '../../hooks/useFirma';
 import { useDeletePropiedad } from '../../hooks/usePropiedades';
 import ImageUpload from '../../components/ImageUpload';
+import type { PropiedadImagen } from '../../components/ImageUpload';
 import DocumentUpload from '../../components/DocumentUpload';
+import type { PropiedadDocumento } from '../../components/DocumentUpload';
 import { useToast } from '../../components/Toast';
 import { useConfirm } from '../../components/ConfirmDialog';
 import './Properties.css';
+
+interface Propiedad {
+  id: string;
+  titulo: string;
+  codigo: string;
+  tipo: string;
+  gestion: string;
+  estado: string;
+  precio_venta: string | null;
+  precio_renta: string | null;
+  moneda: string;
+  comision_porcentaje: number | null;
+  pais?: string | null;
+  departamento?: string | null;
+  municipio?: string | null;
+  zona?: string | null;
+  direccion?: string | null;
+  habitaciones?: number | null;
+  banos?: number | null;
+  parqueos?: number | null;
+  niveles?: number | null;
+  area_terreno_m2?: number | null;
+  area_construccion_m2?: number | null;
+  agente?: { nombre: string; email: string } | null;
+  imagenes?: PropiedadImagen[];
+  documentos?: PropiedadDocumento[];
+}
+
+interface WhatsappEnvio {
+  id: string;
+  status: string;
+  telefono_destino: string;
+  enviado_at: string;
+}
+
+interface WhatsappResult {
+  status: 'ENVIADO' | 'LINK_GENERADO';
+  telefono?: string;
+  wa_link?: string;
+}
 
 const ESTADO_COLORS: Record<string, string> = {
   BORRADOR: '#64748b', DISPONIBLE: '#22c55e', RESERVADA: '#f59e0b',
@@ -30,7 +72,7 @@ function formatPrice(v: string | null, currency: string) {
   if (!v) return '—';
   try {
     return new Intl.NumberFormat('es-GT', { style: 'currency', currency: currency || 'GTQ', maximumFractionDigits: 0 }).format(parseFloat(v));
-  } catch (e) {
+  } catch {
     return `${currency || 'GTQ'} ${parseFloat(v).toLocaleString('es-GT')}`;
   }
 }
@@ -57,13 +99,13 @@ function SindicacionPanel({ propiedadId }: { propiedadId: string }) {
   const confirm = useConfirm();
   const [portalError, setPortalError] = useState<Record<string, string>>({});
 
-  const getPublicacion = (portal: string) => pubs.find((p: any) => p.portal === portal);
+  const getPublicacion = (portal: string) => pubs.find((p) => p.portal === portal);
 
   const handlePublicar = (portal: 'ENCUENTRA24' | 'MERCADOLIBRE') => {
     setPortalError((prev) => ({ ...prev, [portal]: '' }));
     publicar.mutate(portal, {
       onSuccess: () => toast.success(`Publicado en ${portal}`),
-      onError: (err: any) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
+      onError: (err: Error) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
     });
   };
 
@@ -73,7 +115,7 @@ function SindicacionPanel({ propiedadId }: { propiedadId: string }) {
     setPortalError((prev) => ({ ...prev, [portal]: '' }));
     retirar.mutate(portal, {
       onSuccess: () => toast.success(`Retirado de ${portal}`),
-      onError: (err: any) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
+      onError: (err: Error) => setPortalError((prev) => ({ ...prev, [portal]: err.message })),
     });
   };
 
@@ -193,7 +235,7 @@ function FirmaPanel({ propiedadId, userRol }: { propiedadId: string; userRol: st
           setSent(true);
           setTimeout(() => setSent(false), 4000);
         },
-        onError: (err: any) => setFormError(err.message),
+        onError: (err: Error) => setFormError(err.message),
       },
     );
   };
@@ -257,7 +299,7 @@ function FirmaPanel({ propiedadId, userRol }: { propiedadId: string; userRol: st
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {solicitudes.map((s: any) => {
+          {solicitudes.map((s) => {
             const badge = FIRMA_BADGE[s.estado];
             return (
               <div key={s.id} style={{
@@ -304,28 +346,28 @@ export default function PropertyDetailPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const deletePropiedad = useDeletePropiedad();
-  const [propiedad, setPropiedad] = useState<any>(null);
+  const [propiedad, setPropiedad] = useState<Propiedad | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'media' | 'documentos' | 'expediente' | 'firma' | 'sindicacion'>('media');
   const [brochureState, setBrochureState] = useState<'idle' | 'generating' | 'error'>('idle');
   const [cartaState, setCartaState] = useState<'idle' | 'generating' | 'error'>('idle');
 
   // Detecta si ya existe un brochure / carta en el expediente
-  const hasBrochure = propiedad?.documentos?.some((d: any) => d.nombre?.startsWith('Brochure PDF -')) ?? false;
-  const hasCarta    = propiedad?.documentos?.some((d: any) => d.nombre?.startsWith('Carta de Comisión —')) ?? false;
+  const hasBrochure = propiedad?.documentos?.some((d) => d.nombre?.startsWith('Brochure PDF -')) ?? false;
+  const hasCarta    = propiedad?.documentos?.some((d) => d.nombre?.startsWith('Carta de Comisión —')) ?? false;
 
   // WhatsApp modal
   const [waOpen, setWaOpen] = useState(false);
   const [waPhone, setWaPhone] = useState('');
   const [waMensaje, setWaMensaje] = useState('');
   const [waLoading, setWaLoading] = useState(false);
-  const [waResult, setWaResult] = useState<any>(null);
+  const [waResult, setWaResult] = useState<WhatsappResult | null>(null);
   const [waError, setWaError] = useState('');
-  const [waHistorial, setWaHistorial] = useState<any[]>([]);
+  const [waHistorial, setWaHistorial] = useState<WhatsappEnvio[]>([]);
 
   const fetchProperty = useCallback(async () => {
     try {
-      const data = await apiRequest<any>(`/api/propiedades/${id}`, { token: accessToken! });
+      const data = await apiRequest<Propiedad>(`/api/propiedades/${id}`, { token: accessToken! });
       setPropiedad(data);
     } catch (err) {
       console.error(err);
@@ -334,9 +376,12 @@ export default function PropertyDetailPage() {
     }
   }, [id, accessToken]);
 
-  useEffect(() => { fetchProperty(); }, [fetchProperty]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchProperty(); });
+  }, [fetchProperty]);
 
   const handleDelete = async () => {
+    if (!propiedad) return;
     const ok = await confirm({
       title: '¿Eliminar propiedad?',
       message: `Se eliminará permanentemente "${propiedad.titulo}" junto con todas sus imágenes, documentos y publicaciones. Esta acción no se puede deshacer.`,
@@ -349,7 +394,7 @@ export default function PropertyDetailPage() {
         toast.success('Propiedad eliminada correctamente');
         navigate('/propiedades');
       },
-      onError: (err: any) => toast.error(err.message ?? 'Error al eliminar la propiedad'),
+      onError: (err: Error) => toast.error(err.message ?? 'Error al eliminar la propiedad'),
     });
   };
 
@@ -360,8 +405,8 @@ export default function PropertyDetailPage() {
       });
       fetchProperty();
       toast.success(`Estado actualizado a ${nuevoEstado}`);
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al cambiar el estado');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar el estado');
     }
   };
 
@@ -370,7 +415,7 @@ export default function PropertyDetailPage() {
     setWaResult(null);
     setWaError('');
     try {
-      const data = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
+      const data = await apiRequest<{ envios: WhatsappEnvio[] }>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
       setWaHistorial(data.envios ?? []);
     } catch { setWaHistorial([]); }
   };
@@ -381,7 +426,7 @@ export default function PropertyDetailPage() {
     setWaError('');
     setWaResult(null);
     try {
-      const data = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/enviar`, {
+      const data = await apiRequest<WhatsappResult>(`/api/propiedades/${id}/whatsapp/enviar`, {
         method: 'POST',
         body: { telefono: waPhone, ...(waMensaje ? { mensaje: waMensaje } : {}) },
         token: accessToken!,
@@ -389,10 +434,10 @@ export default function PropertyDetailPage() {
       setWaResult(data);
       if (data.wa_link) window.open(data.wa_link, '_blank');
       // Refresh historial
-      const hist = await apiRequest<any>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
+      const hist = await apiRequest<{ envios: WhatsappEnvio[] }>(`/api/propiedades/${id}/whatsapp/envios`, { token: accessToken! });
       setWaHistorial(hist.envios ?? []);
-    } catch (err: any) {
-      setWaError(err.message);
+    } catch (err) {
+      setWaError(err instanceof Error ? err.message : 'Error al enviar');
     } finally {
       setWaLoading(false);
     }
@@ -428,8 +473,8 @@ export default function PropertyDetailPage() {
         if (job.status === 'ERROR') throw new Error('La generación del brochure falló');
       }
       throw new Error('Tiempo de espera agotado');
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error generando brochure');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error generando brochure');
       setBrochureState('error');
       setTimeout(() => setBrochureState('idle'), 3000);
     }
@@ -448,8 +493,8 @@ export default function PropertyDetailPage() {
       window.open(pdfUrl, '_blank');
       setCartaState('idle');
       fetchProperty();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al generar carta de comisión');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al generar carta de comisión');
       setCartaState('error');
       setTimeout(() => setCartaState('idle'), 3000);
     }
@@ -708,7 +753,7 @@ export default function PropertyDetailPage() {
                   Envíos anteriores
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {waHistorial.slice(0, 8).map((e: any) => (
+                  {waHistorial.slice(0, 8).map((e) => (
                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem' }}>
                       <span style={{
                         padding: '1px 8px', borderRadius: 10, fontSize: '0.7rem', flexShrink: 0,

@@ -4,7 +4,7 @@ import { useToast } from './Toast';
 import { useConfirm } from './ConfirmDialog';
 import './ImageUpload.css';
 
-interface PropiedadDocumento {
+export interface PropiedadDocumento {
   id: string;
   url: string;
   nombre: string | null;
@@ -55,20 +55,20 @@ export default function DocumentUpload({ propiedadId, documentos, onUpdate }: Pr
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = (await res.json()) as { message?: string };
         throw new Error(err.message || 'Error al subir');
       }
 
       setUploadData({ tipo: 'ESCRITURA', fechaVencimiento: '' });
       toast.success('Documento subido correctamente');
       onUpdate();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al subir el documento');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al subir el documento');
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = '';
     }
-  }, [propiedadId, accessToken, uploadData, onUpdate]);
+  }, [propiedadId, accessToken, uploadData, onUpdate, toast]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -87,8 +87,8 @@ export default function DocumentUpload({ propiedadId, documentos, onUpdate }: Pr
       if (!res.ok) throw new Error('Error al eliminar');
       toast.success('Documento eliminado');
       onUpdate();
-    } catch (err: any) {
-      toast.error(err.message ?? 'Error al eliminar el documento');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el documento');
     }
   };
 
