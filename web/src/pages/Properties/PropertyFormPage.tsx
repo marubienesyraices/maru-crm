@@ -8,6 +8,61 @@ import { useToast } from '../../components/Toast';
 import { usePropietarios } from '../../hooks/usePropietarios';
 import './PropertyForm.css';
 
+interface AgenteOption {
+  id: string;
+  nombre: string;
+  rol: string;
+}
+
+interface PropiedadDetail {
+  titulo?: string;
+  descripcion?: string;
+  tipo?: string;
+  gestion?: string;
+  moneda?: string;
+  precio_venta?: number | string | null;
+  precio_renta?: number | string | null;
+  comision_porcentaje?: number | string | null;
+  pais?: string;
+  departamento?: string;
+  municipio?: string;
+  zona?: string;
+  direccion?: string;
+  latitud?: number | string | null;
+  longitud?: number | string | null;
+  habitaciones?: number | string | null;
+  banos?: number | string | null;
+  parqueos?: number | string | null;
+  niveles?: number | string | null;
+  area_terreno_m2?: number | string | null;
+  area_construccion_m2?: number | string | null;
+  ano_construccion?: number | string | null;
+  propietario?: { id: string; nombre: string } | null;
+  agente?: { id: string } | null;
+  mostrar_en_mapa_crm?: boolean;
+  mostrar_en_portal?: boolean;
+}
+
+interface ComparableItem {
+  id: string;
+  codigo: string;
+  titulo: string;
+  precio_venta?: number | string | null;
+  precio_renta?: number | string | null;
+  distancia_m?: number | null;
+}
+
+interface Suggestion {
+  confianza: 'ALTA' | 'MEDIA' | 'BAJA' | 'SIN_DATOS';
+  comparable_count: number;
+  usa_geo: boolean;
+  radio_km?: number;
+  precio_sugerido_venta?: number | null;
+  precio_sugerido_renta?: number | null;
+  precio_m2_sugerido?: number | null;
+  comparables?: ComparableItem[];
+}
+
 const TIPOS = [
   { value: 'CASA', label: '🏠 Casa' },
   { value: 'APARTAMENTO', label: '🏢 Apartamento' },
@@ -131,7 +186,7 @@ export default function PropertyFormPage() {
 
   // Agentes válidos para asignación (solo visible para ADMIN/SUPER_ADMIN)
   const canAssignAgente = user?.rol === 'ADMIN' || user?.rol === 'SUPER_ADMIN';
-  const { data: agentesDisponibles = [] } = useQuery<any[]>({
+  const { data: agentesDisponibles = [] } = useQuery<AgenteOption[]>({
     queryKey: ['agentes-propiedad'],
     queryFn: () => apiRequest('/api/users/agentes-propiedad', { token: accessToken! }),
     enabled: !!accessToken && canAssignAgente,
@@ -146,7 +201,7 @@ export default function PropertyFormPage() {
 
   // Motor de precios sugerido
   const [loadingSugg, setLoadingSugg] = useState(false);
-  const [suggestion, setSuggestion] = useState<any>(null);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [suggError, setSuggError] = useState('');
 
   const updateField = (field: string, value: string) => {
@@ -168,8 +223,9 @@ export default function PropertyFormPage() {
 
   useEffect(() => {
     if (id) {
+      queueMicrotask(() => {
       setLoading(true);
-      apiRequest<any>(`/api/propiedades/${id}`, { token: accessToken! })
+      apiRequest<PropiedadDetail>(`/api/propiedades/${id}`, { token: accessToken! })
         .then((data) => {
           setForm({
             titulo: data.titulo || '',
@@ -201,8 +257,9 @@ export default function PropertyFormPage() {
           });
           if (data.propietario?.nombre) setPropietarioNombre(data.propietario.nombre);
         })
-        .catch((err) => setError(err.message))
+        .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
         .finally(() => setLoading(false));
+      });
     }
   }, [id, accessToken]);
 
@@ -284,18 +341,18 @@ export default function PropertyFormPage() {
       if (form.longitud)    params.set('lng', form.longitud);
       if (form.departamento) params.set('departamento', form.departamento);
       if (id)               params.set('excludeId', id);
-      const data = await apiRequest<any>(`/api/propiedades/precio-sugerido?${params}`, {
+      const data = await apiRequest<Suggestion>(`/api/propiedades/precio-sugerido?${params}`, {
         token: accessToken!,
       });
       setSuggestion(data);
-    } catch (err: any) {
-      setSuggError(err.message || 'Error al obtener sugerencia de precio');
+    } catch (err) {
+      setSuggError(err instanceof Error ? err.message : 'Error al obtener sugerencia de precio');
     } finally {
       setLoadingSugg(false);
     }
   };
 
-  const lastStepChange = useRef(Date.now());
+  const lastStepChange = useRef(0);
   
   useEffect(() => {
     lastStepChange.current = Date.now();
@@ -313,7 +370,7 @@ export default function PropertyFormPage() {
     setError('');
 
     try {
-      const body: any = {
+      const body: Record<string, unknown> = {
         titulo: form.titulo,
         descripcion: form.descripcion || undefined,
         tipo: form.tipo,
@@ -365,8 +422,8 @@ export default function PropertyFormPage() {
         toast.success('Propiedad creada correctamente');
         navigate('/propiedades');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -500,7 +557,7 @@ export default function PropertyFormPage() {
                   />
                   {propietarioDropdownOpen && propietariosData.length > 0 && (
                     <div className="pf-propietario-dropdown">
-                      {(propietariosData as any[]).slice(0, 8).map((p: any) => (
+                      {propietariosData.slice(0, 8).map((p) => (
                         <div
                           key={p.id}
                           className="pf-propietario-option"
@@ -540,9 +597,9 @@ export default function PropertyFormPage() {
                   onChange={(e) => updateField('agenteId', e.target.value)}
                 >
                   <option value="">
-                    {agentesDisponibles.some((a: any) => a.id === user?.sub) ? '— Asignarme a mí mismo —' : '— Sin asignar —'}
+                    {agentesDisponibles.some((a) => a.id === user?.sub) ? '— Asignarme a mí mismo —' : '— Sin asignar —'}
                   </option>
-                  {agentesDisponibles.map((a: any) => (
+                  {agentesDisponibles.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.nombre} ({a.rol})
                     </option>
@@ -710,10 +767,10 @@ export default function PropertyFormPage() {
                   )}
 
                   {/* Lista de comparables */}
-                  {suggestion.comparables?.length > 0 && (
+                  {(suggestion.comparables?.length ?? 0) > 0 && (
                     <details style={{ marginTop: 10 }}>
                       <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                        Ver {suggestion.comparables.length} comparable{suggestion.comparables.length !== 1 ? 's' : ''}
+                        Ver {suggestion.comparables!.length} comparable{suggestion.comparables!.length !== 1 ? 's' : ''}
                       </summary>
                       <table style={{ width: '100%', marginTop: 8, borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                         <thead>
@@ -726,7 +783,7 @@ export default function PropertyFormPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {suggestion.comparables.map((c: any) => (
+                          {suggestion.comparables!.map((c) => (
                             <tr key={c.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
                               <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)' }}>{c.codigo}</td>
                               <td style={{ padding: '4px 8px' }}>{c.titulo}</td>
