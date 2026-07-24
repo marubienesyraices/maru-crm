@@ -62,7 +62,9 @@ export default function AdminPlanesPage() {
     }
   }, [accessToken]);
 
-  useEffect(() => { fetchPlanes(); }, [fetchPlanes]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchPlanes(); });
+  }, [fetchPlanes]);
 
   const openEdit = (p: CatalogoPlan) => {
     setEditing(p);
@@ -75,6 +77,7 @@ export default function AdminPlanesPage() {
     setSaving(true);
     setError('');
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { plan, updated_at, ...body } = form as CatalogoPlan;
       await apiRequest(`/api/catalogo-planes/${editing.plan}`, {
         method: 'PUT',
@@ -83,14 +86,14 @@ export default function AdminPlanesPage() {
       });
       setEditing(null);
       fetchPlanes();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
   };
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: string, value: string | number | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
