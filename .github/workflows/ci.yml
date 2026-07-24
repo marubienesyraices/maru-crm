@@ -144,8 +144,8 @@ jobs:
         run: npm run cy:run:ci
         working-directory: web
         env:
-          CYPRESS_adminEmail: admin@demo.com
-          CYPRESS_adminPassword: Admin1234!
+          CYPRESS_adminEmail: admin@gestprop.net
+          CYPRESS_adminPassword: Admin@2026Desa
 
       - name: Upload Cypress screenshots on failure
         if: failure()

@@ -24,24 +24,38 @@ function fmtPct(v: number) { return `${v}%`; }
 
 // ─── Resumen Tab ─────────────────────────────────────────────────────────────
 
+interface ResumenData {
+  ganados: number;
+  perdidos: number;
+  tasaConversion: number;
+  ingresosTotales: number;
+  visitasRealizadas: number;
+  interacciones: number;
+  brochures: number;
+  embudo: { estado: string; count: number }[];
+  cacheAt: string;
+}
+
 function ResumenTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ResumenData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true); setIsError(false);
     try {
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
-      const res = await apiRequest<any>(`/api/bi/resumen?${params}`, { token });
+      const res = await apiRequest<ResumenData>(`/api/bi/resumen?${params}`, { token });
       setData(res);
     } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchData(); });
+  }, [fetchData]);
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Calculando métricas…</span></div>;
   if (isError) return (
@@ -51,12 +65,12 @@ function ResumenTab({ desde, hasta, token }: { desde: string; hasta: string; tok
       </div>
       <h3>Error al cargar el resumen</h3>
       <p>No se pudieron obtener las métricas. Verifica tu conexión e intenta de nuevo.</p>
-      <button className="btn btn-ghost" onClick={fetch}>Reintentar</button>
+      <button className="btn btn-ghost" onClick={fetchData}>Reintentar</button>
     </div>
   );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
-  const maxFunnel = Math.max(...(data.embudo || []).map((e: any) => e.count), 1);
+  const maxFunnel = Math.max(...data.embudo.map((e) => e.count), 1);
 
   return (
     <>
@@ -90,7 +104,7 @@ function ResumenTab({ desde, hasta, token }: { desde: string; hasta: string; tok
 
       <div className="bi-section">
         <h3>Embudo de ventas (total acumulado)</h3>
-        {(data.embudo || []).map((row: any) => (
+        {data.embudo.map((row) => (
           <div className="funnel-row" key={row.estado}>
             <span className="funnel-label">{ESTADO_LABELS[row.estado] ?? row.estado}</span>
             <div className="funnel-bar-wrap">
@@ -115,8 +129,28 @@ function ResumenTab({ desde, hasta, token }: { desde: string; hasta: string; tok
 
 type SortKey = 'nombre' | 'ganados' | 'activos' | 'tasaConversion' | 'comisionTotal' | 'visitasRealizadas' | 'numInteracciones';
 
+interface AgenteBiStats {
+  id: string;
+  nombre: string;
+  rol: string;
+  ganados: number;
+  activos: number;
+  tasaConversion: number;
+  comisionTotal: number;
+  visitasRealizadas: number;
+  numInteracciones: number;
+}
+
+interface AgentesData {
+  agentes: AgenteBiStats[];
+}
+
+function SortIcon({ k, sort, dir }: { k: SortKey; sort: SortKey; dir: 'asc' | 'desc' }) {
+  return sort !== k ? <span> ↕</span> : dir === 'desc' ? <span> ↓</span> : <span> ↑</span>;
+}
+
 function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AgentesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [sort, setSort] = useState<SortKey>('ganados');
@@ -129,13 +163,15 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
-      const res = await apiRequest<any>(`/api/bi/agentes?${params}`, { token });
+      const res = await apiRequest<AgentesData>(`/api/bi/agentes?${params}`, { token });
       setData(res);
     } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchData(); });
+  }, [fetchData]);
 
   const handleSort = (key: SortKey) => {
     if (sort === key) setDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -171,13 +207,11 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
   );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
-  const sorted = [...(data.agentes || [])].sort((a: any, b: any) => {
+  const sorted = [...data.agentes].sort((a, b) => {
     const va = a[sort]; const vb = b[sort];
-    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number);
     return dir === 'asc' ? cmp : -cmp;
   });
-
-  const SortIcon = ({ k }: { k: SortKey }) => sort !== k ? <span> ↕</span> : dir === 'desc' ? <span> ↓</span> : <span> ↑</span>;
 
   return (
     <div className="bi-section">
@@ -194,17 +228,17 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
         <table className="bi-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('nombre')}>Agente <SortIcon k="nombre" /></th>
-              <th onClick={() => handleSort('ganados')}>Ganados <SortIcon k="ganados" /></th>
-              <th onClick={() => handleSort('activos')}>Activos <SortIcon k="activos" /></th>
-              <th onClick={() => handleSort('tasaConversion')}>Conversión <SortIcon k="tasaConversion" /></th>
-              <th onClick={() => handleSort('comisionTotal')}>Comisión <SortIcon k="comisionTotal" /></th>
-              <th onClick={() => handleSort('visitasRealizadas')}>Visitas <SortIcon k="visitasRealizadas" /></th>
-              <th onClick={() => handleSort('numInteracciones')}>Interact. <SortIcon k="numInteracciones" /></th>
+              <th onClick={() => handleSort('nombre')}>Agente <SortIcon k="nombre" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('ganados')}>Ganados <SortIcon k="ganados" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('activos')}>Activos <SortIcon k="activos" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('tasaConversion')}>Conversión <SortIcon k="tasaConversion" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('comisionTotal')}>Comisión <SortIcon k="comisionTotal" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('visitasRealizadas')}>Visitas <SortIcon k="visitasRealizadas" sort={sort} dir={dir} /></th>
+              <th onClick={() => handleSort('numInteracciones')}>Interact. <SortIcon k="numInteracciones" sort={sort} dir={dir} /></th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((a: any) => (
+            {sorted.map((a) => (
               <tr key={a.id}>
                 <td>
                   <div style={{ fontWeight: 600 }}>{a.nombre}</div>
@@ -237,8 +271,24 @@ function AgentesTab({ desde, hasta, token }: { desde: string; hasta: string; tok
 
 // ─── Top Propiedades Tab ──────────────────────────────────────────────────────
 
+interface TopPropiedadItem {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  agente: string | null;
+  leads: number;
+  visitas: number;
+  interacciones: number;
+  brochures: number;
+}
+
+interface PropiedadesData {
+  propiedades: TopPropiedadItem[];
+}
+
 function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<PropiedadesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -248,13 +298,15 @@ function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string;
       const params = new URLSearchParams({ limit: '15' });
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
-      const res = await apiRequest<any>(`/api/bi/propiedades/top?${params}`, { token });
+      const res = await apiRequest<PropiedadesData>(`/api/bi/propiedades/top?${params}`, { token });
       setData(res);
     } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchData(); });
+  }, [fetchData]);
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Cargando propiedades…</span></div>;
   if (isError) return (
@@ -269,8 +321,8 @@ function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string;
   );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
-  const props: any[] = data.propiedades || [];
-  const maxScore = Math.max(...props.map((p: any) => p.leads + p.visitas + p.interacciones), 1);
+  const props = data.propiedades;
+  const maxScore = Math.max(...props.map((p) => p.leads + p.visitas + p.interacciones), 1);
 
   return (
     <div className="bi-section">
@@ -291,7 +343,7 @@ function PropiedadesTab({ desde, hasta, token }: { desde: string; hasta: string;
             </tr>
           </thead>
           <tbody>
-            {props.map((p: any, i: number) => {
+            {props.map((p, i) => {
               const score = p.leads + p.visitas + p.interacciones;
               const pct = Math.round((score / maxScore) * 100);
               const cls = pct >= 66 ? 'bi-score-high' : pct >= 33 ? 'bi-score-mid' : 'bi-score-low';
@@ -364,8 +416,28 @@ function Sparkline({ data, width = 72, height = 26 }: { data: { total: number }[
 
 type ProdSortKey = 'nombre' | 'total' | 'LLAMADA' | 'EMAIL' | 'WHATSAPP' | 'MENSAJE' | 'NOTA' | 'VISITA';
 
+interface AgenteProductividad {
+  id: string;
+  nombre: string;
+  rol: string;
+  porTipo: Record<string, number>;
+  total: number;
+  tendencia: { fecha: string; total: number }[];
+}
+
+interface ProductividadData {
+  agentes: AgenteProductividad[];
+  totalesTipo: Record<string, number>;
+  totalInteracciones: number;
+  cacheAt: string;
+}
+
+function ProdSortIcon({ k, sort, dir }: { k: ProdSortKey; sort: ProdSortKey; dir: 'asc' | 'desc' }) {
+  return sort !== k ? <span> ↕</span> : dir === 'desc' ? <span> ↓</span> : <span> ↑</span>;
+}
+
 function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ProductividadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [sort, setSort] = useState<ProdSortKey>('total');
@@ -377,13 +449,15 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
-      const res = await apiRequest<any>(`/api/bi/productividad?${params}`, { token });
+      const res = await apiRequest<ProductividadData>(`/api/bi/productividad?${params}`, { token });
       setData(res);
     } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchData(); });
+  }, [fetchData]);
 
   const handleSort = (key: ProdSortKey) => {
     if (sort === key) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -403,18 +477,15 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
   );
   if (!data) return <div className="bi-empty">Sin datos</div>;
 
-  const agentes: any[] = data.agentes ?? [];
-  const totalesTipo = data.totalesTipo ?? {};
+  const agentes = data.agentes;
+  const totalesTipo = data.totalesTipo;
 
   const sorted = [...agentes].sort((a, b) => {
-    const va = sort === 'nombre' ? a.nombre : sort === 'total' ? a.total : (a.porTipo?.[sort] ?? 0);
-    const vb = sort === 'nombre' ? b.nombre : sort === 'total' ? b.total : (b.porTipo?.[sort] ?? 0);
-    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    const va = sort === 'nombre' ? a.nombre : sort === 'total' ? a.total : (a.porTipo[sort] ?? 0);
+    const vb = sort === 'nombre' ? b.nombre : sort === 'total' ? b.total : (b.porTipo[sort] ?? 0);
+    const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number);
     return dir === 'asc' ? cmp : -cmp;
   });
-
-  const SortIcon = ({ k }: { k: ProdSortKey }) =>
-    sort !== k ? <span> ↕</span> : dir === 'desc' ? <span> ↓</span> : <span> ↑</span>;
 
   return (
     <>
@@ -446,18 +517,18 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
           <table className="bi-table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('nombre')}>Agente <SortIcon k="nombre" /></th>
+                <th onClick={() => handleSort('nombre')}>Agente <ProdSortIcon k="nombre" sort={sort} dir={dir} /></th>
                 {TIPOS.map((t) => (
-                  <th key={t} onClick={() => handleSort(t as ProdSortKey)}>
-                    {TIPO_ICONS[t]} {TIPO_LABELS[t]} <SortIcon k={t as ProdSortKey} />
+                  <th key={t} onClick={() => handleSort(t)}>
+                    {TIPO_ICONS[t]} {TIPO_LABELS[t]} <ProdSortIcon k={t} sort={sort} dir={dir} />
                   </th>
                 ))}
-                <th onClick={() => handleSort('total')}>Total <SortIcon k="total" /></th>
+                <th onClick={() => handleSort('total')}>Total <ProdSortIcon k="total" sort={sort} dir={dir} /></th>
                 <th>Tendencia</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((a: any) => (
+              {sorted.map((a) => (
                 <tr key={a.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{a.nombre}</div>
@@ -465,7 +536,7 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
                   </td>
                   {TIPOS.map((t) => (
                     <td key={t} className="prod-count-cell">
-                      {a.porTipo?.[t] ?? 0}
+                      {a.porTipo[t] ?? 0}
                     </td>
                   ))}
                   <td className="prod-count-cell" style={{ fontWeight: 700 }}>{a.total}</td>
@@ -505,25 +576,36 @@ function ProductividadTab({ desde, hasta, token }: { desde: string; hasta: strin
 
 // ─── Heatmap Tab (F-22) ────────────────────────────────────────────────────────
 
+interface HeatmapPoint {
+  lng: number;
+  lat: number;
+  weight: number;
+  leads: number;
+  titulo: string;
+  codigo: string;
+}
+
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 function HeatmapTab({ token }: { token: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<HeatmapPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [noToken, setNoToken] = useState(false);
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN) { setNoToken(true); setLoading(false); return; }
-    apiRequest<any[]>('/api/bi/heatmap', { token })
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    queueMicrotask(() => {
+      if (!MAPBOX_TOKEN) { setNoToken(true); setLoading(false); return; }
+      apiRequest<HeatmapPoint[]>('/api/bi/heatmap', { token })
+        .then(setData)
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    });
   }, [token]);
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !containerRef.current || !data.length) return;
-    let map: any;
+    let map: import('mapbox-gl').Map | undefined;
     import('mapbox-gl').then(({ default: mapboxgl }) => {
       mapboxgl.accessToken = MAPBOX_TOKEN;
       map = new mapboxgl.Map({
@@ -533,7 +615,7 @@ function HeatmapTab({ token }: { token: string }) {
         zoom: 10,
       });
       map.on('load', () => {
-        const geojson: any = {
+        const geojson: import('mapbox-gl').GeoJSONSourceSpecification['data'] = {
           type: 'FeatureCollection',
           features: data.map((p) => ({
             type: 'Feature',
@@ -541,8 +623,8 @@ function HeatmapTab({ token }: { token: string }) {
             properties: { weight: p.weight, leads: p.leads, titulo: p.titulo, codigo: p.codigo },
           })),
         };
-        map.addSource('props', { type: 'geojson', data: geojson });
-        map.addLayer({
+        map!.addSource('props', { type: 'geojson', data: geojson });
+        map!.addLayer({
           id: 'heat',
           type: 'heatmap',
           source: 'props',
@@ -582,7 +664,7 @@ function HeatmapTab({ token }: { token: string }) {
         </div>
         <div className="bi-kpi" style={{ flex: 1, minWidth: 120 }}>
           <span className="bi-kpi-label">Total leads activos</span>
-          <span className="bi-kpi-value">{data.reduce((s: number, p: any) => s + p.leads, 0)}</span>
+          <span className="bi-kpi-value">{data.reduce((s, p) => s + p.leads, 0)}</span>
         </div>
       </div>
       <div ref={containerRef} style={{ width: '100%', height: 450, borderRadius: 12, overflow: 'hidden' }} />
@@ -595,8 +677,24 @@ function HeatmapTab({ token }: { token: string }) {
 
 // ─── Comisiones Tab (P-14) ────────────────────────────────────────────────────
 
+interface DetalleProyectadoItem {
+  codigo: string;
+  titulo: string;
+  estado: string;
+  monto: number;
+}
+
+interface ComisionesData {
+  realizadas: number;
+  proyectadas: number;
+  totalAcumulado: number;
+  numCierres: number;
+  numEnProceso: number;
+  detalleProyectado: DetalleProyectadoItem[];
+}
+
 function ComisionesTab({ desde, hasta, token }: { desde: string; hasta: string; token: string }) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ComisionesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -606,13 +704,15 @@ function ComisionesTab({ desde, hasta, token }: { desde: string; hasta: string; 
       const params = new URLSearchParams();
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
-      const res = await apiRequest<any>(`/api/bi/comisiones?${params}`, { token });
+      const res = await apiRequest<ComisionesData>(`/api/bi/comisiones?${params}`, { token });
       setData(res);
     } catch { setIsError(true); }
     finally { setLoading(false); }
   }, [desde, hasta, token]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    queueMicrotask(() => { fetchData(); });
+  }, [fetchData]);
 
   if (loading) return <div className="bi-loading"><div className="spinner" /><span>Calculando comisiones…</span></div>;
   if (isError) return (
@@ -687,7 +787,7 @@ function ComisionesTab({ desde, hasta, token }: { desde: string; hasta: string; 
                 </tr>
               </thead>
               <tbody>
-                {data.detalleProyectado.map((item: any, i: number) => (
+                {data.detalleProyectado.map((item, i) => (
                   <tr key={i}>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.codigo}</td>
                     <td>{item.titulo}</td>

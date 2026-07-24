@@ -2,7 +2,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 interface RequestOptions {
   method?: string;
-  body?: any;
+  body?: unknown;
   token?: string;
 }
 
@@ -20,6 +20,11 @@ export function setupApiInterceptors(refresh: RefreshFn, logout: LogoutFn) {
   _logout  = logout;
 }
 
+// Default T=any kept intentionally: ~95 call sites rely on inference without
+// an explicit generic; switching the default to `unknown` would force every
+// one of them to add an explicit type argument (verified: breaks unrelated
+// pages like DashboardPage/ClientsListPage that aren't part of this cleanup).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {},
